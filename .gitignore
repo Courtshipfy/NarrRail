@@ -1,0 +1,26 @@
+# Unreal Engine generated files
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Visual Studio / Rider
+.vs/
+*.VC.db
+*.VC.opendb
+*.sln
+*.suo
+*.user
+*.userprefs
+*.opensdf
+*.sdf
+*.ipch
+
+# Host project generated artifacts
+HostProject/Plugins/
+HostProject/Binaries/
+HostProject/Build/
+HostProject/DerivedDataCache/
+HostProject/Intermediate/
+HostProject/Saved/

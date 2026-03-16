@@ -1,0 +1,12 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.7",
+  "Category": "",
+  "Description": "Host project for developing and testing the NarrRail plugin.",
+  "Plugins": [
+    {
+      "Name": "NarrRail",
+      "Enabled": true
+    }
+  ]
+}
