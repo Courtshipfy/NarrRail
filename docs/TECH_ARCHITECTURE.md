@@ -200,3 +200,4 @@ docs/
 - 风险与阻塞：当前会话运行 UBT 存在日志权限限制
 - 下周计划：完成 `NR-RUN-001` 余项并开始 `NR-RUN-002` 执行器
 - 进展补充：`UNarrRailStoryAsset` 新增版本迁移入口（`PostLoad`），数据契约新增变量与动作结构。
+- 进展补充：Runtime 新增 `UNarrRailStorySession`，对外提供最小流程推进接口（Start/Next/Choose/Stop）。

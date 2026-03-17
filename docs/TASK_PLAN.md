@@ -250,3 +250,4 @@
 - 验证状态：代码已写入，需在你的本机 UE 环境执行完整编译验证
 - 当前阻塞：当前会话执行 UBT 时遇到本地日志文件权限错误（`UnauthorizedAccessException`），不影响代码继续开发
 - 进展补充：已新增变量引用结构（`FNarrRailVariableRef`）、节点动作结构（`FNarrRailNodeAction`）、资产版本字段（`SchemaVersion`）与 `PostLoad` 迁移入口。
+- 进展补充：已新增会话执行器 `UNarrRailStorySession`，支持 `Start/Next/Choose/Stop`、当前节点读取、历史记录与基础边推进。
