@@ -1,4 +1,4 @@
-# Unreal Engine generated files
+﻿# Unreal Engine generated files
 Binaries/
 Build/
 DerivedDataCache/
@@ -24,3 +24,7 @@ HostProject/Build/
 HostProject/DerivedDataCache/
 HostProject/Intermediate/
 HostProject/Saved/
+HostProject/.vs/
+HostProject/.idea/
+HostProject/.vsconfig
+HostProject/Source/

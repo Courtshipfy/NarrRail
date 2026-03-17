@@ -191,3 +191,11 @@ docs/
 - 风险与阻塞：
 - 下周计划：
 ```
+
+### 周更新（2026-03-17）
+- 完成任务：`NR-RUN-001` 首批代码骨架（01/02/03/04/08/10）
+- 变更模块：`NarrRail` Runtime
+- 新增/调整接口：`UNarrRailStoryAsset`、`UNarrRailStoryValidator::ValidateStoryAsset`、`ENarrRailNodeType` 等数据结构
+- 测试结果：完成静态代码自检；完整 UE 编译需在本机环境执行
+- 风险与阻塞：当前会话运行 UBT 存在日志权限限制
+- 下周计划：完成 `NR-RUN-001` 余项并开始 `NR-RUN-002` 执行器
