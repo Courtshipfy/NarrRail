@@ -249,3 +249,4 @@
 - 已落地代码：Runtime 数据模型（节点/边/对白/选项/条件表达式）、剧情主资产类、基础校验器
 - 验证状态：代码已写入，需在你的本机 UE 环境执行完整编译验证
 - 当前阻塞：当前会话执行 UBT 时遇到本地日志文件权限错误（`UnauthorizedAccessException`），不影响代码继续开发
+- 进展补充：已新增变量引用结构（`FNarrRailVariableRef`）、节点动作结构（`FNarrRailNodeAction`）、资产版本字段（`SchemaVersion`）与 `PostLoad` 迁移入口。

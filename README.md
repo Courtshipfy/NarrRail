@@ -19,14 +19,11 @@ UE5.7 AVG plugin scaffold.
 3. Build the project and enable the plugin in the editor.
 
 ## Develop With Host Project
-1. Run `./scripts/Setup-HostProject.ps1`.
-2. Open `HostProject/NarrRailHost.uproject` in UE5.7.
-3. Build with `./HostProject/Build-HostProject.ps1`.
-4. Or double-click `HostProject/Build-HostProject.cmd` in Explorer (defaults to `I:\UE_5.7`).
-5. Iterate on `NarrRail/Source/...` and rebuild.
+1. Open `HostProject/NarrRailHost.uproject` in UE5.7.
+2. Double-click `HostProject/Build-HostProject.cmd` in Explorer.
+3. Iterate on `NarrRail/Source/...` and rebuild.
 
 ## Next Steps
 - Add data model for scripts and dialogue runtime.
 - Implement script import/export.
 - Build flow debugger UI.
-

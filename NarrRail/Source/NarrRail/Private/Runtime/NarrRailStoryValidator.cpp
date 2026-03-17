@@ -2,7 +2,6 @@
 
 namespace NarrRailValidation
 {
-// 统一追加校验问题，避免重复样板代码。
 static void AddIssue(
     TArray<FNarrRailValidationIssue>& OutIssues,
     const ENarrRailValidationSeverity Severity,
@@ -15,7 +14,6 @@ static void AddIssue(
     Issue.Message = Message;
 }
 
-// 检查节点 ID 是否有效且存在于集合中。
 static bool ContainsNode(const TSet<FName>& NodeIds, const FName NodeId)
 {
     return NodeId != NAME_None && NodeIds.Contains(NodeId);
@@ -32,7 +30,29 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
         return Issues;
     }
 
-    // 第一阶段：收集节点并检测空 ID / 重复 ID。
+    if (StoryAsset->SchemaVersion <= 0)
+    {
+        NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, NAME_None, TEXT("SchemaVersion must be greater than zero."));
+    }
+
+    TSet<FName> Variables;
+    for (const FNarrRailVariableRef& Var : StoryAsset->Variables)
+    {
+        if (Var.VariableName == NAME_None)
+        {
+            NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, NAME_None, TEXT("Variable definition has empty name."));
+            continue;
+        }
+
+        if (Variables.Contains(Var.VariableName))
+        {
+            NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, Var.VariableName, TEXT("Duplicate variable name detected."));
+            continue;
+        }
+
+        Variables.Add(Var.VariableName);
+    }
+
     TSet<FName> NodeIds;
     NodeIds.Reserve(StoryAsset->Nodes.Num());
 
@@ -53,13 +73,11 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
         NodeIds.Add(Node.NodeId);
     }
 
-    // 第二阶段：入口节点合法性检查。
     if (!NarrRailValidation::ContainsNode(NodeIds, StoryAsset->EntryNodeId))
     {
         NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, StoryAsset->EntryNodeId, TEXT("EntryNodeId does not exist."));
     }
 
-    // 第三阶段：检查显式边引用是否有效。
     TSet<FName> ReferencedTargets;
 
     for (const FNarrRailNodeEdge& Edge : StoryAsset->Edges)
@@ -83,7 +101,6 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
         }
     }
 
-    // 第四阶段：检查节点内隐式引用（Jump / Choice）。
     for (const FNarrRailNode& Node : StoryAsset->Nodes)
     {
         if (Node.NodeType == ENarrRailNodeType::Jump && Node.JumpTargetNodeId != NAME_None)
@@ -116,7 +133,6 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
         }
     }
 
-    // 第五阶段：检测孤立节点（无入边，且不是入口）。
     for (const FNarrRailNode& Node : StoryAsset->Nodes)
     {
         if (Node.NodeId == StoryAsset->EntryNodeId)
