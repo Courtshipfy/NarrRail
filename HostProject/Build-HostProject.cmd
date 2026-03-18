@@ -61,5 +61,5 @@ if "%EXIT_CODE%"=="0" (
   echo Build failed. Exit code: %EXIT_CODE%
 )
 
-pause
+if not defined NO_PAUSE pause
 exit /b %EXIT_CODE%
