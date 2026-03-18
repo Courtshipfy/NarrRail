@@ -1,0 +1,68 @@
+[
+	{
+		"file": "I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/PerModuleInline.gen.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/PerModuleInline.gen.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/PerModuleInline.gen.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailEditor/PerModuleInline.gen.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailEditor/PerModuleInline.gen.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailEditor/PerModuleInline.gen.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/Module.NarrRail.gen.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/Module.NarrRail.gen.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/Module.NarrRail.gen.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/PerModuleInline.gen.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/PerModuleInline.gen.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/PerModuleInline.gen.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Source/NarrRailEditor/Private/NarrRailEditorModule.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailEditor/NarrRailEditorModule.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailEditor/NarrRailEditorModule.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Source/NarrRail/Private/NarrRailModule.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailModule.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailModule.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Source/NarrRail/Private/Runtime/NarrRailStoryAsset.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailStoryAsset.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailStoryAsset.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Source/NarrRail/Private/Runtime/NarrRailStorySession.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailStorySession.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailStorySession.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Plugins/NarrRail/Source/NarrRail/Private/Runtime/NarrRailStoryValidator.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailStoryValidator.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Plugins/NarrRail/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRail/NarrRailStoryValidator.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Source/NarrRailHost/NarrRailHost.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/NarrRailHost.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/NarrRailHost.cpp.obj"
+	},
+	{
+		"file": "I:/NarrRail/HostProject/Source/NarrRailHost/NarrRailHostTest.cpp",
+		"command": "\"C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe\" @\"I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/NarrRailHostTest.cpp.obj.rsp\" ",
+		"directory": "I:/UE_5.7/Engine/Source",
+		"output": "I:/NarrRail/HostProject/Intermediate/Build/Win64/x64/UnrealEditor/Development/NarrRailHost/NarrRailHostTest.cpp.obj"
+	}
+]
