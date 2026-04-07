@@ -18,7 +18,6 @@ Saved/
 *.ipch
 
 # Host project generated artifacts
-HostProject/Plugins/
 HostProject/Binaries/
 HostProject/Build/
 HostProject/DerivedDataCache/
@@ -27,4 +26,3 @@ HostProject/Saved/
 HostProject/.vs/
 HostProject/.idea/
 HostProject/.vsconfig
-HostProject/Source/
