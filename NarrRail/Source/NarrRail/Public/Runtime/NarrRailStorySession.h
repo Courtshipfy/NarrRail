@@ -24,6 +24,22 @@ enum class ENarrRailSessionState : uint8
     Error UMETA(DisplayName = "Error")
 };
 
+// 会话上下文：单次剧情会话的运行时快照，保证会话状态彼此隔离。
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailSessionContext
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FName CurrentNodeId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    TArray<FName> NodeHistory;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    TMap<FName, FString> VariableSnapshot;
+};
+
 USTRUCT(BlueprintType)
 struct NARRRAIL_API FNarrRailRuntimeResult
 {
@@ -79,7 +95,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
     FName GetCurrentNodeId() const
     {
-        return CurrentNodeId;
+        return Context.CurrentNodeId;
     }
 
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
@@ -91,10 +107,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
     const TArray<FName>& GetHistory() const
     {
-        return NodeHistory;
+        return Context.NodeHistory;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailSessionContext GetSessionContext() const
+    {
+        return Context;
     }
 
 private:
+    void ResetSessionContextFromAsset();
+    FString MakeDefaultVariableValue(ENarrRailVariableType VariableType) const;
     FNarrRailRuntimeResult AdvanceToNode(FName TargetNodeId);
     FNarrRailRuntimeResult ResolveNextByEdge(const FNarrRailNode& FromNode, FName& OutNextNodeId) const;
     const FNarrRailNode* FindNode(FName NodeId) const;
@@ -107,8 +131,5 @@ private:
     ENarrRailSessionState SessionState = ENarrRailSessionState::Idle;
 
     UPROPERTY(Transient)
-    FName CurrentNodeId = NAME_None;
-
-    UPROPERTY(Transient)
-    TArray<FName> NodeHistory;
+    FNarrRailSessionContext Context;
 };

@@ -17,6 +17,7 @@ Saved/
 *.ipch
 
 # Host project generated artifacts
+HostProject/Plugins/
 HostProject/Binaries/
 HostProject/Build/
 HostProject/DerivedDataCache/

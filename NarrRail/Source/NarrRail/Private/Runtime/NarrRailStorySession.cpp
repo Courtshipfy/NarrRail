@@ -21,8 +21,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::Initialize(const UNarrRailStoryAss
 
     StoryAsset = InStoryAsset;
     SessionState = ENarrRailSessionState::Idle;
-    CurrentNodeId = NAME_None;
-    NodeHistory.Reset();
+    ResetSessionContextFromAsset();
 
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Story session initialized."));
 }
@@ -36,7 +35,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::Start(const FName OverrideEntryNod
     }
 
     const FName EntryNodeId = (OverrideEntryNodeId != NAME_None) ? OverrideEntryNodeId : StoryAsset->EntryNodeId;
-    NodeHistory.Reset();
+    ResetSessionContextFromAsset();
 
     return AdvanceToNode(EntryNodeId);
 }
@@ -50,31 +49,31 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
 
     if (SessionState == ENarrRailSessionState::Completed)
     {
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Session already completed."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Session already completed."), Context.CurrentNodeId);
     }
 
     if (SessionState == ENarrRailSessionState::WaitingForChoice)
     {
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node requires Choose()."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node requires Choose()."), Context.CurrentNodeId);
     }
 
-    const FNarrRailNode* Node = FindNode(CurrentNodeId);
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
     if (Node == nullptr)
     {
         SessionState = ENarrRailSessionState::Error;
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Current node not found."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Current node not found."), Context.CurrentNodeId);
     }
 
     if (Node->NodeType == ENarrRailNodeType::End)
     {
         SessionState = ENarrRailSessionState::Completed;
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), Context.CurrentNodeId);
     }
 
     if (Node->NodeType == ENarrRailNodeType::Choice)
     {
         SessionState = ENarrRailSessionState::WaitingForChoice;
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node requires Choose()."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node requires Choose()."), Context.CurrentNodeId);
     }
 
     if (Node->NodeType == ENarrRailNodeType::Jump)
@@ -82,7 +81,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
         if (Node->JumpTargetNodeId == NAME_None)
         {
             SessionState = ENarrRailSessionState::Error;
-            return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Jump node has empty target."), CurrentNodeId);
+            return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Jump node has empty target."), Context.CurrentNodeId);
         }
 
         return AdvanceToNode(Node->JumpTargetNodeId);
@@ -109,27 +108,27 @@ FNarrRailRuntimeResult UNarrRailStorySession::Choose(const int32 ChoiceIndex)
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
     }
 
-    const FNarrRailNode* Node = FindNode(CurrentNodeId);
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
     if (Node == nullptr)
     {
         SessionState = ENarrRailSessionState::Error;
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Current node not found."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Current node not found."), Context.CurrentNodeId);
     }
 
     if (Node->NodeType != ENarrRailNodeType::Choice)
     {
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node is not a choice node."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node is not a choice node."), Context.CurrentNodeId);
     }
 
     if (!Node->Choices.IsValidIndex(ChoiceIndex))
     {
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice index out of range."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice index out of range."), Context.CurrentNodeId);
     }
 
     const FNarrRailChoiceOption& Option = Node->Choices[ChoiceIndex];
     if (Option.TargetNodeId == NAME_None)
     {
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice target node is empty."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice target node is empty."), Context.CurrentNodeId);
     }
 
     return AdvanceToNode(Option.TargetNodeId);
@@ -143,12 +142,12 @@ FNarrRailRuntimeResult UNarrRailStorySession::Stop()
     }
 
     SessionState = ENarrRailSessionState::Completed;
-    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Session stopped."), CurrentNodeId);
+    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Session stopped."), Context.CurrentNodeId);
 }
 
 bool UNarrRailStorySession::GetCurrentNode(FNarrRailNode& OutNode) const
 {
-    const FNarrRailNode* Node = FindNode(CurrentNodeId);
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
     if (Node == nullptr)
     {
         return false;
@@ -160,13 +159,49 @@ bool UNarrRailStorySession::GetCurrentNode(FNarrRailNode& OutNode) const
 
 TArray<FNarrRailChoiceOption> UNarrRailStorySession::GetCurrentChoices() const
 {
-    const FNarrRailNode* Node = FindNode(CurrentNodeId);
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
     if (Node == nullptr || Node->NodeType != ENarrRailNodeType::Choice)
     {
         return {};
     }
 
     return Node->Choices;
+}
+
+void UNarrRailStorySession::ResetSessionContextFromAsset()
+{
+    Context = FNarrRailSessionContext{};
+
+    if (StoryAsset == nullptr)
+    {
+        return;
+    }
+
+    for (const FNarrRailVariableRef& Variable : StoryAsset->Variables)
+    {
+        if (Variable.VariableName == NAME_None || Context.VariableSnapshot.Contains(Variable.VariableName))
+        {
+            continue;
+        }
+
+        Context.VariableSnapshot.Add(Variable.VariableName, MakeDefaultVariableValue(Variable.VariableType));
+    }
+}
+
+FString UNarrRailStorySession::MakeDefaultVariableValue(const ENarrRailVariableType VariableType) const
+{
+    switch (VariableType)
+    {
+    case ENarrRailVariableType::Bool:
+        return TEXT("false");
+    case ENarrRailVariableType::Int:
+        return TEXT("0");
+    case ENarrRailVariableType::Float:
+        return TEXT("0.0");
+    case ENarrRailVariableType::String:
+    default:
+        return TEXT("");
+    }
 }
 
 FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNodeId)
@@ -178,13 +213,13 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Target node not found."), TargetNodeId);
     }
 
-    CurrentNodeId = TargetNodeId;
-    NodeHistory.Add(CurrentNodeId);
+    Context.CurrentNodeId = TargetNodeId;
+    Context.NodeHistory.Add(Context.CurrentNodeId);
 
     if (Node->NodeType == ENarrRailNodeType::End)
     {
         SessionState = ENarrRailSessionState::Completed;
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), CurrentNodeId);
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), Context.CurrentNodeId);
     }
 
     if (Node->NodeType == ENarrRailNodeType::Choice)
@@ -196,7 +231,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
         SessionState = ENarrRailSessionState::Running;
     }
 
-    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Advanced to node."), CurrentNodeId);
+    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Advanced to node."), Context.CurrentNodeId);
 }
 
 FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailNode& FromNode, FName& OutNextNodeId) const
