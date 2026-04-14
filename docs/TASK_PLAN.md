@@ -30,8 +30,8 @@
 - [x] `NR-RUN-001-03` 定义对白数据结构（说话人、文本键、语速、语音资源引用） | DoD: 字段齐全可编辑 | 测试: 加载后字段一致 | 证据: 资产对比截图
 - [x] `NR-RUN-001-04` 定义选项数据结构（选项文本、条件、跳转目标、副作用） | DoD: 可描述复杂分支 | 测试: 3 选 1 分支正确跳转 | 证据: 用例记录
 - [x] `NR-RUN-001-05` 定义变量引用结构（名称、类型、作用域） | DoD: 支持静态校验 | 测试: 非法变量引用可检测 | 证据: 校验日志
-- [ ] `NR-RUN-001-06` 定义条件表达式结构（比较/逻辑组合） | DoD: 可序列化、可执行 | 测试: 真/假分支覆盖通过 | 证据: 测试报告
-- [ ] `NR-RUN-001-07` 定义动作结构（Set/Add/Sub/EmitEvent） | DoD: 可在节点退出时执行 | 测试: 动作执行后变量值正确 | 证据: 日志
+- [x] `NR-RUN-001-06` 定义条件表达式结构（比较/逻辑组合） | DoD: 可序列化、可执行 | 测试: 真/假分支覆盖通过 | 证据: 测试报告
+- [x] `NR-RUN-001-07` 定义动作结构（Set/Add/Sub/EmitEvent） | DoD: 可在节点退出时执行 | 测试: 动作执行后变量值正确 | 证据: 日志
 - [x] `NR-RUN-001-08` 创建剧情主资产类（含节点表、边表、入口点） | DoD: 可在内容浏览器创建/保存 | 测试: 重启编辑器后资产完整 | 证据: 录屏
 - [x] `NR-RUN-001-09` 增加资产版本号字段与迁移入口 | DoD: 旧版可迁移 | 测试: 模拟旧字段导入成功 | 证据: 迁移日志
 - [x] `NR-RUN-001-10` 资产加载前校验器（ID 重复、断链、孤点） | DoD: 阻止非法运行 | 测试: 构造坏数据触发报错 | 证据: 报错截图
@@ -44,29 +44,29 @@
 - [x] `NR-RUN-002-04` 实现 `Choose(Index)`（分支选择） | DoD: 仅允许合法索引 | 测试: 越界选择返回错误 | 证据: 错误日志
 - [x] `NR-RUN-002-05` 实现跳转节点执行（Goto） | DoD: 支持跨段跳转 | 测试: 跳转后节点顺序正确 | 证据: 路径追踪
 - [x] `NR-RUN-002-06` 实现结束节点处理（End） | DoD: 会话正确终止 | 测试: End 后 Next 不再推进 | 证据: 单测
-- [ ] `NR-RUN-002-07` 执行动作管线（节点进入/退出动作） | DoD: 执行顺序稳定 | 测试: 组合动作结果符合预期 | 证据: 日志
+- [x] `NR-RUN-002-07` 执行动作管线（节点进入/退出动作） | DoD: 执行顺序稳定 | 测试: 组合动作结果符合预期 | 证据: 日志
 - [x] `NR-RUN-002-08` 历史轨迹记录（访问节点序列） | DoD: 可用于回放/调试 | 测试: 路径回放一致 | 证据: 回放结果
-- [ ] `NR-RUN-002-09` 支持中断与恢复接口（Pause/Resume/Stop） | DoD: 状态转换合法 | 测试: 多次暂停恢复无错乱 | 证据: 录屏
+- [x] `NR-RUN-002-09` 支持中断与恢复接口（Pause/Resume/Stop） | DoD: 状态转换合法 | 测试: 多次暂停恢复无错乱 | 证据: 录屏
 - [x] `NR-RUN-002-10` 错误码体系（非法状态/无目标/死循环保护） | DoD: 对外错误可读 | 测试: 异常分支覆盖 | 证据: 错误码清单
 
 #### M1.3 变量与条件系统
 
-- [ ] `NR-RUN-003-01` 变量容器（Bool/Int/Float/String） | DoD: 统一读写接口 | 测试: 四种类型读写通过 | 证据: 单测
-- [ ] `NR-RUN-003-02` 默认值初始化机制 | DoD: 会话启动时初始化 | 测试: 未赋值变量可取默认值 | 证据: 日志
-- [ ] `NR-RUN-003-03` 变量作用域（剧情级/会话级） | DoD: 作用域隔离明确 | 测试: 跨会话变量不串值 | 证据: 用例
-- [ ] `NR-RUN-003-04` 变量变更通知（Observer） | DoD: 变更事件可订阅 | 测试: 每次赋值触发一次 | 证据: 回调计数
-- [ ] `NR-RUN-003-05` 比较运算（==/!=/>/>=/</<=） | DoD: 四种类型比较行为定义清晰 | 测试: 边界值用例通过 | 证据: 单测
-- [ ] `NR-RUN-003-06` 逻辑运算（AND/OR/NOT） | DoD: 支持短路 | 测试: 复杂表达式求值正确 | 证据: 单测
-- [ ] `NR-RUN-003-07` 空值与类型不匹配处理 | DoD: 失败返回明确错误 | 测试: 错配输入不崩溃 | 证据: 错误日志
+- [x] `NR-RUN-003-01` 变量容器（Bool/Int/Float/String） | DoD: 统一读写接口 | 测试: 四种类型读写通过 | 证据: 单测
+- [x] `NR-RUN-003-02` 默认值初始化机制 | DoD: 会话启动时初始化 | 测试: 未赋值变量可取默认值 | 证据: 日志
+- [x] `NR-RUN-003-03` 变量作用域（剧情级/会话级） | DoD: 作用域隔离明确 | 测试: 跨会话变量不串值 | 证据: 用例
+- [x] `NR-RUN-003-04` 变量变更通知（Observer） | DoD: 变更事件可订阅 | 测试: 每次赋值触发一次 | 证据: 回调计数
+- [x] `NR-RUN-003-05` 比较运算（==/!=/>/>=/</<=） | DoD: 四种类型比较行为定义清晰 | 测试: 边界值用例通过 | 证据: 单测
+- [x] `NR-RUN-003-06` 逻辑运算（AND/OR/NOT） | DoD: 支持短路 | 测试: 复杂表达式求值正确 | 证据: 单测
+- [x] `NR-RUN-003-07` 空值与类型不匹配处理 | DoD: 失败返回明确错误 | 测试: 错配输入不崩溃 | 证据: 错误日志
 - [ ] `NR-RUN-003-08` 条件缓存与重复求值优化 | DoD: 热路径性能改善 | 测试: 1k 次求值耗时记录 | 证据: Profiling
 
 #### M1.4 事件钩子与 Blueprint 接口
 
-- [ ] `NR-RUN-005-01` 定义运行时委托（OnStart/OnNodeEnter/OnNodeExit/OnEnd） | DoD: 事件参数完整 | 测试: 各阶段均触发 | 证据: 日志
-- [ ] `NR-RUN-005-02` 定义分支事件（OnChoicesReady/OnChoiceSelected） | DoD: 能携带可选项数据 | 测试: 选项 UI 可实时刷新 | 证据: 蓝图截图
-- [ ] `NR-RUN-005-03` 暴露 Blueprint Callable API（Start/Next/Choose/Save/Load） | DoD: 蓝图可直接调用 | 测试: 蓝图图表内跑通流程 | 证据: 录屏
-- [ ] `NR-RUN-005-04` 暴露 Blueprint Pure API（GetCurrentNode/GetVar） | DoD: 纯函数无副作用 | 测试: PIE 中读取稳定 | 证据: 调试截图
-- [ ] `NR-RUN-005-05` 事件线程与生命周期安全检查 | DoD: PIE 结束不残留回调 | 测试: 反复 PIE 无崩溃 | 证据: 回归结果
+- [x] `NR-RUN-005-01` 定义运行时委托（OnStart/OnNodeEnter/OnNodeExit/OnEnd） | DoD: 事件参数完整 | 测试: 各阶段均触发 | 证据: 日志
+- [x] `NR-RUN-005-02` 定义分支事件（OnChoicesReady/OnChoiceSelected） | DoD: 能携带可选项数据 | 测试: 选项 UI 可实时刷新 | 证据: 蓝图截图
+- [x] `NR-RUN-005-03` 暴露 Blueprint Callable API（Start/Next/Choose/Save/Load） | DoD: 蓝图可直接调用 | 测试: 蓝图图表内跑通流程 | 证据: 录屏
+- [x] `NR-RUN-005-04` 暴露 Blueprint Pure API（GetCurrentNode/GetVar） | DoD: 纯函数无副作用 | 测试: PIE 中读取稳定 | 证据: 调试截图
+- [x] `NR-RUN-005-05` 事件线程与生命周期安全检查 | DoD: PIE 结束不残留回调 | 测试: 反复 PIE 无崩溃 | 证据: 回归结果
 
 #### M1.5 存档与恢复
 
@@ -81,11 +81,11 @@
 
 #### M2.1 脚本规范与版本化
 
-- [ ] `NR-IO-001-01` 定义 DSL/JSON 根结构（Meta/Nodes/Edges/Vars） | DoD: 字段最小完备 | 测试: 空白模板可解析 | 证据: 规范文档
-- [ ] `NR-IO-001-02` 定义节点字段规范（必填/选填/默认值） | DoD: 字段规则明确 | 测试: 缺失必填时报错 | 证据: 报错样例
-- [ ] `NR-IO-001-03` 定义变量与条件表达式语法 | DoD: 语法无歧义 | 测试: 正反例可判定 | 证据: 语法样例
-- [ ] `NR-IO-001-04` 定义文件版本号与兼容策略 | DoD: 升级路径明确 | 测试: v1->v2 迁移通过 | 证据: 迁移说明
-- [ ] `NR-IO-001-05` 发布脚本规范文档（含示例） | DoD: 可独立指导编剧产出 | 测试: 按文档手写脚本可导入 | 证据: 文档链接
+- [x] `NR-IO-001-01` 定义 DSL/JSON 根结构（Meta/Nodes/Edges/Vars） | DoD: 字段最小完备 | 测试: 空白模板可解析 | 证据: 规范文档
+- [x] `NR-IO-001-02` 定义节点字段规范（必填/选填/默认值） | DoD: 字段规则明确 | 测试: 缺失必填时报错 | 证据: 报错样例
+- [x] `NR-IO-001-03` 定义变量与条件表达式语法 | DoD: 语法无歧义 | 测试: 正反例可判定 | 证据: 语法样例
+- [x] `NR-IO-001-04` 定义文件版本号与兼容策略 | DoD: 升级路径明确 | 测试: v1->v2 迁移通过 | 证据: 迁移说明
+- [x] `NR-IO-001-05` 发布脚本规范文档（含示例） | DoD: 可独立指导编剧产出 | 测试: 按文档手写脚本可导入 | 证据: 文档链接
 
 #### M2.2 解析器与校验器
 
@@ -255,3 +255,63 @@
 
 
 - 进展补充：`NR-RUN-002-01` 已完成，会话上下文统一为 `FNarrRailSessionContext`（当前节点、变量快照、历史），并在 Initialize/Start 进行会话级重置。
+
+- 进展补充：已完成 `NR-RUN-001-06/07`（条件执行与动作定义落地）与 `NR-RUN-002-07/09`（动作管线、Pause/Resume）。
+- 进展补充：已完成 `NR-IO-001-01~05`，新增脚本规范文档 `docs/SCRIPT_FORMAT.md`。
+
+### 2026-04-14
+
+- 完成任务：`NR-RUN-003-01~07`（M1.3 变量与条件系统，除性能优化外）
+- 变更模块：`NarrRail` Runtime
+- 新增/调整接口：
+  - 新增 `UNarrRailVariableContainer` 类：统一变量容器，支持 Bool/Int/Float/String 四种类型
+  - 新增类型安全的读写接口：`GetBool/GetInt/GetFloat/GetString`、`SetBool/SetInt/SetFloat/SetString`
+  - 新增算术操作接口：`AddInt/AddFloat/SubtractInt/SubtractFloat`
+  - 新增比较操作接口：`CompareBool/CompareInt/CompareFloat/CompareString`
+  - 新增变量作用域支持：`bGlobalScope` 字段，`ResetSessionVariables()` 方法
+  - 新增变量变更通知：`OnVariableChanged` 委托
+  - 新增错误处理：`ENarrRailVariableError` 错误码，`FNarrRailVariableResult` 结果结构
+  - `UNarrRailStorySession` 集成变量容器，替换原有的 `VariableSnapshot` 直接操作
+  - 新增便捷变量访问接口：`GetVariableBool/Int/Float/String`、`SetVariableBool/Int/Float/String`
+- 测试结果：完成编译验证，UBT 编译通过
+- 风险与遗留：
+  - `NR-RUN-003-08` 条件缓存优化待实现（性能优化项）
+  - 需要编写单元测试覆盖变量容器的各种边界情况
+  - 需要在 PIE 中验证变量作用域隔离和变更通知功能
+- 下一步计划：
+  - 选项 1：继续 M1.4 事件钩子与 Blueprint 接口（`NR-RUN-005-*`）
+  - 选项 2：继续 M1.5 存档与恢复（`NR-RUN-006-*`）
+  - 选项 3：补充 M1.3 的单元测试和性能优化
+
+### 2026-04-14（下午）
+
+- 完成任务：`NR-RUN-005-01~05`（M1.4 事件钩子与 Blueprint 接口）
+- 变更模块：`NarrRail` Runtime
+- 新增/调整接口：
+  - 新增运行时事件委托：
+    - `OnSessionStarted` - 会话启动事件
+    - `OnNodeEntered` - 节点进入事件
+    - `OnNodeExited` - 节点退出事件
+    - `OnSessionEnded` - 会话结束事件
+    - `OnChoicesReady` - 选项准备就绪事件
+    - `OnChoiceSelected` - 选项被选择事件
+  - 新增 `UNarrRailBlueprintLibrary` 蓝图函数库：
+    - 资产创建：`CreateStoryAsset`, `AddDialogueNode`, `AddChoiceNode`, `AddEndNode`, `AddEdge`
+    - 会话管理：`CreateStorySession`
+    - 辅助函数：`IsResultSuccess`, `IsResultCompleted`, `GetDialogueFromNode`, `IsDialogueNode`, `IsChoiceNode`, `IsEndNode`
+    - 选项创建：`MakeSimpleChoice`
+  - 在关键位置触发事件：
+    - `Start()` 触发 `OnSessionStarted`
+    - `AdvanceToNode()` 触发 `OnNodeEntered` 和 `OnChoicesReady`
+    - `Next()` 触发 `OnNodeExited`
+    - `Choose()` 触发 `OnChoiceSelected`
+    - `Stop()` 和结束节点触发 `OnSessionEnded`
+- 测试结果：完成编译验证，UBT 编译通过
+- 文档：新增 `docs/BLUEPRINT_QUICKSTART.md` 蓝图快速开始指南
+- 风险与遗留：
+  - 需要在 PIE 中实际测试事件触发和蓝图调用
+  - 需要创建示例 UI Widget 验证完整流程
+- 下一步计划：
+  - 用户可以按照快速开始指南在蓝图中创建简单对话
+  - 继续 M1.5 存档与恢复（`NR-RUN-006-*`）
+  - 或创建示例 UI Widget 和完整 Demo

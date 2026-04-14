@@ -12,6 +12,7 @@ UE5.7 AVG plugin scaffold.
 - `docs/TASK_PLAN.md`: WBS task checklist and supervision plan
 - `docs/TECH_ARCHITECTURE.md`: technical architecture (C++/C# first, Blueprint as integration layer)
 - `docs/HOST_PROJECT.md`: host sample project setup and daily workflow
+- `docs/SCRIPT_FORMAT.md`: script JSON format spec for import/export
 
 ## Install (Project Plugin)
 1. Copy the `NarrRail` folder into your UE project at `Plugins/NarrRail`.

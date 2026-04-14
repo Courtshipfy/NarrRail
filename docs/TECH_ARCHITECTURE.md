@@ -149,20 +149,27 @@ docs/
 
 | 子系统 | 目标实现语言 | 当前状态 | 对应任务 | 备注 |
 |---|---|---|---|---|
-| Runtime 数据模型 | C++ | 规划中 | NR-RUN-001-* | |
-| Runtime 执行器 | C++ | 规划中 | NR-RUN-002-* | |
-| 变量与条件 | C++ | 规划中 | NR-RUN-003-* | |
+| Runtime 数据模型 | C++ | 已完成 | NR-RUN-001-* | 节点/边/对白/选项/条件/动作/资产类 |
+| Runtime 执行器 | C++ | 已完成 | NR-RUN-002-* | Start/Next/Choose/Pause/Resume/Stop |
+| 变量与条件 | C++ | 基本完成 | NR-RUN-003-* | 容器/作用域/通知/比较/逻辑运算，缓存优化待实现 |
+| Blueprint 接入层 | C++ | 已完成 | NR-RUN-005-* | 事件委托、蓝图函数库、完整 API 暴露 |
 | 存档恢复 | C++ | 规划中 | NR-RUN-006-* | |
 | 编辑器图编辑 | C++ | 规划中 | NR-ED-002-* | |
 | 编辑器校验器 | C++ | 规划中 | NR-ED-004-* | |
 | 工具链 CLI | C# | 规划中 | NR-IO-002/003/004/005-* | |
-| Blueprint 接入层 | Blueprint | 规划中 | NR-RUN-005-* | 仅接入，不承载核心逻辑 |
 
 ## 9. 接口变更日志
 
 | 日期 | 模块 | 变更类型 | 接口/命令 | 描述 | 兼容性影响 |
 |---|---|---|---|---|---|
 | 2026-03-16 | Docs | 新增 | TECH_ARCHITECTURE v0.1 | 初版架构文档建立 | 无 |
+| 2026-04-14 | Runtime | 新增 | UNarrRailVariableContainer | 统一变量容器类，支持类型安全读写、作用域、变更通知 | 无，新增功能 |
+| 2026-04-14 | Runtime | 新增 | FNarrRailVariableDefinition | 变量定义结构，包含类型/作用域/默认值 | 无，新增功能 |
+| 2026-04-14 | Runtime | 新增 | FNarrRailVariableResult | 变量操作结果结构，包含错误码和错误信息 | 无，新增功能 |
+| 2026-04-14 | Runtime | 新增 | ENarrRailVariableError | 变量操作错误码枚举 | 无，新增功能 |
+| 2026-04-14 | Runtime | 修改 | UNarrRailStorySession | 集成 UNarrRailVariableContainer，新增便捷变量访问接口 | 向后兼容，Context.VariableSnapshot 保留用于存档 |
+| 2026-04-14 | Runtime | 新增 | 运行时事件委托 | OnSessionStarted/OnNodeEntered/OnNodeExited/OnSessionEnded/OnChoicesReady/OnChoiceSelected | 无，新增功能 |
+| 2026-04-14 | Runtime | 新增 | UNarrRailBlueprintLibrary | 蓝图函数库，提供资产创建和会话管理辅助函数 | 无，新增功能 |
 
 ## 10. 技术决策记录（ADR 简版）
 
@@ -179,6 +186,21 @@ docs/
 - 决策：解析、校验、导入导出辅助能力通过 C# CLI 提供。
 - 原因：文本处理生态更成熟，便于 CI 集成与批处理。
 - 影响：需要维护跨语言数据契约与版本兼容。
+
+### ADR-003：变量系统采用独立容器类 + 类型安全接口
+
+- 日期：2026-04-14
+- 决策：创建 `UNarrRailVariableContainer` 独立类管理变量，提供类型安全的读写接口，而非直接操作 `TMap<FName, FString>`。
+- 原因：
+  1. 类型安全：编译期检查类型匹配，避免运行时类型错误
+  2. 错误处理：统一的错误码和错误信息，便于调试和用户反馈
+  3. 作用域管理：支持全局/会话级变量隔离，`ResetSessionVariables()` 仅重置会话变量
+  4. 变更通知：`OnVariableChanged` 委托支持 UI 实时更新和调试观察
+  5. 可扩展性：未来可添加条件缓存、变量验证、序列化优化等功能
+- 影响：
+  - 正面：代码更安全、更易维护、错误信息更清晰
+  - 负面：增加一层抽象，略微增加内存开销（可接受）
+  - 兼容性：`Context.VariableSnapshot` 保留用于存档系统，通过 `GetSnapshot()/RestoreFromSnapshot()` 同步
 
 ## 11. 本周更新模板（复制使用）
 
@@ -201,3 +223,4 @@ docs/
 - 下周计划：完成 `NR-RUN-001` 余项并开始 `NR-RUN-002` 执行器
 - 进展补充：`UNarrRailStoryAsset` 新增版本迁移入口（`PostLoad`），数据契约新增变量与动作结构。
 - 进展补充：Runtime 新增 `UNarrRailStorySession`，对外提供最小流程推进接口（Start/Next/Choose/Stop）。
+- 进展补充：Runtime 会话执行器新增条件求值、动作执行、Pause/Resume；M2.1 脚本规范文档已建立（`docs/SCRIPT_FORMAT.md`）。

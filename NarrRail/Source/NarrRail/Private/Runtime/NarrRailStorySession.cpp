@@ -1,13 +1,34 @@
-﻿#include "Runtime/NarrRailStorySession.h"
+#include "Runtime/NarrRailStorySession.h"
 
 #include "Algo/Sort.h"
 
 namespace NarrRailRuntime
 {
-static bool IsConditionSupportedAndTrue(const FNarrRailConditionExpression& Condition)
+static bool TryParseBool(const FString& InValue, bool& OutValue)
 {
-    // 当前阶段先支持“无条件”边；有条件表达式将在变量系统完成后接入求值。
-    return Condition.Terms.Num() == 0;
+    if (InValue.Equals(TEXT("true"), ESearchCase::IgnoreCase) || InValue == TEXT("1"))
+    {
+        OutValue = true;
+        return true;
+    }
+
+    if (InValue.Equals(TEXT("false"), ESearchCase::IgnoreCase) || InValue == TEXT("0"))
+    {
+        OutValue = false;
+        return true;
+    }
+
+    return false;
+}
+
+static bool TryParseInt(const FString& InValue, int32& OutValue)
+{
+    return LexTryParseString(OutValue, *InValue);
+}
+
+static bool TryParseFloat(const FString& InValue, float& OutValue)
+{
+    return LexTryParseString(OutValue, *InValue);
 }
 }
 
@@ -21,6 +42,14 @@ FNarrRailRuntimeResult UNarrRailStorySession::Initialize(const UNarrRailStoryAss
 
     StoryAsset = InStoryAsset;
     SessionState = ENarrRailSessionState::Idle;
+    StateBeforePause = ENarrRailSessionState::Idle;
+
+    // 创建变量容器
+    if (VariableContainer == nullptr)
+    {
+        VariableContainer = NewObject<UNarrRailVariableContainer>(this);
+    }
+
     ResetSessionContextFromAsset();
 
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Story session initialized."));
@@ -35,7 +64,11 @@ FNarrRailRuntimeResult UNarrRailStorySession::Start(const FName OverrideEntryNod
     }
 
     const FName EntryNodeId = (OverrideEntryNodeId != NAME_None) ? OverrideEntryNodeId : StoryAsset->EntryNodeId;
+    StateBeforePause = ENarrRailSessionState::Idle;
     ResetSessionContextFromAsset();
+
+    // 触发会话启动事件
+    OnSessionStarted.Broadcast(EntryNodeId);
 
     return AdvanceToNode(EntryNodeId);
 }
@@ -45,6 +78,11 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
     if (StoryAsset == nullptr)
     {
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
+    }
+
+    if (SessionState == ENarrRailSessionState::Paused)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session is paused. Call Resume() first."), Context.CurrentNodeId);
     }
 
     if (SessionState == ENarrRailSessionState::Completed)
@@ -75,6 +113,16 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
         SessionState = ENarrRailSessionState::WaitingForChoice;
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node requires Choose()."), Context.CurrentNodeId);
     }
+
+    FString ActionError;
+    if (!ExecuteActions(Node->ExitActions, ActionError))
+    {
+        SessionState = ENarrRailSessionState::Error;
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *ActionError, Context.CurrentNodeId);
+    }
+
+    // 触发节点退出事件
+    OnNodeExited.Broadcast(Context.CurrentNodeId, *Node);
 
     if (Node->NodeType == ENarrRailNodeType::Jump)
     {
@@ -108,6 +156,11 @@ FNarrRailRuntimeResult UNarrRailStorySession::Choose(const int32 ChoiceIndex)
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
     }
 
+    if (SessionState == ENarrRailSessionState::Paused)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session is paused. Call Resume() first."), Context.CurrentNodeId);
+    }
+
     const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
     if (Node == nullptr)
     {
@@ -131,7 +184,55 @@ FNarrRailRuntimeResult UNarrRailStorySession::Choose(const int32 ChoiceIndex)
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice target node is empty."), Context.CurrentNodeId);
     }
 
+    // 触发选择事件
+    OnChoiceSelected.Broadcast(Context.CurrentNodeId, ChoiceIndex, Option.TargetNodeId);
+
+    FString ActionError;
+    if (!ExecuteActions(Node->ExitActions, ActionError))
+    {
+        SessionState = ENarrRailSessionState::Error;
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *ActionError, Context.CurrentNodeId);
+    }
+
     return AdvanceToNode(Option.TargetNodeId);
+}
+
+FNarrRailRuntimeResult UNarrRailStorySession::Pause()
+{
+    if (StoryAsset == nullptr)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
+    }
+
+    if (SessionState == ENarrRailSessionState::Paused)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session already paused."), Context.CurrentNodeId);
+    }
+
+    if (SessionState == ENarrRailSessionState::Completed || SessionState == ENarrRailSessionState::Error)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Cannot pause completed or error session."), Context.CurrentNodeId);
+    }
+
+    StateBeforePause = SessionState;
+    SessionState = ENarrRailSessionState::Paused;
+    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Session paused."), Context.CurrentNodeId);
+}
+
+FNarrRailRuntimeResult UNarrRailStorySession::Resume()
+{
+    if (StoryAsset == nullptr)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
+    }
+
+    if (SessionState != ENarrRailSessionState::Paused)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session is not paused."), Context.CurrentNodeId);
+    }
+
+    SessionState = StateBeforePause;
+    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Session resumed."), Context.CurrentNodeId);
 }
 
 FNarrRailRuntimeResult UNarrRailStorySession::Stop()
@@ -141,7 +242,22 @@ FNarrRailRuntimeResult UNarrRailStorySession::Stop()
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
     }
 
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
+    if (Node != nullptr)
+    {
+        FString ActionError;
+        if (!ExecuteActions(Node->ExitActions, ActionError))
+        {
+            SessionState = ENarrRailSessionState::Error;
+            return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *ActionError, Context.CurrentNodeId);
+        }
+    }
+
     SessionState = ENarrRailSessionState::Completed;
+
+    // 触发会话结束事件
+    OnSessionEnded.Broadcast(Context.CurrentNodeId, SessionState);
+
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Session stopped."), Context.CurrentNodeId);
 }
 
@@ -168,40 +284,104 @@ TArray<FNarrRailChoiceOption> UNarrRailStorySession::GetCurrentChoices() const
     return Node->Choices;
 }
 
+// 便捷的变量访问接口实现
+FNarrRailVariableResult UNarrRailStorySession::GetVariableBool(FName VariableName, bool& OutValue) const
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->GetBool(VariableName, OutValue);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::GetVariableInt(FName VariableName, int32& OutValue) const
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->GetInt(VariableName, OutValue);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::GetVariableFloat(FName VariableName, float& OutValue) const
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->GetFloat(VariableName, OutValue);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::GetVariableString(FName VariableName, FString& OutValue) const
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->GetString(VariableName, OutValue);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::SetVariableBool(FName VariableName, bool Value)
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->SetBool(VariableName, Value);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::SetVariableInt(FName VariableName, int32 Value)
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->SetInt(VariableName, Value);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::SetVariableFloat(FName VariableName, float Value)
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->SetFloat(VariableName, Value);
+}
+
+FNarrRailVariableResult UNarrRailStorySession::SetVariableString(FName VariableName, const FString& Value)
+{
+    if (VariableContainer == nullptr)
+    {
+        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    }
+    return VariableContainer->SetString(VariableName, Value);
+}
+
 void UNarrRailStorySession::ResetSessionContextFromAsset()
 {
     Context = FNarrRailSessionContext{};
 
-    if (StoryAsset == nullptr)
+    if (StoryAsset == nullptr || VariableContainer == nullptr)
     {
         return;
     }
 
-    for (const FNarrRailVariableRef& Variable : StoryAsset->Variables)
+    // 将资产中的变量定义转换为变量容器定义
+    TArray<FNarrRailVariableDefinition> VariableDefs;
+    for (const FNarrRailVariableRef& VarRef : StoryAsset->Variables)
     {
-        if (Variable.VariableName == NAME_None || Context.VariableSnapshot.Contains(Variable.VariableName))
-        {
-            continue;
-        }
-
-        Context.VariableSnapshot.Add(Variable.VariableName, MakeDefaultVariableValue(Variable.VariableType));
+        FNarrRailVariableDefinition Def;
+        Def.VariableName = VarRef.VariableName;
+        Def.VariableType = VarRef.VariableType;
+        Def.bGlobalScope = VarRef.bGlobalScope;
+        Def.DefaultValue = TEXT(""); // 使用类型默认值
+        VariableDefs.Add(Def);
     }
-}
 
-FString UNarrRailStorySession::MakeDefaultVariableValue(const ENarrRailVariableType VariableType) const
-{
-    switch (VariableType)
-    {
-    case ENarrRailVariableType::Bool:
-        return TEXT("false");
-    case ENarrRailVariableType::Int:
-        return TEXT("0");
-    case ENarrRailVariableType::Float:
-        return TEXT("0.0");
-    case ENarrRailVariableType::String:
-    default:
-        return TEXT("");
-    }
+    VariableContainer->Initialize(VariableDefs);
+
+    // 同步变量快照到 Context（用于存档兼容）
+    Context.VariableSnapshot = VariableContainer->GetSnapshot();
 }
 
 FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNodeId)
@@ -216,19 +396,32 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
     Context.CurrentNodeId = TargetNodeId;
     Context.NodeHistory.Add(Context.CurrentNodeId);
 
+    FString ActionError;
+    if (!ExecuteActions(Node->EnterActions, ActionError))
+    {
+        SessionState = ENarrRailSessionState::Error;
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *ActionError, Context.CurrentNodeId);
+    }
+
+    // 触发节点进入事件
+    OnNodeEntered.Broadcast(Context.CurrentNodeId, *Node);
+
     if (Node->NodeType == ENarrRailNodeType::End)
     {
         SessionState = ENarrRailSessionState::Completed;
+        // 触发会话结束事件
+        OnSessionEnded.Broadcast(Context.CurrentNodeId, SessionState);
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), Context.CurrentNodeId);
     }
 
+    SessionState = (Node->NodeType == ENarrRailNodeType::Choice)
+        ? ENarrRailSessionState::WaitingForChoice
+        : ENarrRailSessionState::Running;
+
+    // 如果是选择节点，触发选项准备事件
     if (Node->NodeType == ENarrRailNodeType::Choice)
     {
-        SessionState = ENarrRailSessionState::WaitingForChoice;
-    }
-    else
-    {
-        SessionState = ENarrRailSessionState::Running;
+        OnChoicesReady.Broadcast(Context.CurrentNodeId, Node->Choices);
     }
 
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Advanced to node."), Context.CurrentNodeId);
@@ -259,7 +452,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailN
 
     for (const FNarrRailNodeEdge* Edge : CandidateEdges)
     {
-        if (!NarrRailRuntime::IsConditionSupportedAndTrue(Edge->Condition))
+        if (!EvaluateConditionExpression(Edge->Condition))
         {
             continue;
         }
@@ -288,3 +481,262 @@ const FNarrRailNode* UNarrRailStorySession::FindNode(const FName NodeId) const
 
     return nullptr;
 }
+
+bool UNarrRailStorySession::EvaluateConditionExpression(const FNarrRailConditionExpression& Condition) const
+{
+    if (Condition.Terms.Num() == 0)
+    {
+        return true;
+    }
+
+    if (Condition.Logic == ENarrRailConditionLogic::All)
+    {
+        for (const FNarrRailConditionTerm& Term : Condition.Terms)
+        {
+            if (!EvaluateConditionTerm(Term))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    for (const FNarrRailConditionTerm& Term : Condition.Terms)
+    {
+        if (EvaluateConditionTerm(Term))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UNarrRailStorySession::EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const
+{
+    if (Term.Variable.VariableName == NAME_None || VariableContainer == nullptr)
+    {
+        return false;
+    }
+
+    FString CurrentValue;
+    FNarrRailVariableResult GetResult = VariableContainer->GetVariable(Term.Variable.VariableName, CurrentValue);
+    if (!GetResult.IsSuccess())
+    {
+        return false;
+    }
+
+    switch (Term.Variable.VariableType)
+    {
+    case ENarrRailVariableType::Bool:
+    {
+        bool L = false;
+        bool R = false;
+        if (!NarrRailRuntime::TryParseBool(CurrentValue, L) || !NarrRailRuntime::TryParseBool(Term.CompareValue, R))
+        {
+            return false;
+        }
+
+        if (Term.Operator == ENarrRailComparisonOp::Equal)
+        {
+            return L == R;
+        }
+        if (Term.Operator == ENarrRailComparisonOp::NotEqual)
+        {
+            return L != R;
+        }
+        return false;
+    }
+    case ENarrRailVariableType::Int:
+    {
+        int32 L = 0;
+        int32 R = 0;
+        if (!NarrRailRuntime::TryParseInt(CurrentValue, L) || !NarrRailRuntime::TryParseInt(Term.CompareValue, R))
+        {
+            return false;
+        }
+
+        switch (Term.Operator)
+        {
+        case ENarrRailComparisonOp::Equal: return L == R;
+        case ENarrRailComparisonOp::NotEqual: return L != R;
+        case ENarrRailComparisonOp::Greater: return L > R;
+        case ENarrRailComparisonOp::GreaterOrEqual: return L >= R;
+        case ENarrRailComparisonOp::Less: return L < R;
+        case ENarrRailComparisonOp::LessOrEqual: return L <= R;
+        default: return false;
+        }
+    }
+    case ENarrRailVariableType::Float:
+    {
+        float L = 0.f;
+        float R = 0.f;
+        if (!NarrRailRuntime::TryParseFloat(CurrentValue, L) || !NarrRailRuntime::TryParseFloat(Term.CompareValue, R))
+        {
+            return false;
+        }
+
+        switch (Term.Operator)
+        {
+        case ENarrRailComparisonOp::Equal: return FMath::IsNearlyEqual(L, R);
+        case ENarrRailComparisonOp::NotEqual: return !FMath::IsNearlyEqual(L, R);
+        case ENarrRailComparisonOp::Greater: return L > R;
+        case ENarrRailComparisonOp::GreaterOrEqual: return L >= R;
+        case ENarrRailComparisonOp::Less: return L < R;
+        case ENarrRailComparisonOp::LessOrEqual: return L <= R;
+        default: return false;
+        }
+    }
+    case ENarrRailVariableType::String:
+    default:
+    {
+        const int32 Compare = CurrentValue.Compare(Term.CompareValue, ESearchCase::CaseSensitive);
+        switch (Term.Operator)
+        {
+        case ENarrRailComparisonOp::Equal: return Compare == 0;
+        case ENarrRailComparisonOp::NotEqual: return Compare != 0;
+        case ENarrRailComparisonOp::Greater: return Compare > 0;
+        case ENarrRailComparisonOp::GreaterOrEqual: return Compare >= 0;
+        case ENarrRailComparisonOp::Less: return Compare < 0;
+        case ENarrRailComparisonOp::LessOrEqual: return Compare <= 0;
+        default: return false;
+        }
+    }
+    }
+}
+
+bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage)
+{
+    if (VariableContainer == nullptr)
+    {
+        OutErrorMessage = TEXT("Variable container not initialized.");
+        return false;
+    }
+
+    for (const FNarrRailNodeAction& Action : Actions)
+    {
+        switch (Action.ActionType)
+        {
+        case ENarrRailActionType::EmitEvent:
+            if (Action.EventId != NAME_None)
+            {
+                Context.EmittedEvents.Add(Action.EventId);
+            }
+            break;
+
+        case ENarrRailActionType::Set:
+        {
+            if (Action.Variable.VariableName == NAME_None)
+            {
+                OutErrorMessage = TEXT("Action variable name is empty.");
+                return false;
+            }
+
+            FNarrRailVariableResult Result = VariableContainer->SetVariable(Action.Variable.VariableName, Action.Value);
+            if (!Result.IsSuccess())
+            {
+                OutErrorMessage = FString::Printf(TEXT("Set variable failed: %s"), *Result.ErrorMessage);
+                return false;
+            }
+            break;
+        }
+
+        case ENarrRailActionType::Add:
+        {
+            if (Action.Variable.VariableName == NAME_None)
+            {
+                OutErrorMessage = TEXT("Action variable name is empty.");
+                return false;
+            }
+
+            FNarrRailVariableResult Result;
+            if (Action.Variable.VariableType == ENarrRailVariableType::Int)
+            {
+                int32 Delta = 0;
+                if (!NarrRailRuntime::TryParseInt(Action.Value, Delta))
+                {
+                    OutErrorMessage = TEXT("Int action parse failed.");
+                    return false;
+                }
+                Result = VariableContainer->AddInt(Action.Variable.VariableName, Delta);
+            }
+            else if (Action.Variable.VariableType == ENarrRailVariableType::Float)
+            {
+                float Delta = 0.f;
+                if (!NarrRailRuntime::TryParseFloat(Action.Value, Delta))
+                {
+                    OutErrorMessage = TEXT("Float action parse failed.");
+                    return false;
+                }
+                Result = VariableContainer->AddFloat(Action.Variable.VariableName, Delta);
+            }
+            else
+            {
+                OutErrorMessage = TEXT("Add only supports Int/Float variables.");
+                return false;
+            }
+
+            if (!Result.IsSuccess())
+            {
+                OutErrorMessage = FString::Printf(TEXT("Add variable failed: %s"), *Result.ErrorMessage);
+                return false;
+            }
+            break;
+        }
+
+        case ENarrRailActionType::Subtract:
+        {
+            if (Action.Variable.VariableName == NAME_None)
+            {
+                OutErrorMessage = TEXT("Action variable name is empty.");
+                return false;
+            }
+
+            FNarrRailVariableResult Result;
+            if (Action.Variable.VariableType == ENarrRailVariableType::Int)
+            {
+                int32 Delta = 0;
+                if (!NarrRailRuntime::TryParseInt(Action.Value, Delta))
+                {
+                    OutErrorMessage = TEXT("Int action parse failed.");
+                    return false;
+                }
+                Result = VariableContainer->SubtractInt(Action.Variable.VariableName, Delta);
+            }
+            else if (Action.Variable.VariableType == ENarrRailVariableType::Float)
+            {
+                float Delta = 0.f;
+                if (!NarrRailRuntime::TryParseFloat(Action.Value, Delta))
+                {
+                    OutErrorMessage = TEXT("Float action parse failed.");
+                    return false;
+                }
+                Result = VariableContainer->SubtractFloat(Action.Variable.VariableName, Delta);
+            }
+            else
+            {
+                OutErrorMessage = TEXT("Subtract only supports Int/Float variables.");
+                return false;
+            }
+
+            if (!Result.IsSuccess())
+            {
+                OutErrorMessage = FString::Printf(TEXT("Subtract variable failed: %s"), *Result.ErrorMessage);
+                return false;
+            }
+            break;
+        }
+
+        default:
+            OutErrorMessage = TEXT("Unsupported action type.");
+            return false;
+        }
+    }
+
+    // 同步变量快照到 Context（用于存档兼容）
+    Context.VariableSnapshot = VariableContainer->GetSnapshot();
+
+    return true;
+}
+
