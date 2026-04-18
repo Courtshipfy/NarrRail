@@ -181,6 +181,210 @@ Next (推进到下一句)
    - B: 好主意！我们走吧。
    - (会话结束)
 
+## 步骤 5：添加分支选项
+
+现在让我们在对话中添加一个选择分支，让玩家可以选择不同的回应。
+
+### 5.1 修改对话流程
+
+我们将在 A 问"要不要一起去散步？"之后，让 B 可以选择"好啊"或"不了"。
+
+在步骤 1 的基础上，修改节点创建：
+
+```
+保留前面的节点：
+- Start (A: "你好，B！今天天气真不错。")
+- B_Reply1 (B: "是啊，A。我也这么觉得。")
+- A_Reply2 (A: "要不要一起去散步？")
+
+删除 B_Reply2，改为添加选项节点：
+```
+
+### 5.2 创建选项节点
+
+```
+节点：Add Choice Node
+- Node Id: "B_Choice"
+- Choices: (使用 Make Array 创建选项数组)
+
+选项 1:
+  节点：Make Simple Choice
+  - Text Key: "好啊，我们走吧！"
+  - Target Node Id: "A_Happy"
+
+选项 2:
+  节点：Make Simple Choice
+  - Text Key: "不了，我还有事。"
+  - Target Node Id: "A_Sad"
+```
+
+### 5.3 添加分支后的对话节点
+
+```
+节点：Add Dialogue Node
+
+节点 1 (选择"好啊"后):
+- Node Id: "A_Happy"
+- Speaker Id: "A"
+- Text Key: "太好了！走吧。"
+
+节点 2 (选择"不了"后):
+- Node Id: "A_Sad"
+- Speaker Id: "A"
+- Text Key: "好吧，那下次再约。"
+```
+
+### 5.4 修改边连接
+
+```
+节点：Add Edge
+
+保留前面的边：
+边 1: Start -> B_Reply1
+边 2: B_Reply1 -> A_Reply2
+
+修改后续的边：
+边 3: A_Reply2 -> B_Choice (连接到选项节点)
+边 4: A_Happy -> End
+边 5: A_Sad -> End
+
+注意：选项节点的跳转由选项本身的 Target Node Id 控制，不需要手动添加边
+```
+
+### 5.5 绑定选项事件
+
+在步骤 2 的基础上，添加新的事件绑定：
+
+```
+节点：Bind Event to On Choices Ready (Story Session)
+创建自定义事件：OnChoicesReady
+参数：
+- Node Id (Name)
+- Choices (Array of NarrRail Choice Option)
+```
+
+### 5.6 显示选项 UI
+
+在 `OnChoicesReady` 自定义事件中：
+
+```
+ForEach Loop (遍历 Choices 数组)
+  ↓
+创建按钮 Widget
+  ↓
+设置按钮文本 = Choice.TextKey
+  ↓
+绑定按钮点击事件 → 调用 Choose(Session, Array Index)
+  ↓
+添加按钮到 UI 容器
+```
+
+简化版（用于测试）：
+
+```
+OnChoicesReady 事件:
+  ↓
+Print String: "可用选项："
+  ↓
+ForEach (Choices)
+  ↓
+Print String: "{Index}: {Choice.TextKey}"
+  ↓
+等待玩家输入（例如按键 1 或 2）
+  ↓
+Choose (Session, 选择的索引)
+```
+
+### 5.7 处理选项选择
+
+```
+玩家按键 1:
+  ↓
+Choose (Session, 0)  // 选择第一个选项
+
+玩家按键 2:
+  ↓
+Choose (Session, 1)  // 选择第二个选项
+```
+
+## 完整分支对话流程示例
+
+```
+BeginPlay
+  ↓
+Create Story Asset
+  ↓
+Add Dialogue Node (Start, A, "你好...")
+  ↓
+Add Dialogue Node (B_Reply1, B, "是啊...")
+  ↓
+Add Dialogue Node (A_Reply2, A, "要不要...")
+  ↓
+Add Choice Node (B_Choice, [选项1: "好啊" -> A_Happy, 选项2: "不了" -> A_Sad])
+  ↓
+Add Dialogue Node (A_Happy, A, "太好了...")
+  ↓
+Add Dialogue Node (A_Sad, A, "好吧...")
+  ↓
+Add End Node (End)
+  ↓
+Add Edge (Start -> B_Reply1)
+  ↓
+Add Edge (B_Reply1 -> A_Reply2)
+  ↓
+Add Edge (A_Reply2 -> B_Choice)
+  ↓
+Add Edge (A_Happy -> End)
+  ↓
+Add Edge (A_Sad -> End)
+  ↓
+Create Story Session
+  ↓
+Bind Event to On Node Entered
+  ↓
+Bind Event to On Choices Ready
+  ↓
+Start Session
+
+---
+
+OnDialogueNodeEntered 事件:
+  ↓
+Get Dialogue From Node
+  ↓
+Print String: "{Speaker}: {Text}"
+  ↓
+Delay 2 seconds
+  ↓
+Next
+
+---
+
+OnChoicesReady 事件:
+  ↓
+ForEach (Choices)
+  ↓
+Print String: "{Index}: {TextKey}"
+  ↓
+等待玩家按键 1 或 2
+  ↓
+Choose (Session, 选择的索引)
+```
+
+## 运行效果
+
+1. 点击 Play (PIE)
+2. 对话流程：
+   - A: 你好，B！今天天气真不错。
+   - B: 是啊，A。我也这么觉得。
+   - A: 要不要一起去散步？
+   - **[选项出现]**
+     - 0: 好啊，我们走吧！
+     - 1: 不了，我还有事。
+   - **[玩家选择 0]** → A: 太好了！走吧。
+   - **[玩家选择 1]** → A: 好吧，那下次再约。
+   - (会话结束)
+
 ## 可用的蓝图节点
 
 ### 资产创建

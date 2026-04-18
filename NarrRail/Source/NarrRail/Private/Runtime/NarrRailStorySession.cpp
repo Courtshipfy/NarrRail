@@ -67,6 +67,9 @@ FNarrRailRuntimeResult UNarrRailStorySession::Start(const FName OverrideEntryNod
     StateBeforePause = ENarrRailSessionState::Idle;
     ResetSessionContextFromAsset();
 
+    // 重置最后选择信息
+    LastChoiceInfo = FNarrRailLastChoiceInfo();
+
     // 触发会话启动事件
     OnSessionStarted.Broadcast(EntryNodeId);
 
@@ -183,6 +186,13 @@ FNarrRailRuntimeResult UNarrRailStorySession::Choose(const int32 ChoiceIndex)
     {
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice target node is empty."), Context.CurrentNodeId);
     }
+
+    // 更新最后一次选择的信息
+    LastChoiceInfo.ChoiceNodeId = Context.CurrentNodeId;
+    LastChoiceInfo.ChoiceIndex = ChoiceIndex;
+    LastChoiceInfo.TargetNodeId = Option.TargetNodeId;
+    LastChoiceInfo.ChoiceTextKey = Option.TextKey;
+    LastChoiceInfo.bValid = true;
 
     // 触发选择事件
     OnChoiceSelected.Broadcast(Context.CurrentNodeId, ChoiceIndex, Option.TargetNodeId);

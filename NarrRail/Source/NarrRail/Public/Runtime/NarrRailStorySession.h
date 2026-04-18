@@ -135,6 +135,13 @@ public:
         return Context;
     }
 
+    // 获取最后一次选择的信息
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailLastChoiceInfo GetLastChoice() const
+    {
+        return LastChoiceInfo;
+    }
+
     // 获取变量容器（用于直接访问变量系统）
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
     UNarrRailVariableContainer* GetVariableContainer() const
@@ -219,4 +226,7 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UNarrRailVariableContainer> VariableContainer;
+
+    UPROPERTY(Transient)
+    FNarrRailLastChoiceInfo LastChoiceInfo;
 };

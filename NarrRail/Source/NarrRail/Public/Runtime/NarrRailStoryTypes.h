@@ -189,3 +189,25 @@ struct NARRRAIL_API FNarrRailNodeEdge
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     FNarrRailConditionExpression Condition;
 };
+
+// 最后一次选择的信息
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailLastChoiceInfo
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FName ChoiceNodeId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    int32 ChoiceIndex = -1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FName TargetNodeId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FString ChoiceTextKey;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    bool bValid = false;
+};
