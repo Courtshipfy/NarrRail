@@ -443,3 +443,268 @@ Choose (Session, 选择的索引)
 3. 边的 Source 和 Target 必须是有效的节点 ID
 4. 记得在 Next 之前检查会话状态
 5. 使用事件系统可以实现更灵活的 UI 更新
+
+## 步骤 6：添加好感度系统
+
+现在让我们添加一个好感度系统，根据玩家的选择改变好感度，并根据好感度值显示不同的剧情分支。
+
+### 6.1 创建变量
+
+在创建资产后，添加变量定义：
+
+```
+节点：Add Variable Definition (Story Asset)
+- Variable Name: "Affinity"
+- Variable Type: Int
+- Scope: Session
+- Default Value: "0"
+```
+
+### 6.2 修改对话流程（带好感度）
+
+我们将创建一个完整的好感度示例：
+
+```
+Start (A: "你好，B！")
+  ↓
+B_Reply1 (B: "你好，A。")
+  ↓
+A_Question (A: "今天天气不错，要一起去散步吗？")
+  ↓
+B_Choice (选项节点)
+  选项 1: "好啊，我很乐意！" → A_Happy (好感度 +10)
+  选项 2: "不了，我还有事。" → A_Sad (好感度 -5)
+  ↓
+A_CheckAffinity (检查好感度)
+  如果 Affinity >= 10 → A_SpecialEnding (特殊结局)
+  如果 Affinity < 10 → A_NormalEnding (普通结局)
+  ↓
+End
+```
+
+### 6.3 创建节点
+
+```
+节点：Add Dialogue Node
+
+节点 1:
+- Node Id: "Start"
+- Speaker Id: "A"
+- Text Key: "你好，B！今天天气真不错。"
+
+节点 2:
+- Node Id: "B_Reply1"
+- Speaker Id: "B"
+- Text Key: "你好，A。是啊，天气很好。"
+
+节点 3:
+- Node Id: "A_Question"
+- Speaker Id: "A"
+- Text Key: "要不要一起去散步？"
+
+节点 4:
+- Node Id: "A_Happy"
+- Speaker Id: "A"
+- Text Key: "太好了！我很高兴你愿意和我一起。"
+
+节点 5:
+- Node Id: "A_Sad"
+- Speaker Id: "A"
+- Text Key: "好吧...那下次再约吧。"
+
+节点 6:
+- Node Id: "A_SpecialEnding"
+- Speaker Id: "A"
+- Text Key: "和你在一起真开心！我们以后要经常见面。"
+
+节点 7:
+- Node Id: "A_NormalEnding"
+- Speaker Id: "A"
+- Text Key: "那我先走了，再见。"
+```
+
+### 6.4 创建选项节点（带动作）
+
+```
+节点：Add Choice Node
+- Node Id: "B_Choice"
+- Choices: (使用 Make Array)
+
+选项 1:
+  Make Simple Choice
+  - Text Key: "好啊，我很乐意！"
+  - Target Node Id: "A_Happy"
+
+选项 2:
+  Make Simple Choice
+  - Text Key: "不了，我还有事。"
+  - Target Node Id: "A_Sad"
+```
+
+### 6.5 添加动作到节点
+
+**给 A_Happy 节点添加进入动作（好感度 +10）：**
+
+```
+节点：Add Node Enter Action
+- Story Asset: (你的剧情资产)
+- Node Id: "A_Happy"
+- Action: (使用 Make Node Action 创建)
+
+Make Node Action:
+  - Action Type: Add
+  - Variable: (使用 Make Variable Ref 创建)
+    - Variable Name: "Affinity"
+    - Variable Type: Int
+    - Global Scope: false (不勾选)
+  - Value: "10"
+```
+
+**给 A_Sad 节点添加进入动作（好感度 -5）：**
+
+```
+节点：Add Node Enter Action
+- Story Asset: (你的剧情资产)
+- Node Id: "A_Sad"
+- Action: (使用 Make Node Action 创建)
+
+Make Node Action:
+  - Action Type: Add
+  - Variable: (使用 Make Variable Ref 创建)
+    - Variable Name: "Affinity"
+    - Variable Type: Int
+    - Global Scope: false (不勾选)
+  - Value: "-5"
+```
+
+注意：Value 使用字符串 "-5" 表示减少 5 点好感度。
+
+### 6.6 添加条件边
+
+```
+节点：Add Edge With Condition
+
+边 1: Start -> B_Reply1 (无条件)
+  使用普通的 Add Edge
+
+边 2: B_Reply1 -> A_Question (无条件)
+  使用普通的 Add Edge
+
+边 3: A_Question -> B_Choice (无条件)
+  使用普通的 Add Edge
+
+边 4: A_Happy -> A_SpecialEnding (条件: Affinity >= 10)
+  - Story Asset: (你的剧情资产)
+  - Source Node Id: "A_Happy"
+  - Target Node Id: "A_SpecialEnding"
+  - Priority: 0
+  - Condition: (使用 Make Condition Expression 创建)
+    - Logic: All
+    - Terms: (Make Array，包含一个 Make Condition Term)
+      
+      Make Condition Term:
+        - Variable: Make Variable Ref
+          - Variable Name: "Affinity"
+          - Variable Type: Int
+          - Global Scope: false
+        - Operator: >= (GreaterOrEqual)
+        - Compare Value: "10"
+
+边 5: A_Happy -> A_NormalEnding (条件: Affinity < 10)
+  - Story Asset: (你的剧情资产)
+  - Source Node Id: "A_Happy"
+  - Target Node Id: "A_NormalEnding"
+  - Priority: 1
+  - Condition: (使用 Make Condition Expression 创建)
+    - Logic: All
+    - Terms: (Make Array，包含一个 Make Condition Term)
+      
+      Make Condition Term:
+        - Variable: Make Variable Ref
+          - Variable Name: "Affinity"
+          - Variable Type: Int
+          - Global Scope: false
+        - Operator: < (Less)
+        - Compare Value: "10"
+
+边 6: A_Sad -> A_NormalEnding (无条件)
+  使用普通的 Add Edge
+
+边 7: A_SpecialEnding -> End (无条件)
+  使用普通的 Add Edge
+
+边 8: A_NormalEnding -> End (无条件)
+  使用普通的 Add Edge
+```
+
+### 6.7 显示好感度值（可选）
+
+在 OnNodeEntered 事件中添加好感度显示：
+
+```
+OnNodeEntered 事件
+  ↓
+Get Variable Int (Session, "Affinity")
+  ↓
+Print String: "当前好感度: {Affinity}"
+  ↓
+(继续原有的对话显示逻辑)
+```
+
+## 好感度系统运行效果
+
+**场景 1：选择"好啊，我很乐意！"**
+```
+1. A: "你好，B！今天天气真不错。"
+2. B: "你好，A。是啊，天气很好。"
+3. A: "要不要一起去散步？"
+4. [选项] 玩家选择: "好啊，我很乐意！"
+5. 好感度 +10 (0 → 10)
+6. A: "太好了！我很高兴你愿意和我一起。"
+7. (检查条件: Affinity >= 10 ✓)
+8. A: "和你在一起真开心！我们以后要经常见面。" (特殊结局)
+9. (会话结束)
+```
+
+**场景 2：选择"不了，我还有事。"**
+```
+1. A: "你好，B！今天天气真不错。"
+2. B: "你好，A。是啊，天气很好。"
+3. A: "要不要一起去散步？"
+4. [选项] 玩家选择: "不了，我还有事。"
+5. 好感度 -5 (0 → -5)
+6. A: "好吧...那下次再约吧。"
+7. (检查条件: Affinity < 10 ✓)
+8. A: "那我先走了，再见。" (普通结局)
+9. (会话结束)
+```
+
+## 进阶：多次对话累积好感度
+
+如果想实现多次对话累积好感度，需要：
+
+1. **使用全局变量**：
+```
+Add Variable Definition
+- Variable Name: "Affinity"
+- Variable Type: Int
+- Scope: Global  ← 改为 Global
+- Default Value: "0"
+```
+
+2. **不要在 Start 时重置变量**：
+   - 全局变量会在多次会话间保持
+   - 会话变量每次 Start 都会重置
+
+3. **创建多个剧情资产**：
+   - 第一次见面的对话
+   - 第二次见面的对话
+   - 根据累积好感度显示不同内容
+
+## 注意事项
+
+1. 所有节点 ID 必须唯一
+2. Entry Node Id 必须存在于节点列表中
+3. 边的 Source 和 Target 必须是有效的节点 ID
+4. 记得在 Next 之前检查会话状态
+5. 使用事件系统可以实现更灵活的 UI 更新

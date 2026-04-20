@@ -68,6 +68,50 @@ public:
     static bool AddEdge(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName TargetNodeId, int32 Priority = 0);
 
     /**
+     * 添加带条件的边
+     * @param StoryAsset 剧情资产
+     * @param SourceNodeId 源节点 ID
+     * @param TargetNodeId 目标节点 ID
+     * @param Priority 优先级（数字越小优先级越高）
+     * @param Condition 条件表达式
+     * @return 是否添加成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
+    static bool AddEdgeWithCondition(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName TargetNodeId, int32 Priority, const FNarrRailConditionExpression& Condition);
+
+    /**
+     * 添加变量定义到剧情资产
+     * @param StoryAsset 剧情资产
+     * @param VariableName 变量名
+     * @param VariableType 变量类型
+     * @param bGlobalScope 是否为全局作用域（false = 会话级）
+     * @param DefaultValue 默认值（字符串形式）
+     * @return 是否添加成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
+    static bool AddVariableDefinition(UNarrRailStoryAsset* StoryAsset, FName VariableName, ENarrRailVariableType VariableType, bool bGlobalScope, const FString& DefaultValue);
+
+    /**
+     * 给节点添加进入动作
+     * @param StoryAsset 剧情资产
+     * @param NodeId 节点 ID
+     * @param Action 动作
+     * @return 是否添加成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
+    static bool AddNodeEnterAction(UNarrRailStoryAsset* StoryAsset, FName NodeId, const FNarrRailNodeAction& Action);
+
+    /**
+     * 给节点添加退出动作
+     * @param StoryAsset 剧情资产
+     * @param NodeId 节点 ID
+     * @param Action 动作
+     * @return 是否添加成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
+    static bool AddNodeExitAction(UNarrRailStoryAsset* StoryAsset, FName NodeId, const FNarrRailNodeAction& Action);
+
+    /**
      * 创建一个简单的选项
      * @param TextKey 选项文本键
      * @param TargetNodeId 目标节点 ID
@@ -75,6 +119,45 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
     static FNarrRailChoiceOption MakeSimpleChoice(const FString& TextKey, FName TargetNodeId);
+
+    /**
+     * 创建变量引用
+     * @param VariableName 变量名
+     * @param VariableType 变量类型
+     * @param bGlobalScope 是否为全局作用域
+     * @return 变量引用结构
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
+    static FNarrRailVariableRef MakeVariableRef(FName VariableName, ENarrRailVariableType VariableType, bool bGlobalScope);
+
+    /**
+     * 创建条件项
+     * @param Variable 变量引用
+     * @param Operator 比较运算符
+     * @param CompareValue 比较值（字符串形式）
+     * @return 条件项结构
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
+    static FNarrRailConditionTerm MakeConditionTerm(const FNarrRailVariableRef& Variable, ENarrRailComparisonOp Operator, const FString& CompareValue);
+
+    /**
+     * 创建条件表达式
+     * @param Logic 逻辑运算符（All/Any）
+     * @param Terms 条件项列表
+     * @return 条件表达式结构
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
+    static FNarrRailConditionExpression MakeConditionExpression(ENarrRailConditionLogic Logic, const TArray<FNarrRailConditionTerm>& Terms);
+
+    /**
+     * 创建节点动作
+     * @param ActionType 动作类型
+     * @param Variable 变量引用
+     * @param Value 值（字符串形式）
+     * @return 动作结构
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
+    static FNarrRailNodeAction MakeNodeAction(ENarrRailActionType ActionType, const FNarrRailVariableRef& Variable, const FString& Value);
 
     // === 会话辅助函数 ===
 

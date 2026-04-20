@@ -36,7 +36,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
     }
 
     TSet<FName> Variables;
-    for (const FNarrRailVariableRef& Var : StoryAsset->Variables)
+    for (const FNarrRailVariableDefinition& Var : StoryAsset->Variables)
     {
         if (Var.VariableName == NAME_None)
         {

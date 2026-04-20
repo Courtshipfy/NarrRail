@@ -376,19 +376,8 @@ void UNarrRailStorySession::ResetSessionContextFromAsset()
         return;
     }
 
-    // 将资产中的变量定义转换为变量容器定义
-    TArray<FNarrRailVariableDefinition> VariableDefs;
-    for (const FNarrRailVariableRef& VarRef : StoryAsset->Variables)
-    {
-        FNarrRailVariableDefinition Def;
-        Def.VariableName = VarRef.VariableName;
-        Def.VariableType = VarRef.VariableType;
-        Def.bGlobalScope = VarRef.bGlobalScope;
-        Def.DefaultValue = TEXT(""); // 使用类型默认值
-        VariableDefs.Add(Def);
-    }
-
-    VariableContainer->Initialize(VariableDefs);
+    // 直接使用资产中的变量定义初始化变量容器
+    VariableContainer->Initialize(StoryAsset->Variables);
 
     // 同步变量快照到 Context（用于存档兼容）
     Context.VariableSnapshot = VariableContainer->GetSnapshot();

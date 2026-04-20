@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Runtime/NarrRailStoryTypes.h"
+#include "Runtime/NarrRailVariableContainer.h"
 #include "NarrRailStoryAsset.generated.h"
 
 UCLASS(BlueprintType)
@@ -23,7 +24,7 @@ public:
     FName EntryNodeId = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
-    TArray<FNarrRailVariableRef> Variables;
+    TArray<FNarrRailVariableDefinition> Variables;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
     TArray<FNarrRailNode> Nodes;
