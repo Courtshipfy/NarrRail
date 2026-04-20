@@ -2,6 +2,9 @@
 
 #include "Algo/Sort.h"
 
+// 全局活跃会话列表定义
+TArray<UNarrRailStorySession*> UNarrRailStorySession::ActiveSessions;
+
 namespace NarrRailRuntime
 {
 static bool TryParseBool(const FString& InValue, bool& OutValue)
@@ -32,6 +35,13 @@ static bool TryParseFloat(const FString& InValue, float& OutValue)
 }
 }
 
+void UNarrRailStorySession::BeginDestroy()
+{
+    // 从全局列表中移除
+    ActiveSessions.Remove(this);
+    Super::BeginDestroy();
+}
+
 FNarrRailRuntimeResult UNarrRailStorySession::Initialize(const UNarrRailStoryAsset* InStoryAsset)
 {
     if (InStoryAsset == nullptr)
@@ -51,6 +61,12 @@ FNarrRailRuntimeResult UNarrRailStorySession::Initialize(const UNarrRailStoryAss
     }
 
     ResetSessionContextFromAsset();
+
+    // 注册到全局列表
+    if (!ActiveSessions.Contains(this))
+    {
+        ActiveSessions.Add(this);
+    }
 
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Story session initialized."));
 }
@@ -737,5 +753,23 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
     Context.VariableSnapshot = VariableContainer->GetSnapshot();
 
     return true;
+}
+
+// === 全局会话管理 ===
+
+TArray<UNarrRailStorySession*> UNarrRailStorySession::GetAllActiveSessions()
+{
+    // 清理已销毁的会话
+    ActiveSessions.RemoveAll([](UNarrRailStorySession* Session)
+    {
+        return Session == nullptr || !IsValid(Session);
+    });
+
+    return ActiveSessions;
+}
+
+void UNarrRailStorySession::SetDebugName(const FString& InDebugName)
+{
+    DebugName = InDebugName;
 }
 

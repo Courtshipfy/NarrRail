@@ -84,6 +84,12 @@ class NARRRAIL_API UNarrRailStorySession : public UObject
     GENERATED_BODY()
 
 public:
+    // === 生命周期管理 ===
+
+    virtual void BeginDestroy() override;
+
+    // === 会话管理接口 ===
+
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
     FNarrRailRuntimeResult Initialize(const UNarrRailStoryAsset* InStoryAsset);
 
@@ -200,6 +206,28 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
     FNarrRailChoiceSelectedDelegate OnChoiceSelected;
 
+    // === 全局会话管理（用于调试器自动查找） ===
+
+    /**
+     * 获取所有活跃的会话
+     * @return 当前所有活跃的会话列表
+     */
+    static TArray<UNarrRailStorySession*> GetAllActiveSessions();
+
+    /**
+     * 设置会话的调试名称（可选，用于多会话场景）
+     * @param InDebugName 调试名称
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Debug")
+    void SetDebugName(const FString& InDebugName);
+
+    /**
+     * 获取会话的调试名称
+     * @return 调试名称
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Debug")
+    FString GetDebugName() const { return DebugName; }
+
 private:
     void ResetSessionContextFromAsset();
     FString MakeDefaultVariableValue(ENarrRailVariableType VariableType) const;
@@ -229,4 +257,10 @@ private:
 
     UPROPERTY(Transient)
     FNarrRailLastChoiceInfo LastChoiceInfo;
+
+    UPROPERTY(Transient)
+    FString DebugName;
+
+    // 全局活跃会话列表
+    static TArray<UNarrRailStorySession*> ActiveSessions;
 };
