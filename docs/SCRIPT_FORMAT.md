@@ -239,7 +239,110 @@ edges:
 1. 使用导出工具将 UE 资产转换为 YAML（待实现）
 2. 可用于版本控制和外部编辑
 
-## 13. 注意事项
+## 13. 完整示例：好感度系统
+
+以下是一个完整的好感度系统示例，演示了变量、动作、条件分支的综合使用。
+
+完整脚本见：`Tools/NarrRail.Tooling/affinity_demo.narrrail.yaml`
+
+### 剧情流程
+
+```
+开场对话 → 询问散步 → 玩家选择
+  ├─ 选择1: "好啊" → 好感度+10 → [>=10] 特殊结局
+  │                              └─ [<10]  普通结局
+  └─ 选择2: "不了" → 好感度-5  → 普通结局
+```
+
+### 关键代码片段
+
+**变量定义：**
+```yaml
+variables:
+  - name: Affinity
+    type: Int
+    scope: Session
+    defaultValue: "0"
+```
+
+**带动作的节点：**
+```yaml
+- nodeId: N_A_Happy
+  nodeType: Dialogue
+  dialogue:
+    speakerId: A
+    textKey: "太好了！我很高兴你愿意和我一起。"
+    speechRate: 1.0
+    voiceAsset: ""
+  enterActions:
+    - actionType: Add
+      variable:
+        name: Affinity
+        type: Int
+        scope: Session
+      value: "10"
+      eventId: ""
+```
+
+**条件边（优先级）：**
+```yaml
+# 优先级 0：先检查 >= 10
+- sourceNodeId: N_A_Happy
+  targetNodeId: N_A_SpecialEnding
+  priority: 0
+  condition:
+    logic: All
+    terms:
+      - variable:
+          name: Affinity
+          type: Int
+          scope: Session
+        operator: ">="
+        compareValue: "10"
+
+# 优先级 1：再检查 < 10
+- sourceNodeId: N_A_Happy
+  targetNodeId: N_A_NormalEnding
+  priority: 1
+  condition:
+    logic: All
+    terms:
+      - variable:
+          name: Affinity
+          type: Int
+          scope: Session
+        operator: "<"
+        compareValue: "10"
+```
+
+**选项节点：**
+```yaml
+- nodeId: N_B_Choice
+  nodeType: Choice
+  choices:
+    - textKey: "好啊，我很乐意！"
+      targetNodeId: N_A_Happy
+      availability:
+        logic: All
+        terms: []
+    - textKey: "不了，我还有事。"
+      targetNodeId: N_A_Sad
+      availability:
+        logic: All
+        terms: []
+```
+
+### 运行结果
+
+**场景 1：选择"好啊"**
+- 好感度：0 → 10
+- 结局：特殊结局（"和你在一起真开心！"）
+
+**场景 2：选择"不了"**
+- 好感度：0 → -5
+- 结局：普通结局（"那我先走了，再见。"）
+
+## 14. 注意事项
 
 1. 所有字符串字段使用 UTF-8 编码
 2. 节点 ID 建议使用前缀（如 `N_`）便于识别
@@ -247,4 +350,6 @@ edges:
 4. 变量名建议使用驼峰命名法
 5. 条件表达式支持嵌套逻辑（All/Any）
 6. 动作按数组顺序依次执行
-7. 边的优先级在多个条件满足时生效
+7. 边的优先级在多个条件满足时生效（数值越小越优先）
+8. 负数值使用字符串表示（如 `"-5"`）
+9. 条件边的优先级很重要：确保互斥条件按正确顺序检查
