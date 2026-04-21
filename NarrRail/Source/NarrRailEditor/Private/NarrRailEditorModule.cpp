@@ -1,7 +1,9 @@
 ﻿#include "NarrRailEditorModule.h"
 #include "Debug/NarrRailDebugger.h"
 #include "Debug/NarrRailDebugHUD.h"
+#include "AssetTypeActions_NarrRailStory.h"
 #include "Modules/ModuleManager.h"
+#include "AssetToolsModule.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/Engine.h"
 #include "GameFramework/HUD.h"
@@ -265,6 +267,21 @@ void FNarrRailEditorModule::StartupModule()
 		}
 	});
 
+	// Register asset tools
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	// Register NarrRail asset category
+	EAssetTypeCategories::Type NarrRailCategory = AssetTools.RegisterAdvancedAssetCategory(
+		FName(TEXT("NarrRail")),
+		FText::FromString(TEXT("NarrRail"))
+	);
+
+	// Register asset type actions
+	TSharedPtr<FAssetTypeActions_NarrRailStory> NarrRailAssetActions =
+		MakeShareable(new FAssetTypeActions_NarrRailStory(NarrRailCategory));
+	AssetTools.RegisterAssetTypeActions(NarrRailAssetActions.ToSharedRef());
+	CreatedAssetTypeActions.Add(NarrRailAssetActions);
+
 	UE_LOG(LogNarrRailDebug, Log, TEXT("NarrRail Editor Module started. Debug commands available:"));
 	UE_LOG(LogNarrRailDebug, Log, TEXT("  narrrail.debug.hud        - Toggle on-screen debug HUD"));
 	UE_LOG(LogNarrRailDebug, Log, TEXT("  narrrail.debug.session    - Print session state"));
@@ -280,6 +297,17 @@ void FNarrRailEditorModule::StartupModule()
 
 void FNarrRailEditorModule::ShutdownModule()
 {
+	// Unregister asset type actions
+	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
+	{
+		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		for (auto& AssetTypeAction : CreatedAssetTypeActions)
+		{
+			AssetTools.UnregisterAssetTypeActions(AssetTypeAction.ToSharedRef());
+		}
+	}
+	CreatedAssetTypeActions.Empty();
+
 	// 注销委托
 	if (OnEndFrameHandle.IsValid())
 	{
