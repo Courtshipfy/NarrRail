@@ -7,10 +7,11 @@ UE5.7 plugin for AVG (Adventure/Visual Novel) games, providing dialogue runtime,
 - ✅ **Runtime Core**: State machine, variables, conditions, actions
 - ✅ **Blueprint API**: Full event system and helper functions
 - ✅ **Script Validation**: C# CLI tool for YAML script validation
+- ✅ **YAML Import**: Drag-and-drop YAML scripts into UE Content Browser
 - ✅ **Debugger**: Screen HUD and console commands
 - 🚧 **Save/Load**: Planned
 - 🚧 **Visual Editor**: Planned
-- 🚧 **Import/Export**: Planned
+- 🚧 **YAML Export**: Planned
 
 ## Structure
 
@@ -32,11 +33,17 @@ dotnet run --project src/NarrRail.Tooling -- validate affinity_demo.narrrail.yam
 
 See `Tools/NarrRail.Tooling/README.md` for CLI usage.
 
-### 2. Blueprint Usage
+### 2. Import YAML Script to UE
+
+1. Open UE Editor with `HostProject/NarrRailHost.uproject`
+2. Drag `Tools/NarrRail.Tooling/affinity_demo.narrrail.yaml` into Content Browser
+3. A `UNarrRailStoryAsset` will be automatically created
+
+### 3. Blueprint Usage
 
 See `docs/BLUEPRINT_QUICKSTART.md` for creating dialogues in Blueprint.
 
-### 3. Debugging
+### 4. Debugging
 
 See `docs/DEBUGGER_GUIDE.md` for runtime debugging.
 

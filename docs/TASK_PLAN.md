@@ -342,7 +342,43 @@
   - .NET 8.0
   - YamlDotNet 15.1.0（YAML 解析）
   - System.CommandLine 2.0.0-beta4（CLI 框架）
+
+- 完成任务：`NR-IO-003-01~05`（M2.3 YAML 导入器）
+- 变更模块：`NarrRailEditor` 编辑器模块
+- 新增功能：
+  - 集成 yaml-cpp 库（v0.8.0）：
+    - 下载并集成头文件和源文件
+    - 创建 Unity Build 文件编译所有 yaml-cpp 源码
+    - 配置编译选项（启用异常、禁用警告）
+  - 新增 `FNarrRailYamlParser` C++ YAML 解析器：
+    - 解析 YAML 文件为中间数据结构 `FNarrRailScriptData`
+    - 字符串到枚举转换（NodeType, VariableType, Operator, ActionType, ConditionLogic）
+    - 完整的错误处理和异常捕获
+  - 新增 `UNarrRailStoryFactory` 资产工厂：
+    - 支持 .yaml 和 .yml 文件扩展名
+    - 实现 `FactoryCreateFile` 自动导入
+    - 错误对话框提示用户导入失败原因
+  - 新增 `FAssetTypeActions_NarrRailStory` 资产类型动作：
+    - 定义资产在 Content Browser 中的显示名称
+    - 设置资产颜色（紫蓝色：RGB 100, 150, 200）
+    - 注册到 NarrRail 资产分类
+  - 编辑器模块注册：
+    - 在 `StartupModule` 中注册资产类型和工厂
+    - 在 `ShutdownModule` 中清理注册
+- 实现细节：
+  - yaml-cpp 通过 Unity Build 方式编译（`YamlCppUnityBuild.cpp`）
+  - 所有 YAML 解析辅助函数声明为 static，避免头文件暴露 YAML::Node
+  - 数据映射：YAML 字符串 → UE 枚举，YAML 字符串 → FName
+  - 错误处理：YAML 解析异常、文件读取失败、数据验证错误
+- 测试结果：
+  - 编译成功通过
+  - 待测试：在 UE 编辑器中拖拽 .yaml 文件导入
+- 技术栈：
+  - yaml-cpp 0.8.0（C++ YAML 解析库）
+  - UE Factory 模式（资产导入）
+  - UE AssetTypeActions（Content Browser 集成）
 - 下一步计划：
-  - M2.3 导入器（YAML → UE 资产）
+  - 在 UE 编辑器中测试导入 `affinity_demo.narrrail.yaml`
+  - 验证导入的资产数据完整性
   - M2.4 导出器（UE 资产 → YAML）
   - M2.5 Round-trip 测试

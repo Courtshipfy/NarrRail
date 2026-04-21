@@ -206,6 +206,25 @@ docs/
   - 负面：增加一层抽象，略微增加内存开销（可接受）
   - 兼容性：`Context.VariableSnapshot` 保留用于存档系统，通过 `GetSnapshot()/RestoreFromSnapshot()` 同步
 
+### ADR-004：YAML 导入采用 C++ 直接解析 + Unity Build 集成 yaml-cpp
+
+- 日期：2026-04-21
+- 决策：在 UE 编辑器模块中使用 C++ 直接解析 YAML，通过 Unity Build 方式集成 yaml-cpp 库。
+- 原因：
+  1. 性能：C++ 直接解析避免跨进程调用 C# CLI 工具的开销
+  2. 用户体验：拖拽导入即时反馈，无需额外工具链
+  3. 集成度：与 UE Factory 系统无缝集成，支持 Content Browser 原生工作流
+  4. 依赖管理：yaml-cpp 是成熟的 C++ YAML 库，通过 Unity Build 编译避免预编译库版本兼容问题
+- 实现方案：
+  - 下载 yaml-cpp 0.8.0 源码（include + src）
+  - 创建 `YamlCppUnityBuild.cpp` 包含所有 yaml-cpp 源文件
+  - 配置编译选项：启用异常、禁用警告（4996, 4244, 4267, 4100, 4702）
+  - 解析器辅助函数声明为 static，避免头文件暴露 YAML::Node 类型
+- 影响：
+  - 正面：导入体验流畅，编译时集成无运行时依赖
+  - 负面：增加编译时间（约 10 秒），增加模块二进制大小（约 500KB）
+  - 维护成本：yaml-cpp 版本升级需手动更新源码
+
 ## 11. 本周更新模板（复制使用）
 
 ```markdown
