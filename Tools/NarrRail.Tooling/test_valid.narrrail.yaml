@@ -1,0 +1,39 @@
+meta:
+  schemaVersion: 1
+  storyId: demo_simple
+  entryNodeId: N_Start
+
+variables:
+  - name: Affinity
+    type: Int
+    scope: Session
+    defaultValue: "0"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: "Hello, this is a test dialogue."
+      speechRate: 1.0
+      voiceAsset: ""
+    choices: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+
+  - nodeId: N_End
+    nodeType: End
+    dialogue: {}
+    choices: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

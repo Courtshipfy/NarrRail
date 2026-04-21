@@ -10,7 +10,7 @@
   },
   {
     "label": "UE: Launch Editor",
-    "command": "I:\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe",
+    "command": "D:\\Engine\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe",
     "args": ["$ZED_WORKTREE_ROOT\\HostProject\\NarrRailHost.uproject"],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
@@ -19,7 +19,7 @@
   },
   {
     "label": "UE: Build and Launch",
-    "command": "$env:NO_PAUSE='1'; HostProject\\Build-HostProject.cmd; if ($?) { I:\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe \"$ZED_WORKTREE_ROOT\\HostProject\\NarrRailHost.uproject\" }",
+    "command": "$env:NO_PAUSE='1'; HostProject\\Build-HostProject.cmd; if ($?) { D:\\Engine\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe \"$ZED_WORKTREE_ROOT\\HostProject\\NarrRailHost.uproject\" }",
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
     "allow_concurrent_runs": false,

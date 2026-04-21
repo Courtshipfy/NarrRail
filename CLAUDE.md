@@ -34,7 +34,7 @@ HostProject/                   # Development host project
 docs/
   TECH_ARCHITECTURE.md        # Technical architecture and design decisions
   TASK_PLAN.md               # WBS task checklist with completion tracking
-  SCRIPT_FORMAT.md           # JSON script format specification
+  SCRIPT_FORMAT.md           # YAML script format specification
 ```
 
 ## Build Commands
@@ -112,7 +112,7 @@ C# CLI tools for:
 - Impact: Need to maintain cross-language data contracts and version compatibility
 
 **Script Format:**
-- JSON-based (`.narrrail.json`)
+- YAML-based (`.narrrail.yaml` or `.narrrail.yml`)
 - Schema version 1 (see `docs/SCRIPT_FORMAT.md`)
 - Supports nodes (Dialogue/Choice/Jump/SetVariable/EmitEvent/End), edges with conditions, variables (Bool/Int/Float/String)
 
@@ -174,7 +174,7 @@ All tasks are tracked in `docs/TASK_PLAN.md` with unique IDs (e.g., `NR-RUN-001-
 - `README.md`: Quick start and structure overview
 - `docs/TECH_ARCHITECTURE.md`: Detailed architecture, module design, interface contracts
 - `docs/TASK_PLAN.md`: WBS with completion tracking and DoD
-- `docs/SCRIPT_FORMAT.md`: JSON script format specification v1
+- `docs/SCRIPT_FORMAT.md`: YAML script format specification v1
 - This file: Development guidance for Claude Code
 
 ## Version Information

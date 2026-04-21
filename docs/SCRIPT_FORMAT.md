@@ -3,21 +3,21 @@
 ## 1. 适用范围
 
 本文档定义了 NarrRail 用于导入/导出和离线校验的脚本文件格式。
-当前基准格式：JSON (`.narrrail.json`)。
+当前基准格式：YAML (`.narrrail.yaml` 或 `.narrrail.yml`)。
 
 ## 2. 根结构
 
-```json
-{
-  "meta": {
-    "schemaVersion": 1,
-    "storyId": "demo_story",
-    "entryNodeId": "N_Start"
-  },
-  "variables": [],
-  "nodes": [],
-  "edges": []
-}
+```yaml
+meta:
+  schemaVersion: 1
+  storyId: demo_story
+  entryNodeId: N_Start
+
+variables: []
+
+nodes: []
+
+edges: []
 ```
 
 必需的根字段：
@@ -36,13 +36,11 @@
 
 ## 4. 变量（Variables）
 
-```json
-{
-  "name": "Affinity",
-  "type": "Int",
-  "scope": "Session",
-  "defaultValue": "0"
-}
+```yaml
+- name: Affinity
+  type: Int
+  scope: Session
+  defaultValue: "0"
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -56,16 +54,18 @@
 
 基础节点对象：
 
-```json
-{
-  "nodeId": "N_Start",
-  "nodeType": "Dialogue",
-  "dialogue": {},
-  "choices": [],
-  "jumpTargetNodeId": "",
-  "enterActions": [],
-  "exitActions": []
-}
+```yaml
+- nodeId: N_Start
+  nodeType: Dialogue
+  dialogue:
+    speakerId: Hero
+    textKey: line_001
+    speechRate: 1.0
+    voiceAsset: ""
+  choices: []
+  jumpTargetNodeId: ""
+  enterActions: []
+  exitActions: []
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -80,40 +80,32 @@
 
 ### 5.1 对话载荷（Dialogue Payload）
 
-```json
-{
-  "speakerId": "Hero",
-  "textKey": "line_001",
-  "speechRate": 1.0,
-  "voiceAsset": ""
-}
+```yaml
+speakerId: Hero
+textKey: line_001
+speechRate: 1.0
+voiceAsset: ""
 ```
 
 ### 5.2 选项（Choice Option）
 
-```json
-{
-  "textKey": "option_yes",
-  "targetNodeId": "N_Yes",
-  "availability": {
-    "logic": "All",
-    "terms": []
-  }
-}
+```yaml
+- textKey: option_yes
+  targetNodeId: N_Yes
+  availability:
+    logic: All
+    terms: []
 ```
 
 ## 6. 边（Edges）
 
-```json
-{
-  "sourceNodeId": "N_Start",
-  "targetNodeId": "N_Choice",
-  "priority": 0,
-  "condition": {
-    "logic": "All",
-    "terms": []
-  }
-}
+```yaml
+- sourceNodeId: N_Start
+  targetNodeId: N_Choice
+  priority: 0
+  condition:
+    logic: All
+    terms: []
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -127,17 +119,15 @@
 
 表达式：
 
-```json
-{
-  "logic": "All",
-  "terms": [
-    {
-      "variable": { "name": "Affinity", "type": "Int", "scope": "Session" },
-      "operator": ">=",
-      "compareValue": "10"
-    }
-  ]
-}
+```yaml
+logic: All
+terms:
+  - variable:
+      name: Affinity
+      type: Int
+      scope: Session
+    operator: ">="
+    compareValue: "10"
 ```
 
 支持的运算符：
@@ -150,13 +140,14 @@
 
 ## 8. 动作（Actions）
 
-```json
-{
-  "actionType": "Add",
-  "variable": { "name": "Affinity", "type": "Int", "scope": "Session" },
-  "value": "2",
-  "eventId": ""
-}
+```yaml
+- actionType: Add
+  variable:
+    name: Affinity
+    type: Int
+    scope: Session
+  value: "2"
+  eventId: ""
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -188,73 +179,64 @@
 
 ## 11. 最小示例
 
-```json
-{
-  "meta": { 
-    "schemaVersion": 1, 
-    "storyId": "demo", 
-    "entryNodeId": "N_Start" 
-  },
-  "variables": [
-    { 
-      "name": "Affinity", 
-      "type": "Int", 
-      "scope": "Session", 
-      "defaultValue": "0" 
-    }
-  ],
-  "nodes": [
-    {
-      "nodeId": "N_Start",
-      "nodeType": "Dialogue",
-      "dialogue": { 
-        "speakerId": "Hero", 
-        "textKey": "line_start", 
-        "speechRate": 1.0, 
-        "voiceAsset": "" 
-      },
-      "choices": [],
-      "jumpTargetNodeId": "",
-      "enterActions": [],
-      "exitActions": []
-    },
-    {
-      "nodeId": "N_End",
-      "nodeType": "End",
-      "dialogue": {},
-      "choices": [],
-      "jumpTargetNodeId": "",
-      "enterActions": [],
-      "exitActions": []
-    }
-  ],
-  "edges": [
-    {
-      "sourceNodeId": "N_Start",
-      "targetNodeId": "N_End",
-      "priority": 0,
-      "condition": { "logic": "All", "terms": [] }
-    }
-  ]
-}
+```yaml
+meta:
+  schemaVersion: 1
+  storyId: demo
+  entryNodeId: N_Start
+
+variables:
+  - name: Affinity
+    type: Int
+    scope: Session
+    defaultValue: "0"
+
+nodes:
+  - nodeId: N_Start
+    nodeType: Dialogue
+    dialogue:
+      speakerId: Hero
+      textKey: line_start
+      speechRate: 1.0
+      voiceAsset: ""
+    choices: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+  
+  - nodeId: N_End
+    nodeType: End
+    dialogue: {}
+    choices: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+
+edges:
+  - sourceNodeId: N_Start
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []
 ```
 
 ## 12. 使用说明
 
 ### 12.1 创建脚本
 
-1. 按照本规范创建 JSON 文件
+1. 按照本规范创建 YAML 文件
 2. 确保所有必需字段都已填写
 3. 使用校验工具检查格式（待实现）
 
 ### 12.2 导入到 UE
 
-1. 使用导入工具将 JSON 转换为 UE 资产（待实现）
+1. 使用导入工具将 YAML 转换为 UE 资产（待实现）
 2. 或在蓝图中使用 `UNarrRailBlueprintLibrary` 手动创建
 
 ### 12.3 导出为脚本
 
-1. 使用导出工具将 UE 资产转换为 JSON（待实现）
+1. 使用导出工具将 UE 资产转换为 YAML（待实现）
 2. 可用于版本控制和外部编辑
 
 ## 13. 注意事项

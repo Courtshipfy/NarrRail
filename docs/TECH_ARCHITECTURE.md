@@ -74,7 +74,7 @@ docs/
 
 ### 3.3 Tooling 分层（C#）
 
-- `Parser`：DSL/JSON 解析
+- `Parser`：YAML 解析
 - `Schema`：格式约束与版本管理
 - `Importer/Exporter`：文件与 UE 资产数据映射
 - `Localization`：文本键抽取与语言包处理
@@ -93,7 +93,7 @@ docs/
 
 ### 4.2 脚本工作流
 
-1. 编剧产出 DSL/JSON（文本）
+1. 编剧产出 YAML（文本）
 2. C# 工具执行 `validate/import`
 3. 导入为 UE 资产（C++ Editor）
 4. 编辑器内调整与校验（C++ Editor）
@@ -154,9 +154,10 @@ docs/
 | 变量与条件 | C++ | 基本完成 | NR-RUN-003-* | 容器/作用域/通知/比较/逻辑运算，缓存优化待实现 |
 | Blueprint 接入层 | C++ | 已完成 | NR-RUN-005-* | 事件委托、蓝图函数库、完整 API 暴露 |
 | 存档恢复 | C++ | 规划中 | NR-RUN-006-* | |
+| 脚本解析与校验 | C# | 已完成 | NR-IO-002-* | YAML 解析、语义校验、CLI 命令 |
+| 脚本导入导出 | C# | 规划中 | NR-IO-003/004-* | |
 | 编辑器图编辑 | C++ | 规划中 | NR-ED-002-* | |
 | 编辑器校验器 | C++ | 规划中 | NR-ED-004-* | |
-| 工具链 CLI | C# | 规划中 | NR-IO-002/003/004/005-* | |
 
 ## 9. 接口变更日志
 
@@ -170,6 +171,9 @@ docs/
 | 2026-04-14 | Runtime | 修改 | UNarrRailStorySession | 集成 UNarrRailVariableContainer，新增便捷变量访问接口 | 向后兼容，Context.VariableSnapshot 保留用于存档 |
 | 2026-04-14 | Runtime | 新增 | 运行时事件委托 | OnSessionStarted/OnNodeEntered/OnNodeExited/OnSessionEnded/OnChoicesReady/OnChoiceSelected | 无，新增功能 |
 | 2026-04-14 | Runtime | 新增 | UNarrRailBlueprintLibrary | 蓝图函数库，提供资产创建和会话管理辅助函数 | 无，新增功能 |
+| 2026-04-21 | Tooling | 新增 | narrrail CLI | C# CLI 工具，支持 validate 命令 | 无，新增功能 |
+| 2026-04-21 | Tooling | 新增 | ScriptParser | YAML 脚本解析器（基于 YamlDotNet） | 无，新增功能 |
+| 2026-04-21 | Tooling | 新增 | ScriptValidator | 语义校验器（引用检查、循环检测、孤立节点） | 无，新增功能 |
 
 ## 10. 技术决策记录（ADR 简版）
 
