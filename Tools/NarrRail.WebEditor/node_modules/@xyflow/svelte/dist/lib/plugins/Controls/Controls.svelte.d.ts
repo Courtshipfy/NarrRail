@@ -1,0 +1,19 @@
+import { SvelteComponentTyped } from "svelte";
+import type { ControlsProps } from './types';
+declare const __propDef: {
+    props: ControlsProps;
+    events: {
+        [evt: string]: CustomEvent<any>;
+    };
+    slots: {
+        before: {};
+        default: {};
+        after: {};
+    };
+};
+type ControlsProps_ = typeof __propDef.props;
+export { ControlsProps_ as ControlsProps };
+export type ControlsEvents = typeof __propDef.events;
+export type ControlsSlots = typeof __propDef.slots;
+export default class Controls extends SvelteComponentTyped<ControlsProps_, ControlsEvents, ControlsSlots> {
+}

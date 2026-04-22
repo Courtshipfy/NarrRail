@@ -1,0 +1,10 @@
+<script>import { useStore } from '../../../store';
+import { Marker } from './';
+const { markers } = useStore();
+</script>
+
+<defs>
+  {#each $markers as marker (marker.id)}
+    <Marker {...marker} />
+  {/each}
+</defs>

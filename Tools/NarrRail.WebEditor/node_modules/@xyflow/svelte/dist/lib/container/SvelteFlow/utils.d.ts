@@ -1,0 +1,41 @@
+/// <reference types="svelte" />
+import type { Writable } from 'svelte/store';
+import type { CoordinateExtent } from '@xyflow/system';
+import type { SvelteFlowStore } from '../../store/types';
+import type { EdgeTypes, NodeTypes } from '../../types';
+export declare function updateStore(store: SvelteFlowStore, { nodeTypes, edgeTypes, minZoom, maxZoom, translateExtent, paneClickDistance }: {
+    nodeTypes?: NodeTypes;
+    edgeTypes?: EdgeTypes;
+    minZoom?: number;
+    maxZoom?: number;
+    translateExtent?: CoordinateExtent;
+    paneClickDistance?: number;
+}): void;
+type UnwrapWritable<T> = T extends Writable<infer U> ? U : T;
+export type UpdatableStoreProps = {
+    flowId?: UnwrapWritable<SvelteFlowStore['flowId']>;
+    connectionLineType?: UnwrapWritable<SvelteFlowStore['connectionLineType']>;
+    connectionRadius?: UnwrapWritable<SvelteFlowStore['connectionRadius']>;
+    selectionMode?: UnwrapWritable<SvelteFlowStore['selectionMode']>;
+    snapGrid?: UnwrapWritable<SvelteFlowStore['snapGrid']>;
+    defaultMarkerColor?: UnwrapWritable<SvelteFlowStore['defaultMarkerColor']>;
+    nodesDraggable?: UnwrapWritable<SvelteFlowStore['nodesDraggable']>;
+    nodesConnectable?: UnwrapWritable<SvelteFlowStore['nodesConnectable']>;
+    elementsSelectable?: UnwrapWritable<SvelteFlowStore['elementsSelectable']>;
+    onlyRenderVisibleElements?: UnwrapWritable<SvelteFlowStore['onlyRenderVisibleElements']>;
+    isValidConnection?: UnwrapWritable<SvelteFlowStore['isValidConnection']>;
+    autoPanOnConnect?: UnwrapWritable<SvelteFlowStore['autoPanOnConnect']>;
+    autoPanOnNodeDrag?: UnwrapWritable<SvelteFlowStore['autoPanOnNodeDrag']>;
+    connectionMode?: UnwrapWritable<SvelteFlowStore['connectionMode']>;
+    onerror?: UnwrapWritable<SvelteFlowStore['onerror']>;
+    ondelete?: UnwrapWritable<SvelteFlowStore['ondelete']>;
+    onedgecreate?: UnwrapWritable<SvelteFlowStore['onedgecreate']>;
+    nodeDragThreshold?: UnwrapWritable<SvelteFlowStore['nodeDragThreshold']>;
+    onconnect?: UnwrapWritable<SvelteFlowStore['onconnect']>;
+    onconnectstart?: UnwrapWritable<SvelteFlowStore['onconnectstart']>;
+    onconnectend?: UnwrapWritable<SvelteFlowStore['onconnectend']>;
+    onbeforedelete?: UnwrapWritable<SvelteFlowStore['onbeforedelete']>;
+    nodeOrigin?: UnwrapWritable<SvelteFlowStore['nodeOrigin']>;
+};
+export declare function updateStoreByKeys(store: SvelteFlowStore, keys: UpdatableStoreProps): void;
+export {};
