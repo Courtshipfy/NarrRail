@@ -1,0 +1,65 @@
+meta:
+  schemaVersion: 1
+  storyId: NewStory
+  entryNodeId: ""
+variables: []
+nodes:
+  - nodeId: node-1776933658447
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 阿良良木历
+      textKey: “哪怕只有一点点也好，你有没有想过要原谅我？”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776933828193
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 忍野忍
+      textKey: “没想过，一次都没有。哪怕这世界毁灭了，吾也绝不原谅汝。汝剥夺了吾求死的心愿，将吾作为吸血鬼之王的尊严践踏殆尽，还把吾变成了这副可悲的模样。汝之罪孽，即便用永恒的时间也无法偿还。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776933918740
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 阿良良木历
+      textKey: “是吗……既然如此，那我就更不能放开你了。既然是无法偿还的罪，那我就得用一辈子——不对，是连同你的那份永恒一起，死皮赖脸地缠着你才行。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776933973501
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 忍野忍
+      textKey: “哼，汝这副伪善的嘴脸真是让吾作呕。汝明白吗？这并非什么感人的和解。吾等之间不存在‘和解’这种温吞的词。有的只是‘相互诅咒’。汝通过救了吾，剥夺了吾的自由；吾通过被汝所救，夺走了汝作为普通人的未来。吾等是互相拖累、互相伤害、互相纠缠到地狱尽头的罪人。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776934009798
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 阿良良木历
+      textKey: “啊，我明白。所以，如果有一天你真的决定要杀了我，也请务必由你亲自动手。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776934076571
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 忍野忍
+      textKey: “那是自然。在吸取汝最后一滴血之前，吾是不可能让汝死在别人手里的。在那一天到来之前，汝就老老实实地作为吾的仆人、吾的口粮、吾唯一的说话对象，在这个无聊的世界里挣扎给吾看吧。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776934112144
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 阿良良木历
+      textKey: “……总觉得，这种说法虽然很过分，但听起来却像是在跟我约会一样。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776934155631
+    nodeType: Dialogue
+    dialogue:
+      speakerId: 忍野忍
+      textKey: “汝这蠢货，果然没救了。不过，既然汝如此诚恳地恳求吾，那吾就大发慈悲地给汝一个建议吧——那个甜甜圈，下次记得买‘金巧克力’口味的。”
+      speechRate: 1
+      voiceAsset: ""
+  - nodeId: node-1776934177734
+    nodeType: End
+edges: []

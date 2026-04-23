@@ -1,21 +1,9 @@
 <template>
   <div class="property-panel-wrapper">
-    <!-- 触发热区（始终存在，透明） -->
-    <div
-      class="panel-hotzone"
-      @mouseenter="handleMouseEnter"
-    ></div>
-
-    <!-- 收起时的箭头按钮 -->
-    <div class="panel-trigger" :class="{ 'hidden': isExpanded }">
-      <span class="material-symbols-outlined">chevron_left</span>
-    </div>
-
     <!-- 展开的面板 -->
     <div
       class="property-panel glass-morphism-strong"
       :class="{ 'expanded': isExpanded }"
-      @mouseleave="handleMouseLeave"
     >
       <div class="property-panel-header">
         <h2 class="panel-title">属性面板</h2>
@@ -23,14 +11,16 @@
       </div>
 
       <div class="property-panel-content">
-        <div v-if="selectedNode" class="property-form">
+        <div v-if="localNode" class="property-form">
           <div class="form-group glass-input">
             <label class="form-label">节点 ID</label>
             <input
               type="text"
               class="form-input"
-              :value="selectedNode.id"
-              @input="updateNodeId"
+              v-model="localNode.id"
+              @compositionstart="handleCompositionStart"
+              @compositionend="handleCompositionEnd"
+              @blur="handleInputChange"
             />
           </div>
 
@@ -39,19 +29,21 @@
             <input
               type="text"
               class="form-input"
-              :value="selectedNode.type"
+              :value="localNode.type"
               readonly
             />
           </div>
 
-          <template v-if="selectedNode.type === 'dialogue'">
+          <template v-if="localNode.type === 'dialogue'">
             <div class="form-group glass-input">
               <label class="form-label">说话人 ID</label>
               <input
                 type="text"
                 class="form-input"
-                :value="selectedNode.data.speakerId || ''"
-                @input="updateData('speakerId', $event.target.value)"
+                v-model="localNode.data.speakerId"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
               />
             </div>
 
@@ -59,8 +51,10 @@
               <label class="form-label">对话文本</label>
               <textarea
                 class="form-textarea"
-                :value="selectedNode.data.textKey || ''"
-                @input="updateData('textKey', $event.target.value)"
+                v-model="localNode.data.textKey"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
               ></textarea>
             </div>
 
@@ -69,9 +63,9 @@
               <input
                 type="number"
                 class="form-input"
-                :value="selectedNode.data.speechRate || 1.0"
+                v-model.number="localNode.data.speechRate"
                 step="0.1"
-                @input="updateData('speechRate', parseFloat($event.target.value))"
+                @blur="handleUpdate"
               />
             </div>
 
@@ -80,18 +74,133 @@
               <input
                 type="text"
                 class="form-input"
-                :value="selectedNode.data.voiceAsset || ''"
-                @input="updateData('voiceAsset', $event.target.value)"
+                v-model="localNode.data.voiceAsset"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
               />
             </div>
           </template>
 
-          <button class="update-button bouncy-feedback spring-animation">
+          <template v-else-if="localNode.type === 'choice'">
+            <div class="form-group glass-input">
+              <label class="form-label">选项列表</label>
+              <div v-for="(choice, index) in localNode.data.choices" :key="index" class="choice-item">
+                <input
+                  type="text"
+                  class="form-input"
+                  v-model="choice.textKey"
+                  placeholder="选项文本"
+                  @compositionstart="handleCompositionStart"
+                  @compositionend="handleCompositionEnd"
+                  @blur="handleInputChange"
+                />
+                <input
+                  type="text"
+                  class="form-input"
+                  v-model="choice.targetNodeId"
+                  placeholder="目标节点ID"
+                  @compositionstart="handleCompositionStart"
+                  @compositionend="handleCompositionEnd"
+                  @blur="handleInputChange"
+                />
+                <button class="remove-choice-btn" @click="removeChoice(index)">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <button class="add-choice-btn" @click="addChoice">
+                <span class="material-symbols-outlined">add</span>
+                <span>添加选项</span>
+              </button>
+            </div>
+          </template>
+
+          <template v-else-if="localNode.type === 'jump'">
+            <div class="form-group glass-input">
+              <label class="form-label">目标节点 ID</label>
+              <input
+                type="text"
+                class="form-input"
+                v-model="localNode.data.targetNodeId"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
+              />
+            </div>
+          </template>
+
+          <template v-else-if="localNode.type === 'setvariable'">
+            <div class="form-group glass-input">
+              <label class="form-label">变量名</label>
+              <input
+                type="text"
+                class="form-input"
+                v-model="localNode.data.variableName"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
+              />
+            </div>
+
+            <div class="form-group glass-input">
+              <label class="form-label">操作</label>
+              <select
+                class="form-input"
+                v-model="localNode.data.operation"
+                @change="handleUpdate"
+              >
+                <option value="Set">Set (设置)</option>
+                <option value="Add">Add (增加)</option>
+                <option value="Subtract">Subtract (减少)</option>
+                <option value="Multiply">Multiply (乘以)</option>
+                <option value="Divide">Divide (除以)</option>
+              </select>
+            </div>
+
+            <div class="form-group glass-input">
+              <label class="form-label">值</label>
+              <input
+                type="text"
+                class="form-input"
+                v-model="localNode.data.value"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
+              />
+            </div>
+          </template>
+
+          <template v-else-if="localNode.type === 'emitevent'">
+            <div class="form-group glass-input">
+              <label class="form-label">事件 ID</label>
+              <input
+                type="text"
+                class="form-input"
+                v-model="localNode.data.eventId"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
+              />
+            </div>
+
+            <div class="form-group glass-input">
+              <label class="form-label">参数 (JSON)</label>
+              <textarea
+                class="form-textarea"
+                :value="JSON.stringify(localNode.data.parameters || {}, null, 2)"
+                @input="updateParameters($event.target.value)"
+                @compositionstart="handleCompositionStart"
+                @compositionend="handleCompositionEnd"
+                @blur="handleInputChange"
+                placeholder='{"key": "value"}'
+              ></textarea>
+            </div>
+          </template>
+
+          <button class="update-button bouncy-feedback spring-animation" @click="handleUpdate">
             <span class="material-symbols-outlined">check_circle</span>
             <span>更新属性</span>
           </button>
-
-          <p class="dev-notice">其他节点类型开发中...</p>
         </div>
         <div v-else class="property-panel-empty">
           <span class="material-symbols-outlined empty-icon">touch_app</span>
@@ -103,7 +212,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
   selectedNode: {
@@ -115,31 +224,85 @@ const props = defineProps({
 const emit = defineEmits(['update']);
 
 const isExpanded = ref(false);
+const localNode = ref(null);
+const isComposing = ref(false);
 
-function handleMouseEnter() {
-  isExpanded.value = true;
+// 监听 selectedNode 变化，同步到本地副本
+watch(() => props.selectedNode, (newNode) => {
+  if (newNode) {
+    localNode.value = JSON.parse(JSON.stringify(newNode));
+    isExpanded.value = true; // 选中节点时自动展开
+  } else {
+    localNode.value = null;
+    isExpanded.value = false; // 取消选中时自动收起
+  }
+}, { immediate: true, deep: true });
+
+// 处理中文输入法
+function handleCompositionStart() {
+  isComposing.value = true;
 }
 
-function handleMouseLeave() {
-  isExpanded.value = false;
+function handleCompositionEnd() {
+  isComposing.value = false;
+}
+
+function handleInputChange() {
+  // 只在非输入法状态下保存
+  if (!isComposing.value) {
+    handleUpdate();
+  }
 }
 
 function updateNodeId(event) {
-  if (!props.selectedNode) return;
-  const updated = { ...props.selectedNode, id: event.target.value };
-  emit('update', updated);
+  if (!localNode.value) return;
+  localNode.value.id = event.target.value;
 }
 
 function updateData(key, value) {
-  if (!props.selectedNode) return;
-  const updated = {
-    ...props.selectedNode,
-    data: {
-      ...props.selectedNode.data,
-      [key]: value
-    }
+  if (!localNode.value) return;
+  localNode.value.data = {
+    ...localNode.value.data,
+    [key]: value
   };
-  emit('update', updated);
+}
+
+function addChoice() {
+  if (!localNode.value || localNode.value.type !== 'choice') return;
+  const choices = [...(localNode.value.data.choices || [])];
+  choices.push({ textKey: '', targetNodeId: '' });
+  localNode.value.data.choices = choices;
+}
+
+function removeChoice(index) {
+  if (!localNode.value || localNode.value.type !== 'choice') return;
+  const choices = [...(localNode.value.data.choices || [])];
+  choices.splice(index, 1);
+  localNode.value.data.choices = choices;
+}
+
+function updateChoice(index, key, value) {
+  if (!localNode.value || localNode.value.type !== 'choice') return;
+  const choices = [...(localNode.value.data.choices || [])];
+  choices[index] = { ...choices[index], [key]: value };
+  localNode.value.data.choices = choices;
+}
+
+function updateParameters(jsonString) {
+  if (!localNode.value) return;
+  try {
+    const params = JSON.parse(jsonString);
+    localNode.value.data.parameters = params;
+  } catch (e) {
+    // 忽略无效的 JSON
+  }
+}
+
+function handleUpdate() {
+  // 提交本地修改到父组件
+  if (localNode.value) {
+    emit('update', localNode.value);
+  }
 }
 </script>
 
@@ -153,81 +316,26 @@ function updateData(key, value) {
   pointer-events: none;
 }
 
-/* 触发热区 - 始终存在，透明 */
-.panel-hotzone {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 48px;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-/* 箭头按钮 */
-.panel-trigger {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 96px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(16px);
-  border-radius: 16px 0 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-right: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.05);
-  pointer-events: none;
-}
-
-.panel-trigger.hidden {
-  opacity: 0;
-}
-
-.panel-hotzone:hover ~ .panel-trigger:not(.hidden) {
-  background: rgba(255, 255, 255, 0.3);
-  width: 56px;
-}
-
-.panel-trigger .material-symbols-outlined {
-  font-size: 28px;
-  color: #3b82f6;
-  animation: pulse-arrow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-arrow {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(-4px);
-  }
-}
-
 /* 面板本体 */
 .property-panel {
   position: absolute;
   right: 16px;
-  top: 104px;
-  bottom: 76px;
+  top: 88px;
+  bottom: 92px;
   width: 320px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-radius: 16px;
-  transform: translateX(calc(100% + 16px));
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform: translateX(calc(100% + 32px));
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   pointer-events: none;
 }
 
 .property-panel.expanded {
   transform: translateX(0);
+  opacity: 1;
   pointer-events: auto;
 }
 
@@ -362,5 +470,68 @@ function updateData(key, value) {
   text-align: center;
   font-style: italic;
   margin-top: 8px;
+}
+
+.choice-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.remove-choice-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.8);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.remove-choice-btn:hover {
+  background: rgba(239, 68, 68, 1);
+  transform: scale(1.1);
+}
+
+.remove-choice-btn .material-symbols-outlined {
+  font-size: 16px;
+  color: white;
+}
+
+.add-choice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b82f6;
+  transition: all 0.2s ease;
+}
+
+.add-choice-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.add-choice-btn .material-symbols-outlined {
+  font-size: 18px;
 }
 </style>

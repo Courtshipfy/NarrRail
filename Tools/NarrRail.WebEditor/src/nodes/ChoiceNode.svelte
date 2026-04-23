@@ -1,9 +1,31 @@
 <script>
+  import { Handle, Position } from '@xyflow/svelte';
+
   export let data;
   export let selected = false;
+
+  // Svelte Flow 内部 props
+  export let id = undefined;
+  export let type = undefined;
+  export let selectable = undefined;
+  export let deletable = undefined;
+  export let draggable = undefined;
+  export let dragging = undefined;
+  export let dragHandle = undefined;
+  export let sourcePosition = undefined;
+  export let targetPosition = undefined;
+  export let zIndex = undefined;
+  export let parentId = undefined;
+  export let isConnectable = undefined;
+  export let positionAbsoluteX = undefined;
+  export let positionAbsoluteY = undefined;
+  export let width = undefined;
+  export let height = undefined;
 </script>
 
 <div class="choice-node" class:selected>
+  <Handle type="target" position={Position.Left} />
+
   <div class="node-header">
     <span class="material-symbols-outlined node-icon">fork_right</span>
     <span class="node-type">选择</span>
@@ -27,6 +49,8 @@
       </div>
     {/if}
   </div>
+
+  <Handle type="source" position={Position.Right} />
 </div>
 
 <style>

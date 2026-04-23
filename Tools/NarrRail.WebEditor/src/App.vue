@@ -28,6 +28,11 @@
       @update="handleNodeUpdate"
     />
 
+    <VariablePanel
+      :variables="variables"
+      @update="handleVariablesUpdate"
+    />
+
     <input
       ref="fileInput"
       type="file"
@@ -43,6 +48,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import Toolbar from './components/Toolbar.vue';
 import GraphEditorWrapper from './components/GraphEditorWrapper.vue';
 import PropertyPanel from './components/PropertyPanel.vue';
+import VariablePanel from './components/VariablePanel.vue';
 import StatusBar from './components/StatusBar.vue';
 import { exportToYAML } from './utils/yaml-exporter.js';
 import { importFromYAML } from './utils/yaml-importer.js';
@@ -82,9 +88,9 @@ const nodes = ref([
 ]);
 
 const edges = ref([
-  { id: 'e1-2', source: 'node-1', target: 'node-2', type: 'smoothstep', animated: true },
-  { id: 'e2-3', source: 'node-2', target: 'node-3', type: 'smoothstep' },
-  { id: 'e2-4', source: 'node-2', target: 'node-4', type: 'smoothstep' }
+  { id: 'e1-2', source: 'node-1', target: 'node-2', type: 'straight', animated: true },
+  { id: 'e2-3', source: 'node-2', target: 'node-3', type: 'straight' },
+  { id: 'e2-4', source: 'node-2', target: 'node-4', type: 'straight' }
 ]);
 
 const selectedNode = ref(null);
@@ -249,6 +255,10 @@ function handleNodeUpdate(updatedNode) {
   if (index !== -1) {
     nodes.value[index] = updatedNode;
   }
+}
+
+function handleVariablesUpdate(updatedVariables) {
+  variables.value = updatedVariables;
 }
 </script>
 
