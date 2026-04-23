@@ -38,12 +38,14 @@ defineProps({
 
 <style scoped>
 .status-bar {
-  height: 48px;
+  height: 44px;
   display: flex;
   align-items: center;
   padding: 0 32px;
   gap: 32px;
-  border-radius: 32px 32px 0 0;
+  margin: 0 16px 16px 16px;
+  border-radius: 20px;
+  border: none;
 }
 
 .status-item {
@@ -51,23 +53,26 @@ defineProps({
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 500;
+  color: #1d1d1f;
+  font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
+  opacity: 0.7;
 }
 
 .status-item .material-symbols-outlined {
   font-size: 18px;
-  color: #94a3b8;
+  opacity: 0.6;
 }
 
 .status-item.auto-save {
   margin-left: auto;
-  color: #10b981;
+  color: #34c759;
+  opacity: 1;
 }
 
 .status-item.auto-save .material-symbols-outlined {
-  color: #10b981;
+  color: #34c759;
+  opacity: 1;
 }
 
 @keyframes pulse {

@@ -8,8 +8,60 @@ body {
   font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
                'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   overflow: hidden;
-  background: radial-gradient(circle at top left, #fee2e2 0%, #fef3c7 20%, #ecfdf5 40%, #eff6ff 60%, #faf5ff 80%, #fdf2f8 100%);
-  background-attachment: fixed;
+  position: relative;
+  background: #f5f5f7;
+}
+
+/* Apple Music 风格的 Mesh Gradient */
+body::before {
+  content: '';
+  position: fixed;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 15% 20%, rgba(255, 45, 85, 0.15) 0%, transparent 40%),
+    radial-gradient(ellipse at 85% 15%, rgba(255, 159, 10, 0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(88, 86, 214, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 80%, rgba(255, 55, 95, 0.1) 0%, transparent 45%),
+    radial-gradient(ellipse at 80% 75%, rgba(52, 199, 89, 0.08) 0%, transparent 40%),
+    radial-gradient(ellipse at 45% 30%, rgba(90, 200, 250, 0.1) 0%, transparent 45%),
+    radial-gradient(ellipse at 70% 60%, rgba(191, 90, 242, 0.09) 0%, transparent 40%);
+  filter: blur(60px);
+  animation: mesh-gradient-flow 30s ease-in-out infinite;
+}
+
+/* 添加细微的噪点纹理（Apple 风格） */
+body::after {
+  content: '';
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.01) 2px, rgba(0,0,0,0.01) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.01) 2px, rgba(0,0,0,0.01) 4px);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+@keyframes mesh-gradient-flow {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translate(-2%, 2%) rotate(1deg) scale(1.02);
+  }
+  50% {
+    transform: translate(1%, -1%) rotate(-0.5deg) scale(0.98);
+  }
+  75% {
+    transform: translate(-1%, 1%) rotate(0.5deg) scale(1.01);
+  }
 }
 
 #app {
@@ -19,27 +71,25 @@ body {
 
 /* Glassmorphism utilities */
 .glass-morphism {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8),
-              0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
 }
 
 .glass-morphism-strong {
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.9),
-              0 10px 30px -5px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(50px) saturate(200%);
+  -webkit-backdrop-filter: blur(50px) saturate(200%);
+  border: 0.5px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.06);
 }
 
 /* Dot grid background */
 .dot-grid {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 /* Spring animation */
@@ -59,10 +109,24 @@ body {
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(to right, #f472b6, #a855f7, #3b82f6);
+  background: linear-gradient(90deg, #f472b6, #a855f7, #3b82f6, #f472b6);
+  background-size: 200% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: gradient-text-flow 3s ease infinite;
+}
+
+@keyframes gradient-text-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Jelly node shadow */

@@ -22,17 +22,17 @@
           </div>
         </div>
       </div>
-
-      <PropertyPanel
-        :selected-node="selectedNode"
-        @update="handleNodeUpdate"
-      />
     </div>
 
     <StatusBar
       :node-count="nodes.length"
       :edge-count="edges.length"
       :story-id="storyMeta.storyId"
+    />
+
+    <PropertyPanel
+      :selected-node="selectedNode"
+      @update="handleNodeUpdate"
     />
 
     <input
@@ -217,18 +217,22 @@ function handleNodeUpdate(updatedNode) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 0;
 }
 
 .main-content {
   flex: 1;
   display: flex;
   overflow: hidden;
+  padding: 0 16px;
 }
 
 .graph-editor-wrapper {
   flex: 1;
   position: relative;
   margin-right: 0;
+  border-radius: 20px;
+  overflow: hidden;
 }
 
 .graph-placeholder {
@@ -243,7 +247,7 @@ function handleNodeUpdate(updatedNode) {
 .placeholder-content {
   text-align: center;
   padding: 48px;
-  border-radius: 32px;
+  border-radius: 24px;
   cursor: pointer;
   max-width: 400px;
 }
@@ -253,20 +257,21 @@ function handleNodeUpdate(updatedNode) {
   color: #a855f7;
   margin-bottom: 16px;
   display: block;
+  opacity: 0.6;
 }
 
 .placeholder-content h3 {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 32px;
   font-weight: 700;
-  color: #1e293b;
+  color: #1d1d1f;
   margin-bottom: 12px;
 }
 
 .placeholder-content p {
   font-size: 16px;
-  color: #64748b;
-  font-weight: 600;
+  color: #86868b;
+  font-weight: 500;
   margin-bottom: 24px;
 }
 
@@ -275,11 +280,12 @@ function handleNodeUpdate(updatedNode) {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: rgba(168, 85, 247, 0.1);
-  border-radius: 9999px;
+  background: rgba(168, 85, 247, 0.08);
+  border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
   color: #a855f7;
+  border: 0.5px solid rgba(168, 85, 247, 0.1);
 }
 
 .placeholder-hint .material-symbols-outlined {

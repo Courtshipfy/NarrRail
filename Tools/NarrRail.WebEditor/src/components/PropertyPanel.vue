@@ -149,7 +149,7 @@ function updateData(key, value) {
   right: 0;
   top: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: 30;
   pointer-events: none;
 }
 
@@ -213,15 +213,15 @@ function updateData(key, value) {
 /* 面板本体 */
 .property-panel {
   position: absolute;
-  right: 0;
-  top: 80px;
-  bottom: 48px;
+  right: 16px;
+  top: 104px;
+  bottom: 76px;
   width: 320px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 16px 0 0 16px;
-  transform: translateX(100%);
+  border-radius: 16px;
+  transform: translateX(calc(100% + 16px));
   transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   pointer-events: none;
 }
