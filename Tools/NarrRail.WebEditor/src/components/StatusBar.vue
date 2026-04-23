@@ -38,14 +38,18 @@ defineProps({
 
 <style scoped>
 .status-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
   height: 44px;
   display: flex;
   align-items: center;
   padding: 0 32px;
   gap: 32px;
-  margin: 0 16px 16px 16px;
   border-radius: 20px;
   border: none;
+  z-index: 50;
 }
 
 .status-item {

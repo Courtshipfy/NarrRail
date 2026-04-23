@@ -71,19 +71,21 @@ body::after {
 
 /* Glassmorphism utilities */
 .glass-morphism {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(249, 249, 251, 0.72);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border: 0.5px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .glass-morphism-strong {
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(249, 249, 251, 0.78);
   backdrop-filter: blur(50px) saturate(200%);
   -webkit-backdrop-filter: blur(50px) saturate(200%);
-  border: 0.5px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.1),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 /* Dot grid background */

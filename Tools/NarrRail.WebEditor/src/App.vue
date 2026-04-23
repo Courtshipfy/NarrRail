@@ -1,5 +1,14 @@
 <template>
   <div class="editor-container">
+    <div class="main-content">
+      <div class="graph-editor-wrapper">
+        <GraphEditorWrapper
+          :nodes="nodes"
+          :edges="edges"
+        />
+      </div>
+    </div>
+
     <Toolbar
       @new="handleNew"
       @import="handleImport"
@@ -7,22 +16,6 @@
       @validate="handleValidate"
       @help="handleHelp"
     />
-
-    <div class="main-content">
-      <div class="graph-editor-wrapper dot-grid">
-        <div class="graph-placeholder">
-          <div class="placeholder-content jelly-node glass-morphism-strong bouncy-feedback scale-up-hover spring-animation">
-            <span class="material-symbols-outlined placeholder-icon">auto_graph</span>
-            <h3>图编辑器</h3>
-            <p>节点数: {{ nodes.length }} | 边数: {{ edges.length }}</p>
-            <div class="placeholder-hint">
-              <span class="material-symbols-outlined">info</span>
-              <span>Svelte Flow 集成开发中</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <StatusBar
       :node-count="nodes.length"
@@ -48,6 +41,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import Toolbar from './components/Toolbar.vue';
+import GraphEditorWrapper from './components/GraphEditorWrapper.vue';
 import PropertyPanel from './components/PropertyPanel.vue';
 import StatusBar from './components/StatusBar.vue';
 import { exportToYAML } from './utils/yaml-exporter.js';
@@ -55,12 +49,48 @@ import { importFromYAML } from './utils/yaml-importer.js';
 import { validateStory } from './utils/validation.js';
 import storage from './utils/storage.js';
 
-const nodes = ref([]);
-const edges = ref([]);
+const nodes = ref([
+  {
+    id: 'node-1',
+    type: 'dialogue',
+    position: { x: 250, y: 100 },
+    data: { speakerId: 'Alice', textKey: '你好！欢迎使用 NarrRail 编辑器。' }
+  },
+  {
+    id: 'node-2',
+    type: 'choice',
+    position: { x: 250, y: 250 },
+    data: {
+      choices: [
+        { textKey: '继续对话', targetNodeId: 'node-3' },
+        { textKey: '结束对话', targetNodeId: 'node-4' }
+      ]
+    }
+  },
+  {
+    id: 'node-3',
+    type: 'dialogue',
+    position: { x: 100, y: 400 },
+    data: { speakerId: 'Bob', textKey: '很高兴认识你！' }
+  },
+  {
+    id: 'node-4',
+    type: 'end',
+    position: { x: 400, y: 400 },
+    data: {}
+  }
+]);
+
+const edges = ref([
+  { id: 'e1-2', source: 'node-1', target: 'node-2', type: 'smoothstep', animated: true },
+  { id: 'e2-3', source: 'node-2', target: 'node-3', type: 'smoothstep' },
+  { id: 'e2-4', source: 'node-2', target: 'node-4', type: 'smoothstep' }
+]);
+
 const selectedNode = ref(null);
 const storyMeta = ref({
-  storyId: 'NewStory',
-  entryNodeId: '',
+  storyId: 'DemoStory',
+  entryNodeId: 'node-1',
   schemaVersion: 1
 });
 const variables = ref([]);
@@ -70,15 +100,23 @@ let autoSaveTimer = null;
 
 onMounted(() => {
   console.log('App mounted');
+  console.log('Initial nodes:', nodes.value);
+  console.log('Initial edges:', edges.value);
 
-  // 尝试加载上次编辑的剧情
-  const lastStory = storage.load(storyMeta.value.storyId);
-  if (lastStory) {
-    nodes.value = lastStory.nodes || [];
-    edges.value = lastStory.edges || [];
-    storyMeta.value = lastStory.meta || storyMeta.value;
-    variables.value = lastStory.variables || [];
-  }
+  // 监听节点点击事件
+  window.addEventListener('node-click', (event) => {
+    selectedNode.value = event.detail;
+  });
+
+  // 监听节点变化事件
+  window.addEventListener('nodes-change', (event) => {
+    nodes.value = event.detail;
+  });
+
+  // 监听边变化事件
+  window.addEventListener('edges-change', (event) => {
+    edges.value = event.detail;
+  });
 
   // 启动自动保存
   autoSaveTimer = storage.setupAutoSave(
@@ -96,6 +134,10 @@ onUnmounted(() => {
   if (autoSaveTimer) {
     clearInterval(autoSaveTimer);
   }
+
+  window.removeEventListener('node-click', () => {});
+  window.removeEventListener('nodes-change', () => {});
+  window.removeEventListener('edges-change', () => {});
 });
 
 function handleNew() {
@@ -218,30 +260,22 @@ function handleNodeUpdate(updatedNode) {
   flex-direction: column;
   overflow: hidden;
   padding: 0;
+  position: relative;
 }
 
 .main-content {
-  flex: 1;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   overflow: hidden;
-  padding: 0 16px;
 }
 
 .graph-editor-wrapper {
   flex: 1;
   position: relative;
-  margin-right: 0;
-  border-radius: 20px;
-  overflow: hidden;
-}
-
-.graph-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
 }
 
 .placeholder-content {

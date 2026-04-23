@@ -30,14 +30,16 @@ defineEmits(['new', 'import', 'export', 'validate', 'help']);
 
 <style scoped>
 .toolbar {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  right: 16px;
   height: 72px;
   display: flex;
   align-items: center;
   padding: 0 32px;
   gap: 16px;
-  margin: 16px 16px 0 16px;
   border-radius: 20px;
-  position: relative;
   z-index: 50;
   border: none;
 }
@@ -55,37 +57,38 @@ defineEmits(['new', 'import', 'export', 'validate', 'help']);
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.6);
   color: #1d1d1f;
-  border: 0.5px solid rgba(0, 0, 0, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05),
-              inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
+  transition: all 0.2s ease;
 }
 
 .toolbar-button:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.8);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08),
-              inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
 .toolbar-button:active {
   transform: translateY(0);
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .toolbar-button.secondary {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .toolbar-button.secondary:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .toolbar-button .material-symbols-outlined {

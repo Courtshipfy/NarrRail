@@ -2,4 +2,9 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import './styles/editor.css';
 
-createApp(App).mount('#app');
+console.log('Main.js loaded');
+
+const app = createApp(App);
+app.mount('#app');
+
+console.log('App mounted');
