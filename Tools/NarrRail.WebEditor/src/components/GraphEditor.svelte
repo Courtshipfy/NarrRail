@@ -29,14 +29,21 @@
   // 监听外部 props 变化
   $: {
     if (nodes && Array.isArray(nodes)) {
+      console.log('外部 nodes 变化:', nodes);
       nodesStore.set(nodes);
     }
   }
 
   $: {
     if (edges && Array.isArray(edges)) {
+      console.log('外部 edges 变化:', edges);
       edgesStore.set(edges);
     }
+  }
+
+  // 监听 store 变化
+  $: {
+    console.log('edgesStore 当前值:', $edgesStore);
   }
 
   // 定义节点类型
@@ -60,31 +67,46 @@
           }
         }
       });
+
+      // 在更新后触发事件
+      setTimeout(() => {
+        const event = new CustomEvent('nodes-change', { detail: nodes });
+        window.dispatchEvent(event);
+      }, 0);
+
       return nodes;
     });
-
-    // 触发父组件更新
-    const event = new CustomEvent('nodes-change', { detail: $nodesStore });
-    window.dispatchEvent(event);
   }
 
   // 处理边变化
   function handleEdgesChange(changes) {
+    console.log('handleEdgesChange 被调用:', changes);
     edgesStore.update(edges => {
+      let updated = edges;
       changes.forEach(change => {
+        console.log('边变化类型:', change.type, change);
         if (change.type === 'remove') {
-          edges = edges.filter(e => e.id !== change.id);
+          updated = updated.filter(e => e.id !== change.id);
+        } else if (change.type === 'add') {
+          // 处理新增边
+          updated = [...updated, change.item];
         }
       });
-      return edges;
-    });
 
-    const event = new CustomEvent('edges-change', { detail: $edgesStore });
-    window.dispatchEvent(event);
+      // 在更新后触发事件
+      setTimeout(() => {
+        console.log('触发 edges-change 事件 (from handleEdgesChange):', updated);
+        const event = new CustomEvent('edges-change', { detail: updated });
+        window.dispatchEvent(event);
+      }, 0);
+
+      return updated;
+    });
   }
 
   // 处理连接
   function handleConnect(connection) {
+    console.log('handleConnect 被调用:', connection);
     const newEdge = {
       id: `e${Date.now()}`,
       source: connection.source,
@@ -98,10 +120,19 @@
       }
     };
 
-    edgesStore.update(edges => [...edges, newEdge]);
+    console.log('创建新边:', newEdge);
 
-    const event = new CustomEvent('edges-change', { detail: $edgesStore });
-    window.dispatchEvent(event);
+    edgesStore.update(edges => {
+      const updated = [...edges, newEdge];
+      console.log('更新后的边列表:', updated);
+      // 在更新后触发事件
+      setTimeout(() => {
+        console.log('触发 edges-change 事件:', updated);
+        const event = new CustomEvent('edges-change', { detail: updated });
+        window.dispatchEvent(event);
+      }, 0);
+      return updated;
+    });
   }
 
   // 处理节点点击
@@ -185,6 +216,7 @@
     on:connect={handleConnect}
     on:nodeclick={handleNodeClick}
     on:paneclick={handlePaneClick}
+    defaultEdgeOptions={{ type: 'smoothstep', animated: true }}
     fitView
     minZoom={0.2}
     maxZoom={2}

@@ -10,6 +10,12 @@ const nodeTypeMap = {
 };
 
 export function exportToYAML(nodes, edges, variables, meta) {
+  console.log('yaml-exporter 接收到的数据:');
+  console.log('nodes:', nodes);
+  console.log('edges:', edges);
+  console.log('variables:', variables);
+  console.log('meta:', meta);
+
   // 转换节点
   const yamlNodes = nodes.map(node => {
     const base = {
@@ -49,6 +55,8 @@ export function exportToYAML(nodes, edges, variables, meta) {
     priority: edge.data?.priority || 0,
     condition: edge.data?.condition || { logic: 'All', terms: [] }
   }));
+
+  console.log('转换后的边:', yamlEdges);
 
   // 构建完整结构
   const yamlData = {

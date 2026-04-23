@@ -121,6 +121,7 @@ onMounted(() => {
 
   // 监听边变化事件
   window.addEventListener('edges-change', (event) => {
+    console.log('收到 edges-change 事件:', event.detail);
     edges.value = event.detail;
   });
 
@@ -197,9 +198,15 @@ function handleExport() {
     return;
   }
 
+  console.log('导出时的数据:');
+  console.log('nodes:', nodes.value);
+  console.log('edges:', edges.value);
+  console.log('variables:', variables.value);
+  console.log('meta:', storyMeta.value);
+
   try {
     exportToYAML(nodes.value, edges.value, variables.value, storyMeta.value);
-    alert('导出成功！');
+    alert(`导出成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`);
   } catch (error) {
     alert('导出失败: ' + error.message);
     console.error(error);
