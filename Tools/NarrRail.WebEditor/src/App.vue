@@ -9,11 +9,16 @@
     />
 
     <div class="main-content">
-      <div class="graph-editor-wrapper">
+      <div class="graph-editor-wrapper dot-grid">
         <div class="graph-placeholder">
-          <div class="placeholder-content">
+          <div class="placeholder-content jelly-node glass-morphism-strong bouncy-feedback scale-up-hover spring-animation">
+            <span class="material-symbols-outlined placeholder-icon">auto_graph</span>
             <h3>图编辑器</h3>
             <p>节点数: {{ nodes.length }} | 边数: {{ edges.length }}</p>
+            <div class="placeholder-hint">
+              <span class="material-symbols-outlined">info</span>
+              <span>Svelte Flow 集成开发中</span>
+            </div>
           </div>
         </div>
       </div>
@@ -223,7 +228,7 @@ function handleNodeUpdate(updatedNode) {
 .graph-editor-wrapper {
   flex: 1;
   position: relative;
-  background: #ecf0f1;
+  margin-right: 0;
 }
 
 .graph-placeholder {
@@ -232,21 +237,52 @@ function handleNodeUpdate(updatedNode) {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 32px;
 }
 
 .placeholder-content {
   text-align: center;
-  color: #7f8c8d;
+  padding: 48px;
+  border-radius: 32px;
+  cursor: pointer;
+  max-width: 400px;
+}
+
+.placeholder-icon {
+  font-size: 80px;
+  color: #a855f7;
+  margin-bottom: 16px;
+  display: block;
 }
 
 .placeholder-content h3 {
-  margin: 0 0 10px 0;
-  color: #2c3e50;
-  font-size: 24px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 12px;
 }
 
 .placeholder-content p {
-  margin: 5px 0;
-  font-size: 14px;
+  font-size: 16px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.placeholder-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(168, 85, 247, 0.1);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a855f7;
+}
+
+.placeholder-hint .material-symbols-outlined {
+  font-size: 16px;
 }
 </style>

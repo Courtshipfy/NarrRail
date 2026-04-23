@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RainbowFlow | Creative Flowchart Editor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#e1e3e4",
+                    "tertiary-fixed-dim": "#caca8a",
+                    "on-primary": "#ffffff",
+                    "outline": "#837377",
+                    "on-primary-container": "#7b4458",
+                    "on-secondary-container": "#3d637d",
+                    "tertiary-fixed": "#e6e6a3",
+                    "inverse-surface": "#2e3132",
+                    "on-primary-fixed-variant": "#6a364a",
+                    "on-secondary-fixed": "#001e2e",
+                    "inverse-primary": "#fab3ca",
+                    "background": "#f8f9fa",
+                    "secondary-fixed": "#c8e6ff",
+                    "surface-container": "#edeeef",
+                    "secondary": "#3c627c",
+                    "surface-bright": "#f8f9fa",
+                    "outline-variant": "#d5c2c6",
+                    "tertiary": "#60612c",
+                    "on-tertiary-container": "#575824",
+                    "on-secondary-fixed-variant": "#234b63",
+                    "surface-container-high": "#e7e8e9",
+                    "on-error": "#ffffff",
+                    "surface": "#f8f9fa",
+                    "primary-container": "#ffb7ce",
+                    "tertiary-container": "#cecf8e",
+                    "primary-fixed-dim": "#fab3ca",
+                    "on-tertiary-fixed-variant": "#484916",
+                    "on-background": "#191c1d",
+                    "on-secondary": "#ffffff",
+                    "secondary-container": "#b8dffd",
+                    "on-tertiary-fixed": "#1c1d00",
+                    "error-container": "#ffdad6",
+                    "primary": "#864d61",
+                    "surface-dim": "#d9dadb",
+                    "surface-container-low": "#f3f4f5",
+                    "error": "#ba1a1a",
+                    "surface-container-highest": "#e1e3e4",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#a5cbe9",
+                    "on-surface": "#191c1d",
+                    "on-primary-fixed": "#360b1e",
+                    "surface-container-lowest": "#ffffff",
+                    "inverse-on-surface": "#f0f1f2",
+                    "primary-fixed": "#ffd9e3",
+                    "surface-tint": "#864d61",
+                    "on-surface-variant": "#514347",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "unit": "8px",
+                    "element-gap": "16px",
+                    "section-margin": "64px",
+                    "container-padding": "32px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Be Vietnam Pro"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "label-md": ["Plus Jakarta Sans"],
+                    "headline-xl": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "headline-lg": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "1.2", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-xl": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+            }
+          },
+        },
+      }
+    </script>
+<style type="text/tailwindcss">
+        .jelly-gradient-bg {
+            background: radial-gradient(circle at top left, #fee2e2 0%, #fef3c7 20%, #ecfdf5 40%, #eff6ff 60%, #faf5ff 80%, #fdf2f8 100%);
+        }
+        .dot-grid {
+            background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glass-morphism-border {
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        .bouncy-feedback:active {
+            transform: scale(0.95);
+        }
+        .scale-up-hover:hover {
+            transform: scale(1.05);
+        }
+        .jelly-node {
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+        }
+        .spring-animation {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .connector-path {
+            stroke-dasharray: 8;
+            animation: dash 30s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -1000; }
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-background overflow-hidden jelly-gradient-bg h-screen">
+<header class="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-8 h-20 bg-white/10 backdrop-blur-[24px] rounded-b-[32px] border-b border-white/60 shadow-[0_20px_60px_rgba(255,183,206,0.15)] ring-1 ring-white/40">
+<div class="flex items-center gap-6">
+<span class="text-2xl font-black bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent font-['Plus_Jakarta_Sans'] tracking-tight">RainbowFlow</span>
+<nav class="hidden md:flex items-center gap-8 ml-8">
+<a class="text-pink-600 font-bold border-b-2 border-pink-400 py-1 transition-all" href="#">Editor</a>
+<a class="text-slate-600/80 hover:text-pink-500 font-bold transition-all" href="#">Assets</a>
+<a class="text-slate-600/80 hover:text-pink-500 font-bold transition-all" href="#">Community</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3 bg-white/20 backdrop-blur-xl px-3 py-1.5 rounded-full border border-white/70 shadow-sm">
+<button class="w-8 h-8 bg-white/40 rounded-full flex items-center justify-center text-slate-600 shadow-sm hover:bg-white/60 hover:text-pink-500 transition-colors">
+<span class="material-symbols-outlined text-[18px]">zoom_in</span>
+</button>
+<button class="w-10 h-10 bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-purple-200/50 hover:scale-110 active:scale-90 spring-animation">
+<span class="material-symbols-outlined text-xl">play_arrow</span>
+</button>
+<button class="w-8 h-8 bg-white/40 rounded-full flex items-center justify-center text-slate-600 shadow-sm hover:bg-white/60 hover:text-blue-500 transition-colors">
+<span class="material-symbols-outlined text-[18px]">zoom_out</span>
+</button>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-white/40 bouncy-feedback transition-all">
+<span class="material-symbols-outlined text-slate-600">notifications</span>
+</button>
+<button class="flex items-center gap-2 p-1 pr-4 rounded-full bg-white/30 backdrop-blur-xl border border-white/70 glass-morphism-border bouncy-feedback transition-all">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-300 to-purple-300 shadow-inner">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqEr3UqvzdwXw2QJ3Wd14qFmkpQwkbrSN9IrOeLz6w4nDId2XgnGHmVPSj084A8PB0NH0QmrQRIIQiPtf1GRenMZBIqdeaJpHWd71gLtl1emKdsH031s1z_nXYbEnPVu6K4NFtra_-pA9ju-Fv_L5ZJtQY6F_1o3qQ02GVdl7FfHfjXsRJv3KUvDs9yDoquzy1apoTdkmaBhNCPqehc2cLDzl8vi6C-pdqHQ2OXO7eUS54E5zDoqmUtM0HJVVW3oOqH5JWxaJvZ-o"/>
+</div>
+<span class="text-sm font-bold text-slate-800">Creative Me</span>
+</button>
+</div>
+</div>
+</header>
+<div class="fixed right-0 top-24 bottom-6 flex flex-col gap-6 z-40 w-80 mr-6">
+<aside class="flex flex-col p-4 rounded-[32px] border border-white/60 bg-white/10 backdrop-blur-[32px] glass-morphism-border">
+<div class="flex items-center justify-between px-2 mb-4">
+<div class="text-[10px] uppercase tracking-widest font-extrabold text-purple-600/70">Library</div>
+<button class="bg-gradient-to-r from-pink-400 to-purple-500 w-8 h-8 rounded-full text-white shadow-lg shadow-pink-200/50 bouncy-feedback flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="flex justify-between items-center px-2">
+<div class="flex flex-col items-center gap-1">
+<button class="bg-gradient-to-br from-pink-300/40 to-purple-300/40 backdrop-blur-md shadow-inner rounded-full p-2.5 text-purple-700 hover:scale-110 spring-animation border border-white/60">
+<span class="material-symbols-outlined text-[20px]" data-weight="fill">star</span>
+</button>
+<span class="text-[9px] font-bold text-purple-700">Triggers</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="text-slate-500 p-2.5 hover:bg-white/40 rounded-full transition-all hover:scale-110 spring-animation border border-transparent hover:border-white/40">
+<span class="material-symbols-outlined text-[20px]">cloud</span>
+</button>
+<span class="text-[9px] font-bold text-slate-500">Process</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="text-slate-500 p-2.5 hover:bg-white/40 rounded-full transition-all hover:scale-110 spring-animation border border-transparent hover:border-white/40">
+<span class="material-symbols-outlined text-[20px]">alt_route</span>
+</button>
+<span class="text-[9px] font-bold text-slate-500">Decisions</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="text-slate-500 p-2.5 hover:bg-white/40 rounded-full transition-all hover:scale-110 spring-animation border border-transparent hover:border-white/40">
+<span class="material-symbols-outlined text-[20px]">layers</span>
+</button>
+<span class="text-[9px] font-bold text-slate-500">Layers</span>
+</div>
+</div>
+</aside>
+<aside class="flex-1 flex flex-col p-6 rounded-[40px] border border-white/60 bg-white/10 backdrop-blur-[32px] glass-morphism-border overflow-y-auto">
+<div class="mb-6">
+<h2 class="text-headline-md font-headline-md text-blue-700">Inspector</h2>
+<p class="text-label-md font-label-md text-slate-500">Configure Node</p>
+</div>
+<div class="space-y-6 flex-1">
+<div class="bg-blue-100/30 backdrop-blur-md p-4 rounded-3xl border border-white/60">
+<label class="text-[10px] font-black text-blue-600 uppercase mb-2 block tracking-wider">Node Name</label>
+<input class="w-full bg-white/40 border-none rounded-2xl px-4 py-2 text-sm font-bold text-slate-800 placeholder-slate-500 focus:ring-2 focus:ring-blue-300 focus:bg-white/60 transition-all" type="text" value="Magic Process"/>
+</div>
+<div class="space-y-4">
+<h4 class="text-xs font-extrabold text-slate-600 px-2">Visual Style</h4>
+<div class="grid grid-cols-4 gap-2">
+<button class="aspect-square rounded-2xl bg-pink-300/60 border-2 border-white ring-2 ring-pink-400/20 shadow-sm"></button>
+<button class="aspect-square rounded-2xl bg-purple-300/60 border-2 border-white/60 shadow-sm hover:border-white transition-all"></button>
+<button class="aspect-square rounded-2xl bg-blue-300/60 border-2 border-white/60 shadow-sm hover:border-white transition-all"></button>
+<button class="aspect-square rounded-2xl bg-green-300/60 border-2 border-white/60 shadow-sm hover:border-white transition-all"></button>
+</div>
+</div>
+<div class="bg-white/20 backdrop-blur-md rounded-3xl p-4 border border-white/60 space-y-4">
+<div class="flex items-center justify-between">
+<span class="text-sm font-bold text-slate-700">Auto-Save</span>
+<button class="w-10 h-6 bg-blue-500 rounded-full relative p-1 transition-all shadow-inner">
+<div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-md"></div>
+</button>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm font-bold text-slate-700">Glow Intensity</span>
+<div class="w-24 h-2 bg-slate-300/30 rounded-full relative">
+<div class="absolute left-0 top-0 h-full w-3/4 bg-blue-500 rounded-full"></div>
+<div class="absolute left-3/4 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full shadow-md"></div>
+</div>
+</div>
+</div>
+<button class="w-full py-4 bg-gradient-to-r from-blue-500/80 to-purple-500/80 backdrop-blur-md rounded-full text-white font-extrabold shadow-xl shadow-blue-200/50 hover:from-blue-500 hover:to-purple-500 hover:scale-[1.02] active:scale-95 transition-all border border-white/40">
+                Update Properties
+            </button>
+</div>
+<div class="mt-6 space-y-4">
+<div class="flex items-center gap-3 p-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/40">
+<span class="material-symbols-outlined text-blue-600">history</span>
+<div>
+<p class="text-[10px] font-extrabold text-slate-500">Last changed</p>
+<p class="text-xs font-bold text-slate-800">2 minutes ago</p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<main class="ml-0 mr-96 pt-20 h-full relative overflow-hidden dot-grid">
+<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<lineargradient id="lineGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#f472b6"></stop>
+<stop offset="100%" stop-color="#a855f7"></stop>
+</lineargradient>
+</defs>
+<path class="connector-path" d="M 350 250 C 450 250, 450 400, 550 400" fill="transparent" opacity="0.4" stroke="url(#lineGrad)" stroke-width="4"></path>
+<path class="connector-path" d="M 650 400 C 750 400, 750 300, 850 300" fill="transparent" opacity="0.4" stroke="url(#lineGrad)" stroke-width="4"></path>
+</svg>
+<div class="absolute top-[200px] left-[250px] jelly-node bg-white/20 backdrop-blur-[24px] rounded-[32px] p-6 w-48 border border-white/80 bouncy-feedback cursor-pointer spring-animation scale-up-hover group">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 bg-pink-400/20 rounded-2xl flex items-center justify-center text-pink-600 backdrop-blur-md border border-white/40 shadow-sm">
+<span class="material-symbols-outlined" data-weight="fill">rocket_launch</span>
+</div>
+<div>
+<h3 class="text-sm font-extrabold text-slate-800">Start Project</h3>
+<p class="text-[10px] text-pink-600 font-black uppercase">Trigger</p>
+</div>
+</div>
+<div class="h-2 w-full bg-white/30 rounded-full overflow-hidden shadow-inner">
+<div class="h-full w-2/3 bg-pink-500 rounded-full"></div>
+</div>
+</div>
+<div class="absolute top-[350px] left-[550px] jelly-node bg-white/20 backdrop-blur-[24px] rounded-[32px] p-6 w-52 border border-white/80 bouncy-feedback cursor-pointer spring-animation scale-up-hover">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 bg-purple-400/20 rounded-2xl flex items-center justify-center text-purple-600 backdrop-blur-md border border-white/40 shadow-sm">
+<span class="material-symbols-outlined" data-weight="fill">auto_fix_high</span>
+</div>
+<div>
+<h3 class="text-sm font-extrabold text-slate-800">Magic Process</h3>
+<p class="text-[10px] text-purple-600 font-black uppercase">Action</p>
+</div>
+</div>
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full border-2 border-white/80 bg-blue-300 shadow-sm"></div>
+<div class="w-6 h-6 rounded-full border-2 border-white/80 bg-green-300 shadow-sm"></div>
+<div class="w-6 h-6 rounded-full border-2 border-white/80 bg-yellow-300 shadow-sm"></div>
+<div class="w-6 h-6 rounded-full border-2 border-white/80 bg-white/40 backdrop-blur-md flex items-center justify-center text-[8px] font-black text-slate-700 shadow-sm">+2</div>
+</div>
+</div>
+<div class="absolute top-[250px] left-[850px] jelly-node bg-white/20 backdrop-blur-[24px] rounded-[32px] p-6 w-48 border border-white/80 bouncy-feedback cursor-pointer spring-animation scale-up-hover">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 bg-blue-400/20 rounded-2xl flex items-center justify-center text-blue-600 backdrop-blur-md border border-white/40 shadow-sm">
+<span class="material-symbols-outlined" data-weight="fill">check_circle</span>
+</div>
+<div>
+<h3 class="text-sm font-extrabold text-slate-800">Final Result</h3>
+<p class="text-[10px] text-blue-600 font-black uppercase">Output</p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-4">
+<span class="text-[10px] font-extrabold text-slate-500 italic">Connected</span>
+<span class="material-symbols-outlined text-green-500 text-lg">verified</span>
+</div>
+</div>
+</main>
+</body></html>
