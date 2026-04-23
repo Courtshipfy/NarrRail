@@ -11,15 +11,25 @@
 
 ## 快速开始
 
-### 开发模式
+### 开发模式（推荐）
 
 ```bash
 cd Tools/NarrRail.WebEditor
 npm install
-npm run dev
+npm run dev -- --host
 ```
 
-浏览器会自动打开 http://localhost:5173
+服务器启动后会显示多个访问地址：
+```
+➜  Local:   http://localhost:5173/
+➜  Network: http://192.168.1.3:5173/
+```
+
+**访问编辑器：**
+1. 首选：使用 Network 地址（如 http://192.168.1.3:5173/）
+2. 备选：使用 http://localhost:5173/
+
+**注意：** 如果浏览器无法连接 localhost，请使用 Network 地址（本机 IP）。
 
 ### 生产构建
 
@@ -125,6 +135,15 @@ NarrRail.WebEditor/
 - 确保已安装 Node.js 16+
 - 运行 `npm install` 安装依赖
 - 检查端口 5173 是否被占用
+
+### 浏览器无法连接 localhost
+
+**问题：** Firefox 或其他浏览器显示"无法连接到 localhost:5173"
+
+**解决方案：**
+1. 使用 `npm run dev -- --host` 启动服务器（带 --host 参数）
+2. 使用 Network 地址访问（如 http://192.168.1.3:5173/）而不是 localhost
+3. 或者尝试 http://127.0.0.1:5173/
 
 ### 导出的 YAML 无法导入 UE
 

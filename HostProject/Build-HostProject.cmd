@@ -5,7 +5,7 @@ set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%") do set "PROJECT_DIR=%%~fI"
 for %%I in ("%PROJECT_DIR%..") do set "REPO_ROOT=%%~fI"
 
-set "ENGINE_ROOT=D:\Engine\UE_5.7"
+set "ENGINE_ROOT=I:\UE_5.7"
 set "BUILD_BAT=%ENGINE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UPROJECT=%PROJECT_DIR%NarrRailHost.uproject"
 set "PLUGIN_SOURCE=%REPO_ROOT%\NarrRail"

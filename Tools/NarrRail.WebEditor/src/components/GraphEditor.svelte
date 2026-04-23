@@ -17,6 +17,8 @@
   const nodesStore = writable([]);
   const edgesStore = writable([]);
   let contextMenu = { show: false, x: 0, y: 0, position: { x: 0, y: 0 } };
+  let selectedNodes = [];
+  let selectedEdges = [];
 
   // 初始化时设置数据
   onMount(() => {
@@ -24,6 +26,13 @@
     console.log('GraphEditor mounted with edges:', edges);
     nodesStore.set(nodes);
     edgesStore.set(edges);
+
+    // 添加键盘事件监听
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   });
 
   // 监听外部 props 变化
@@ -59,22 +68,52 @@
   // 处理节点变化
   function handleNodesChange(changes) {
     nodesStore.update(nodes => {
+      let updated = nodes;
+      const removedNodeIds = [];
+
       changes.forEach(change => {
         if (change.type === 'position' && change.dragging === false) {
-          const node = nodes.find(n => n.id === change.id);
+          const node = updated.find(n => n.id === change.id);
           if (node && change.position) {
             node.position = change.position;
           }
+        } else if (change.type === 'remove') {
+          // 记录被删除的节点 ID
+          removedNodeIds.push(change.id);
+          // 删除节点
+          updated = updated.filter(n => n.id !== change.id);
+        } else if (change.type === 'add') {
+          // 处理新增节点
+          updated = [...updated, change.item];
         }
       });
 
+      // 如果有节点被删除，级联删除相关的边
+      if (removedNodeIds.length > 0) {
+        edgesStore.update(edges => {
+          const filteredEdges = edges.filter(edge =>
+            !removedNodeIds.includes(edge.source) &&
+            !removedNodeIds.includes(edge.target)
+          );
+
+          // 触发边变化事件
+          setTimeout(() => {
+            console.log('级联删除边，剩余边:', filteredEdges);
+            const event = new CustomEvent('edges-change', { detail: filteredEdges });
+            window.dispatchEvent(event);
+          }, 0);
+
+          return filteredEdges;
+        });
+      }
+
       // 在更新后触发事件
       setTimeout(() => {
-        const event = new CustomEvent('nodes-change', { detail: nodes });
+        const event = new CustomEvent('nodes-change', { detail: updated });
         window.dispatchEvent(event);
       }, 0);
 
-      return nodes;
+      return updated;
     });
   }
 

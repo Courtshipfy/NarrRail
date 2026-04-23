@@ -6,16 +6,16 @@
     "env": { "NO_PAUSE": "1" },
     "use_new_terminal": true,
     "allow_concurrent_runs": false,
-    "reveal_target": "dock"
+    "reveal_target": "dock",
   },
   {
     "label": "UE: Launch Editor",
-    "command": "D:\\Engine\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe",
+    "command": "I:\\UE_5.7\\Engine\\Binaries\\Win64\\UnrealEditor.exe",
     "args": ["$ZED_WORKTREE_ROOT\\HostProject\\NarrRailHost.uproject"],
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
     "allow_concurrent_runs": true,
-    "reveal_target": "dock"
+    "reveal_target": "dock",
   },
   {
     "label": "UE: Build and Launch",
@@ -23,6 +23,6 @@
     "cwd": "$ZED_WORKTREE_ROOT",
     "use_new_terminal": true,
     "allow_concurrent_runs": false,
-    "reveal_target": "dock"
-  }
+    "reveal_target": "dock",
+  },
 ]
