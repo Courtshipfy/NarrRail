@@ -124,7 +124,10 @@
   .text-preview {
     max-width: 180px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+    word-break: break-word;
   }
 </style>

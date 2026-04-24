@@ -8,6 +8,10 @@
       <span class="material-symbols-outlined">share</span>
       <span>边: {{ edgeCount }}</span>
     </div>
+    <div class="status-item" :class="{ 'warning': !entryNodeId }">
+      <span class="material-symbols-outlined">flag</span>
+      <span>入口: {{ entryNodeId || '未设置' }}</span>
+    </div>
     <div class="status-item">
       <span class="material-symbols-outlined">label</span>
       <span>{{ storyId }}</span>
@@ -32,6 +36,10 @@ defineProps({
   storyId: {
     type: String,
     default: 'NewStory'
+  },
+  entryNodeId: {
+    type: String,
+    default: ''
   }
 });
 </script>
@@ -76,6 +84,16 @@ defineProps({
 
 .status-item.auto-save .material-symbols-outlined {
   color: #34c759;
+  opacity: 1;
+}
+
+.status-item.warning {
+  color: #ff9500;
+  opacity: 1;
+}
+
+.status-item.warning .material-symbols-outlined {
+  color: #ff9500;
   opacity: 1;
 }
 

@@ -21,11 +21,14 @@
       :node-count="nodes.length"
       :edge-count="edges.length"
       :story-id="storyMeta.storyId"
+      :entry-node-id="storyMeta.entryNodeId"
     />
 
     <PropertyPanel
       :selected-node="selectedNode"
+      :entry-node-id="storyMeta.entryNodeId"
       @update="handleNodeUpdate"
+      @set-entry-node="handleSetEntryNode"
     />
 
     <VariablePanel
@@ -262,6 +265,11 @@ function handleNodeUpdate(updatedNode) {
   if (index !== -1) {
     nodes.value[index] = updatedNode;
   }
+}
+
+function handleSetEntryNode(nodeId) {
+  storyMeta.value.entryNodeId = nodeId;
+  console.log('入口节点已设置为:', nodeId);
 }
 
 function handleVariablesUpdate(updatedVariables) {

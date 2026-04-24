@@ -201,6 +201,18 @@
             <span class="material-symbols-outlined">check_circle</span>
             <span>更新属性</span>
           </button>
+
+          <button
+            class="entry-node-button bouncy-feedback spring-animation"
+            :class="{ 'is-entry': isEntryNode }"
+            @click="handleSetEntryNode"
+            :disabled="isEntryNode"
+          >
+            <span class="material-symbols-outlined">
+              {{ isEntryNode ? 'check_circle' : 'radio_button_unchecked' }}
+            </span>
+            <span>{{ isEntryNode ? '当前入口节点' : '设置为入口节点' }}</span>
+          </button>
         </div>
         <div v-else class="property-panel-empty">
           <span class="material-symbols-outlined empty-icon">touch_app</span>
@@ -212,16 +224,20 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
   selectedNode: {
     type: Object,
     default: null
+  },
+  entryNodeId: {
+    type: String,
+    default: ''
   }
 });
 
-const emit = defineEmits(['update']);
+const emit = defineEmits(['update', 'set-entry-node']);
 
 const isExpanded = ref(false);
 const localNode = ref(null);
@@ -237,6 +253,11 @@ watch(() => props.selectedNode, (newNode) => {
     isExpanded.value = false; // 取消选中时自动收起
   }
 }, { immediate: true, deep: true });
+
+// 计算当前节点是否为入口节点
+const isEntryNode = computed(() => {
+  return localNode.value && localNode.value.id === props.entryNodeId;
+});
 
 // 处理中文输入法
 function handleCompositionStart() {
@@ -302,6 +323,12 @@ function handleUpdate() {
   // 提交本地修改到父组件
   if (localNode.value) {
     emit('update', localNode.value);
+  }
+}
+
+function handleSetEntryNode() {
+  if (localNode.value && !isEntryNode.value) {
+    emit('set-entry-node', localNode.value.id);
   }
 }
 </script>
@@ -461,6 +488,47 @@ function handleUpdate() {
 }
 
 .update-button .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.entry-node-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #64748b;
+  border: 2px solid rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.entry-node-button:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #3b82f6;
+  transform: scale(1.02);
+}
+
+.entry-node-button.is-entry {
+  background: linear-gradient(135deg, rgba(52, 199, 89, 0.15), rgba(48, 209, 88, 0.15));
+  color: #34c759;
+  border-color: rgba(52, 199, 89, 0.5);
+  cursor: default;
+}
+
+.entry-node-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.entry-node-button .material-symbols-outlined {
   font-size: 20px;
 }
 
