@@ -114,6 +114,20 @@
   // 监听 store 变化
   $: {
     console.log('edgesStore 当前值:', $edgesStore);
+    // 每次 edgesStore 变化时，主动触发事件
+    if ($edgesStore) {
+      const event = new CustomEvent('edges-change', { detail: $edgesStore });
+      window.dispatchEvent(event);
+    }
+  }
+
+  $: {
+    console.log('nodesStore 当前值:', $nodesStore);
+    // 每次 nodesStore 变化时，主动触发事件
+    if ($nodesStore) {
+      const event = new CustomEvent('nodes-change', { detail: $nodesStore });
+      window.dispatchEvent(event);
+    }
   }
 
   // 定义节点类型
@@ -183,7 +197,15 @@
         if (change.type === 'remove') {
           updated = updated.filter(e => e.id !== change.id);
         } else if (change.type === 'add') {
-          updated.push(change.item);
+          // 新增边 - 确保样式正确
+          const newEdge = {
+            ...change.item,
+            type: 'default',
+            animated: false,
+            style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;'
+          };
+          updated.push(newEdge);
+          console.log('添加新边:', newEdge);
         }
       });
 
@@ -203,8 +225,8 @@
       id: `e${Date.now()}`,
       source: connection.source,
       target: connection.target,
-      type: 'smoothstep',
-      animated: true,
+      type: 'default',
+      animated: false,
       style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
       data: {
         priority: 0,
@@ -345,7 +367,7 @@
     on:edgeupdate={handleEdgeUpdate}
     on:edgeupdatestart={handleEdgeUpdateStart}
     on:edgeupdateend={handleEdgeUpdateEnd}
-    defaultEdgeOptions={{ type: 'smoothstep', animated: true }}
+    defaultEdgeOptions={{ type: 'default', animated: false }}
     nodesDraggable={true}
     nodesConnectable={true}
     elementsSelectable={true}
