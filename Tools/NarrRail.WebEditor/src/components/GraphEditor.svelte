@@ -27,7 +27,68 @@
     nodesStore.set(nodes);
     edgesStore.set(edges);
 
-    // 添加键盘事件监听
+    // 添加键盘删除功能
+    const handleKeyDown = (event) => {
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        console.log('删除键被按下，选中的节点:', selectedNodes, '选中的边:', selectedEdges);
+
+        // 删除选中的节点
+        if (selectedNodes.length > 0) {
+          const nodeIdsToRemove = selectedNodes.map(n => n.id);
+          console.log('准备删除节点:', nodeIdsToRemove);
+
+          nodesStore.update(nodes => {
+            const updated = nodes.filter(n => !nodeIdsToRemove.includes(n.id));
+            console.log('删除后的节点列表:', updated);
+
+            // 触发节点变化事件
+            const event = new CustomEvent('nodes-change', { detail: updated });
+            window.dispatchEvent(event);
+
+            return updated;
+          });
+
+          // 级联删除相关的边
+          edgesStore.update(edges => {
+            const updated = edges.filter(e =>
+              !nodeIdsToRemove.includes(e.source) &&
+              !nodeIdsToRemove.includes(e.target)
+            );
+            console.log('级联删除边后的边列表:', updated);
+
+            // 触发边变化事件
+            const event = new CustomEvent('edges-change', { detail: updated });
+            window.dispatchEvent(event);
+
+            return updated;
+          });
+
+          selectedNodes = [];
+        }
+
+        // 删除选中的边
+        if (selectedEdges.length > 0) {
+          const edgeIdsToRemove = selectedEdges.map(e => e.id);
+          console.log('准备删除边:', edgeIdsToRemove);
+
+          edgesStore.update(edges => {
+            const updated = edges.filter(e => !edgeIdsToRemove.includes(e.id));
+            console.log('删除后的边列表:', updated);
+
+            // 触发边变化事件
+            const event = new CustomEvent('edges-change', { detail: updated });
+            window.dispatchEvent(event);
+
+            return updated;
+          });
+
+          selectedEdges = [];
+        }
+
+        event.preventDefault();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
@@ -67,24 +128,23 @@
 
   // 处理节点变化
   function handleNodesChange(changes) {
+    console.log('handleNodesChange 被调用:', changes);
     nodesStore.update(nodes => {
-      let updated = nodes;
+      let updated = [...nodes];
       const removedNodeIds = [];
 
       changes.forEach(change => {
+        console.log('节点变化类型:', change.type, change);
         if (change.type === 'position' && change.dragging === false) {
           const node = updated.find(n => n.id === change.id);
           if (node && change.position) {
             node.position = change.position;
           }
         } else if (change.type === 'remove') {
-          // 记录被删除的节点 ID
           removedNodeIds.push(change.id);
-          // 删除节点
           updated = updated.filter(n => n.id !== change.id);
         } else if (change.type === 'add') {
-          // 处理新增节点
-          updated = [...updated, change.item];
+          updated.push(change.item);
         }
       });
 
@@ -96,22 +156,18 @@
             !removedNodeIds.includes(edge.target)
           );
 
-          // 触发边变化事件
-          setTimeout(() => {
-            console.log('级联删除边，剩余边:', filteredEdges);
-            const event = new CustomEvent('edges-change', { detail: filteredEdges });
-            window.dispatchEvent(event);
-          }, 0);
+          console.log('级联删除边，剩余边:', filteredEdges);
+          const edgeEvent = new CustomEvent('edges-change', { detail: filteredEdges });
+          window.dispatchEvent(edgeEvent);
 
           return filteredEdges;
         });
       }
 
-      // 在更新后触发事件
-      setTimeout(() => {
-        const event = new CustomEvent('nodes-change', { detail: updated });
-        window.dispatchEvent(event);
-      }, 0);
+      // 立即触发节点变化事件
+      console.log('触发 nodes-change 事件:', updated);
+      const nodeEvent = new CustomEvent('nodes-change', { detail: updated });
+      window.dispatchEvent(nodeEvent);
 
       return updated;
     });
@@ -121,23 +177,20 @@
   function handleEdgesChange(changes) {
     console.log('handleEdgesChange 被调用:', changes);
     edgesStore.update(edges => {
-      let updated = edges;
+      let updated = [...edges];
       changes.forEach(change => {
         console.log('边变化类型:', change.type, change);
         if (change.type === 'remove') {
           updated = updated.filter(e => e.id !== change.id);
         } else if (change.type === 'add') {
-          // 处理新增边
-          updated = [...updated, change.item];
+          updated.push(change.item);
         }
       });
 
-      // 在更新后触发事件
-      setTimeout(() => {
-        console.log('触发 edges-change 事件 (from handleEdgesChange):', updated);
-        const event = new CustomEvent('edges-change', { detail: updated });
-        window.dispatchEvent(event);
-      }, 0);
+      // 立即触发事件
+      console.log('触发 edges-change 事件 (from handleEdgesChange):', updated);
+      const event = new CustomEvent('edges-change', { detail: updated });
+      window.dispatchEvent(event);
 
       return updated;
     });
@@ -164,25 +217,57 @@
     edgesStore.update(edges => {
       const updated = [...edges, newEdge];
       console.log('更新后的边列表:', updated);
-      // 在更新后触发事件
-      setTimeout(() => {
-        console.log('触发 edges-change 事件:', updated);
-        const event = new CustomEvent('edges-change', { detail: updated });
-        window.dispatchEvent(event);
-      }, 0);
+
+      // 立即触发事件
+      console.log('触发 edges-change 事件:', updated);
+      const event = new CustomEvent('edges-change', { detail: updated });
+      window.dispatchEvent(event);
+
       return updated;
     });
+  }
+
+  // 处理节点拖拽结束
+  function handleNodeDragStop(event) {
+    console.log('节点拖拽结束:', event);
+  }
+
+  // 处理边更新
+  function handleEdgeUpdate(event) {
+    console.log('边更新:', event);
+  }
+
+  function handleEdgeUpdateStart(event) {
+    console.log('边更新开始:', event);
+  }
+
+  function handleEdgeUpdateEnd(event) {
+    console.log('边更新结束:', event);
   }
 
   // 处理节点点击
   function handleNodeClick(event) {
     const node = event.detail.node;
+    console.log('节点被点击:', node);
+    selectedNodes = [node];
+    selectedEdges = [];
     const customEvent = new CustomEvent('node-click', { detail: node });
     window.dispatchEvent(customEvent);
   }
 
+  // 处理边点击
+  function handleEdgeClick(event) {
+    const edge = event.detail.edge;
+    console.log('边被点击:', edge);
+    selectedEdges = [edge];
+    selectedNodes = [];
+  }
+
   // 处理画布点击（空白处）
   function handlePaneClick(event) {
+    console.log('画布被点击');
+    selectedNodes = [];
+    selectedEdges = [];
     // 点击空白处，取消选中
     const customEvent = new CustomEvent('node-click', { detail: null });
     window.dispatchEvent(customEvent);
@@ -254,8 +339,16 @@
     on:edgeschange={handleEdgesChange}
     on:connect={handleConnect}
     on:nodeclick={handleNodeClick}
+    on:edgeclick={handleEdgeClick}
     on:paneclick={handlePaneClick}
+    on:nodedragstop={handleNodeDragStop}
+    on:edgeupdate={handleEdgeUpdate}
+    on:edgeupdatestart={handleEdgeUpdateStart}
+    on:edgeupdateend={handleEdgeUpdateEnd}
     defaultEdgeOptions={{ type: 'smoothstep', animated: true }}
+    nodesDraggable={true}
+    nodesConnectable={true}
+    elementsSelectable={true}
     fitView
     minZoom={0.2}
     maxZoom={2}
