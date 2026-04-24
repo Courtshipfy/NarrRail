@@ -31,3 +31,6 @@ HostProject/Build-HostProject.cmd
 # Claude Code local files
 .claude/
 .specify/
+
+# Zed editor local files
+.zed/
