@@ -1,11 +1,24 @@
 @echo off
+REM ============================================================
+REM Build script template for NarrRail Host Project
+REM
+REM SETUP INSTRUCTIONS:
+REM 1. Copy this file to: Build-HostProject.cmd
+REM 2. Edit Build-HostProject.cmd and set ENGINE_ROOT to your UE5.7 installation path
+REM 3. Run Build-HostProject.cmd to build the project
+REM
+REM Example paths:
+REM   Windows: D:\Engine\UE_5.7
+REM   Windows: C:\Program Files\Epic Games\UE_5.7
+REM ============================================================
+
 setlocal EnableExtensions
 
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%") do set "PROJECT_DIR=%%~fI"
 for %%I in ("%PROJECT_DIR%..") do set "REPO_ROOT=%%~fI"
 
-set "ENGINE_ROOT=D:\Engine\UE_5.7"
+set "ENGINE_ROOT=YOUR_ENGINE_PATH_HERE"
 set "BUILD_BAT=%ENGINE_ROOT%\Engine\Build\BatchFiles\Build.bat"
 set "UPROJECT=%PROJECT_DIR%NarrRailHost.uproject"
 set "PLUGIN_SOURCE=%REPO_ROOT%\NarrRail"
