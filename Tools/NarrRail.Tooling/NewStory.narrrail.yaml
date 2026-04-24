@@ -1,7 +1,7 @@
 meta:
   schemaVersion: 1
   storyId: NewStory
-  entryNodeId: ""
+  entryNodeId: node-1776933658447
 variables: []
 nodes:
   - nodeId: node-1776933658447
@@ -62,4 +62,52 @@ nodes:
       voiceAsset: ""
   - nodeId: node-1776934177734
     nodeType: End
-edges: []
+edges:
+  - sourceNodeId: node-1776933658447
+    targetNodeId: node-1776933828193
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776933828193
+    targetNodeId: node-1776933918740
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776933918740
+    targetNodeId: node-1776933973501
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776933973501
+    targetNodeId: node-1776934009798
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776934009798
+    targetNodeId: node-1776934076571
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776934076571
+    targetNodeId: node-1776934112144
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776934112144
+    targetNodeId: node-1776934155631
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+  - sourceNodeId: node-1776934155631
+    targetNodeId: node-1776934177734
+    priority: 0
+    condition:
+      logic: All
+      terms: []
