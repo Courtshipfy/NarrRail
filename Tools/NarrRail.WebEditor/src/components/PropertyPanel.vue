@@ -95,15 +95,6 @@
                   @compositionend="handleCompositionEnd"
                   @blur="handleInputChange"
                 />
-                <input
-                  type="text"
-                  class="form-input"
-                  v-model="choice.targetNodeId"
-                  placeholder="目标节点ID"
-                  @compositionstart="handleCompositionStart"
-                  @compositionend="handleCompositionEnd"
-                  @blur="handleInputChange"
-                />
                 <button class="remove-choice-btn" @click="removeChoice(index)">
                   <span class="material-symbols-outlined">close</span>
                 </button>
@@ -112,6 +103,7 @@
                 <span class="material-symbols-outlined">add</span>
                 <span>添加选项</span>
               </button>
+              <p class="choice-hint">提示：从节点右侧的连接点拖线到目标节点</p>
             </div>
           </template>
 
@@ -291,7 +283,7 @@ function updateData(key, value) {
 function addChoice() {
   if (!localNode.value || localNode.value.type !== 'choice') return;
   const choices = [...(localNode.value.data.choices || [])];
-  choices.push({ textKey: '', targetNodeId: '' });
+  choices.push({ textKey: '' });
   localNode.value.data.choices = choices;
 }
 
@@ -601,5 +593,13 @@ function handleSetEntryNode() {
 
 .add-choice-btn .material-symbols-outlined {
   font-size: 18px;
+}
+
+.choice-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #86868b;
+  font-style: italic;
+  text-align: center;
 }
 </style>

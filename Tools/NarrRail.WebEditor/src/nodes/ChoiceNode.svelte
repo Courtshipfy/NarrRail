@@ -31,26 +31,26 @@
     <span class="node-type">选择</span>
   </div>
   <div class="node-content">
-    <div class="node-field">
-      <span class="field-label">选项数:</span>
-      <span class="field-value">{data.choices?.length || 0}</span>
-    </div>
     {#if data.choices && data.choices.length > 0}
-      <div class="choices-preview">
-        {#each data.choices.slice(0, 2) as choice, i}
-          <div class="choice-item">
-            <span class="choice-bullet">•</span>
-            <span class="choice-text">{choice.textKey || `选项 ${i + 1}`}</span>
+      <div class="choices-list">
+        {#each data.choices as choice, i}
+          <div class="choice-item-with-handle">
+            <div class="choice-item">
+              <span class="choice-bullet">{i + 1}</span>
+              <span class="choice-text">{choice.textKey || `选项 ${i + 1}`}</span>
+            </div>
+            <Handle
+              type="source"
+              position={Position.Right}
+              id={`choice-${i}`}
+            />
           </div>
         {/each}
-        {#if data.choices.length > 2}
-          <div class="choice-more">+{data.choices.length - 2} 更多</div>
-        {/if}
       </div>
+    {:else}
+      <div class="no-choices">暂无选项</div>
     {/if}
   </div>
-
-  <Handle type="source" position={Position.Right} />
 </div>
 
 <style>
@@ -107,62 +107,67 @@
     padding: 12px 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
   }
 
-  .node-field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .field-label {
-    font-size: 10px;
-    font-weight: 700;
-    color: #86868b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .field-value {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1d1d1f;
-  }
-
-  .choices-preview {
+  .choices-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-top: 4px;
+    gap: 0;
+  }
+
+  .choice-item-with-handle {
+    position: relative;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding-right: 20px;
   }
 
   .choice-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: 8px;
+    font-size: 13px;
     color: #1d1d1f;
+    padding: 6px 0;
+    flex: 1;
+  }
+
+  .choice-item-with-handle :global(.svelte-flow__handle) {
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .choice-bullet {
-    color: #ffcc00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #ffcc00, #ffb340);
+    color: white;
+    border-radius: 50%;
     font-weight: 700;
+    font-size: 11px;
+    flex-shrink: 0;
   }
 
   .choice-text {
     font-weight: 500;
-    max-width: 150px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .choice-more {
-    font-size: 11px;
+  .no-choices {
+    font-size: 12px;
     color: #86868b;
-    font-weight: 600;
     font-style: italic;
-    margin-top: 2px;
+    text-align: center;
+    padding: 8px 0;
   }
 </style>

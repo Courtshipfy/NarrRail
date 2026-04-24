@@ -32,7 +32,20 @@ export function exportToYAML(nodes, edges, variables, meta) {
         voiceAsset: node.data.voiceAsset || ''
       };
     } else if (node.type === 'choice') {
-      base.choices = node.data.choices || [];
+      // 从边中找到每个选项对应的目标节点
+      const choices = (node.data.choices || []).map((choice, index) => {
+        // 查找从这个选项连接点出发的边
+        const edge = edges.find(e =>
+          e.source === node.id && e.sourceHandle === `choice-${index}`
+        );
+
+        return {
+          textKey: choice.textKey || '',
+          targetNodeId: edge ? edge.target : ''
+        };
+      });
+
+      base.choice = { choices };
     } else if (node.type === 'jump') {
       base.jump = {
         targetNodeId: node.data.targetNodeId || ''
@@ -48,13 +61,20 @@ export function exportToYAML(nodes, edges, variables, meta) {
     return base;
   });
 
-  // 转换边
-  const yamlEdges = edges.map(edge => ({
-    sourceNodeId: edge.source,
-    targetNodeId: edge.target,
-    priority: edge.data?.priority || 0,
-    condition: edge.data?.condition || { logic: 'All', terms: [] }
-  }));
+  // 转换边 - 过滤掉 Choice 节点的边（已经包含在 choice.choices 中）
+  const yamlEdges = edges
+    .filter(edge => {
+      // 检查源节点是否是 Choice 类型
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      // 如果是 Choice 节点且有 sourceHandle，说明是选项连接，不需要单独导出
+      return !(sourceNode && sourceNode.type === 'choice' && edge.sourceHandle);
+    })
+    .map(edge => ({
+      sourceNodeId: edge.source,
+      targetNodeId: edge.target,
+      priority: edge.data?.priority || 0,
+      condition: edge.data?.condition || { logic: 'All', terms: [] }
+    }));
 
   console.log('转换后的边:', yamlEdges);
 

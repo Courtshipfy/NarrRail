@@ -25,8 +25,13 @@ export function importFromYAML(yamlString) {
     // 提取节点数据
     if (node.dialogue) {
       base.data = { ...node.dialogue };
-    } else if (node.choices) {
-      base.data = { choices: node.choices };
+    } else if (node.choice) {
+      // Choice 节点：只保存选项文本，不保存 targetNodeId（通过边来表示）
+      base.data = {
+        choices: (node.choice.choices || []).map(c => ({
+          textKey: c.textKey
+        }))
+      };
     } else if (node.jump) {
       base.data = { ...node.jump };
     } else if (node.actions) {
@@ -39,15 +44,47 @@ export function importFromYAML(yamlString) {
   });
 
   // 转换边
-  const edges = data.edges.map((edge, index) => ({
-    id: `e${index}`,
-    source: edge.sourceNodeId,
-    target: edge.targetNodeId,
-    data: {
-      priority: edge.priority,
-      condition: edge.condition
+  const edges = [];
+  let edgeIndex = 0;
+
+  // 处理普通边
+  data.edges.forEach(edge => {
+    edges.push({
+      id: `e${edgeIndex++}`,
+      source: edge.sourceNodeId,
+      target: edge.targetNodeId,
+      type: 'default',
+      animated: false,
+      style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
+      data: {
+        priority: edge.priority,
+        condition: edge.condition
+      }
+    });
+  });
+
+  // 处理 Choice 节点的选项边
+  data.nodes.forEach(node => {
+    if (node.choice && node.choice.choices) {
+      node.choice.choices.forEach((choice, index) => {
+        if (choice.targetNodeId) {
+          edges.push({
+            id: `e${edgeIndex++}`,
+            source: node.nodeId,
+            target: choice.targetNodeId,
+            sourceHandle: `choice-${index}`,
+            type: 'default',
+            animated: false,
+            style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
+            data: {
+              priority: 0,
+              condition: { logic: 'All', terms: [] }
+            }
+          });
+        }
+      });
     }
-  }));
+  });
 
   return {
     nodes,

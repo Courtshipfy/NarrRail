@@ -30,6 +30,18 @@
     // 添加键盘删除功能
     const handleKeyDown = (event) => {
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        // 检查焦点是否在输入框、文本域或可编辑元素上
+        const activeElement = document.activeElement;
+        const isInputFocused =
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable;
+
+        // 如果焦点在输入框上，不执行删除操作
+        if (isInputFocused) {
+          return;
+        }
+
         console.log('删除键被按下，选中的节点:', selectedNodes, '选中的边:', selectedEdges);
 
         // 删除选中的节点
