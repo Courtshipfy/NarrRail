@@ -26,6 +26,7 @@ HostProject/Saved/
 HostProject/.vs/
 HostProject/.idea/
 HostProject/.vsconfig
+HostProject/Build-HostProject.cmd
 
 # Claude Code local files
 .claude/
