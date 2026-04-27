@@ -1,17 +1,27 @@
-import YAML from 'yaml';
+import YAML from "yaml";
 
 const reverseNodeTypeMap = {
-  'Dialogue': 'dialogue',
-  'Choice': 'choice',
-  'Jump': 'jump',
-  'SetVariable': 'setVariable',
-  'EmitEvent': 'emitEvent',
-  'End': 'end'
+  Dialogue: "dialogue",
+  Choice: "choice",
+  Jump: "jump",
+  SetVariable: "setVariable",
+  EmitEvent: "emitEvent",
+  End: "end",
 };
 
 export function importFromYAML(yamlString) {
   // 解析 YAML
   const data = YAML.parse(yamlString);
+
+  // 兼容 Choice 节点两种格式：
+  // 1) 新格式：choices: []
+  // 2) 旧格式：choice: { choices: [] }
+  const getChoiceArray = (node) => {
+    if (Array.isArray(node?.choices)) return node.choices;
+    if (node?.choice && Array.isArray(node.choice.choices))
+      return node.choice.choices;
+    return [];
+  };
 
   // 转换节点
   const nodes = data.nodes.map((node, index) => {
@@ -19,18 +29,19 @@ export function importFromYAML(yamlString) {
       id: node.nodeId,
       type: reverseNodeTypeMap[node.nodeType],
       position: calculatePosition(index, data.nodes.length),
-      data: {}
+      data: {},
     };
 
     // 提取节点数据
     if (node.dialogue) {
       base.data = { ...node.dialogue };
-    } else if (node.choice) {
-      // Choice 节点：只保存选项文本，不保存 targetNodeId（通过边来表示）
+    } else if (node.nodeType === "Choice" || node.choice || node.choices) {
+      // Choice 节点：兼容新旧格式，只保存选项文本，不保存 targetNodeId（通过边表示）
+      const choiceArray = getChoiceArray(node);
       base.data = {
-        choices: (node.choice.choices || []).map(c => ({
-          textKey: c.textKey
-        }))
+        choices: choiceArray.map((c) => ({
+          textKey: c.textKey,
+        })),
       };
     } else if (node.jump) {
       base.data = { ...node.jump };
@@ -48,38 +59,39 @@ export function importFromYAML(yamlString) {
   let edgeIndex = 0;
 
   // 处理普通边
-  data.edges.forEach(edge => {
+  data.edges.forEach((edge) => {
     edges.push({
       id: `e${edgeIndex++}`,
       source: edge.sourceNodeId,
       target: edge.targetNodeId,
-      type: 'default',
+      type: "default",
       animated: false,
-      style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
+      style: "stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;",
       data: {
         priority: edge.priority,
-        condition: edge.condition
-      }
+        condition: edge.condition,
+      },
     });
   });
 
-  // 处理 Choice 节点的选项边
-  data.nodes.forEach(node => {
-    if (node.choice && node.choice.choices) {
-      node.choice.choices.forEach((choice, index) => {
+  // 处理 Choice 节点的选项边（兼容新旧格式）
+  data.nodes.forEach((node) => {
+    const choiceArray = getChoiceArray(node);
+    if (choiceArray.length > 0) {
+      choiceArray.forEach((choice, index) => {
         if (choice.targetNodeId) {
           edges.push({
             id: `e${edgeIndex++}`,
             source: node.nodeId,
             target: choice.targetNodeId,
             sourceHandle: `choice-${index}`,
-            type: 'default',
+            type: "default",
             animated: false,
-            style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
+            style: "stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;",
             data: {
               priority: 0,
-              condition: { logic: 'All', terms: [] }
-            }
+              condition: { logic: "All", terms: [] },
+            },
           });
         }
       });
@@ -90,7 +102,7 @@ export function importFromYAML(yamlString) {
     nodes,
     edges,
     variables: data.variables,
-    meta: data.meta
+    meta: data.meta,
   };
 }
 
@@ -101,6 +113,6 @@ function calculatePosition(index, total) {
   const col = index % cols;
   return {
     x: col * 250 + 50,
-    y: row * 150 + 50
+    y: row * 150 + 50,
   };
 }

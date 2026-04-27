@@ -1,0 +1,39 @@
+meta:
+  schemaVersion: 1
+  storyId: test_choice
+  entryNodeId: N_Choice
+
+nodes:
+  - nodeId: N_Choice
+    nodeType: Choice
+    dialogue: {}
+    choices:
+      - textKey: "选项A"
+        targetNodeId: N_End
+        availability:
+          logic: All
+          terms: []
+      - textKey: "选项B"
+        targetNodeId: N_End
+        availability:
+          logic: All
+          terms: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+
+  - nodeId: N_End
+    nodeType: End
+    dialogue: {}
+    choices: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+
+edges:
+  - sourceNodeId: N_Choice
+    targetNodeId: N_End
+    priority: 0
+    condition:
+      logic: All
+      terms: []

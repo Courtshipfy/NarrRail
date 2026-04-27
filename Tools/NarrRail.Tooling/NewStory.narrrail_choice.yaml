@@ -64,14 +64,26 @@ nodes:
     nodeType: End
   - nodeId: node-1777009101423
     nodeType: Choice
-    choice:
-      choices:
-        - textKey: "1"
-          targetNodeId: node-1776933973501
-        - textKey: "2"
-          targetNodeId: node-1776934009798
-        - textKey: "3"
-          targetNodeId: node-1776934076571
+    dialogue: {}
+    choices:
+      - textKey: "1"
+        targetNodeId: node-1776933973501
+        availability:
+          logic: All
+          terms: []
+      - textKey: "2"
+        targetNodeId: node-1776934009798
+        availability:
+          logic: All
+          terms: []
+      - textKey: "3"
+        targetNodeId: node-1776934076571
+        availability:
+          logic: All
+          terms: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
 edges:
   - sourceNodeId: node-1776933658447
     targetNodeId: node-1776933828193
