@@ -13,12 +13,15 @@
 
   export let nodes = [];
   export let edges = [];
+  export let edgeRenderMode = 'straight';
 
   const nodesStore = writable([]);
   const edgesStore = writable([]);
   let contextMenu = { show: false, x: 0, y: 0, position: { x: 0, y: 0 } };
   let selectedNodes = [];
   let selectedEdges = [];
+  let currentEdgeType = 'straight';
+  let isNodeDragging = false;
 
   // 初始化时设置数据
   onMount(() => {
@@ -123,6 +126,12 @@
     }
   }
 
+  $: {
+    // 由外部显式渲染模式驱动连线类型
+    // bezier(default) / straight
+    currentEdgeType = edgeRenderMode === 'bezier' ? 'default' : 'straight';
+  }
+
   // 不再在 store 响应式块里广播事件，避免与外部同步形成回流/重复触发。
   // 事件只在用户交互处理函数中发出（如 handleNodesChange / handleEdgesChange / handleConnect）。
 
@@ -139,15 +148,26 @@
   // 处理节点变化
   function handleNodesChange(changes) {
     console.log('handleNodesChange 被调用:', changes);
+
+    const hasDraggingPositionChange = changes.some(
+      (change) => change.type === 'position' && change.dragging === true
+    );
+    if (hasDraggingPositionChange && !isNodeDragging) {
+      isNodeDragging = true;
+      const dragStartEvent = new CustomEvent('node-drag-start');
+      window.dispatchEvent(dragStartEvent);
+    }
+
     nodesStore.update(nodes => {
       let updated = [...nodes];
       const removedNodeIds = [];
 
       changes.forEach(change => {
         console.log('节点变化类型:', change.type, change);
-        if (change.type === 'position' && change.dragging === false) {
+        if (change.type === 'position') {
           const node = updated.find(n => n.id === change.id);
           if (node && change.position) {
+            // 拖拽过程中持续同步位置，保证撤销栈能捕获移动轨迹
             node.position = change.position;
           }
         } else if (change.type === 'remove') {
@@ -196,7 +216,7 @@
           // 新增边 - 确保样式正确
           const newEdge = {
             ...change.item,
-            type: 'default',
+            type: currentEdgeType,
             animated: false,
             style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;'
           };
@@ -221,7 +241,7 @@
       id: `e${Date.now()}`,
       source: connection.source,
       target: connection.target,
-      type: 'default',
+      type: currentEdgeType,
       animated: false,
       style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
       data: {
@@ -248,6 +268,16 @@
   // 处理节点拖拽结束
   function handleNodeDragStop(event) {
     console.log('节点拖拽结束:', event);
+
+    if (isNodeDragging) {
+      isNodeDragging = false;
+      const dragStopEvent = new CustomEvent('node-drag-stop');
+      window.dispatchEvent(dragStopEvent);
+    }
+
+    // 拖拽结束后再同步一次最新节点数据
+    const syncEvent = new CustomEvent('nodes-change', { detail: $nodesStore });
+    window.dispatchEvent(syncEvent);
   }
 
   // 处理边更新
@@ -370,7 +400,7 @@
     on:edgeupdate={handleEdgeUpdate}
     on:edgeupdatestart={handleEdgeUpdateStart}
     on:edgeupdateend={handleEdgeUpdateEnd}
-    defaultEdgeOptions={{ type: 'default', animated: false }}
+    defaultEdgeOptions={{ type: currentEdgeType, animated: false }}
     nodesDraggable={true}
     nodesConnectable={true}
     elementsSelectable={true}

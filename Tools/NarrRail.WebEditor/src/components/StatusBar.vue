@@ -1,35 +1,47 @@
 <template>
     <div class="status-bar glass-morphism">
-        <div class="status-item">
-            <span class="material-symbols-outlined">account_tree</span>
-            <span>节点: {{ nodeCount }}</span>
+        <div class="status-left">
+            <div class="status-item">
+                <span class="material-symbols-outlined">account_tree</span>
+                <span>节点: {{ nodeCount }}</span>
+            </div>
+
+            <div class="status-item">
+                <span class="material-symbols-outlined">share</span>
+                <span>边: {{ edgeCount }}</span>
+            </div>
+
+            <div class="status-item" :class="{ warning: !entryNodeId }">
+                <span class="material-symbols-outlined">flag</span>
+                <span>入口: {{ entryNodeId || "未设置" }}</span>
+            </div>
+
+            <div class="status-item">
+                <span class="material-symbols-outlined">label</span>
+                <span>{{ storyId }}</span>
+            </div>
         </div>
 
-        <div class="status-item">
-            <span class="material-symbols-outlined">share</span>
-            <span>边: {{ edgeCount }}</span>
-        </div>
+        <div class="status-corner-panel glass-morphism-strong">
+            <div class="corner-item validation" :class="validationClass">
+                <span class="material-symbols-outlined">{{
+                    validationIcon
+                }}</span>
+                <span class="corner-label">{{ validationMessage }}</span>
+                <span class="validation-count error">E: {{ errorCount }}</span>
+                <span class="validation-count warning"
+                    >W: {{ warningCount }}</span
+                >
+            </div>
 
-        <div class="status-item" :class="{ warning: !entryNodeId }">
-            <span class="material-symbols-outlined">flag</span>
-            <span>入口: {{ entryNodeId || "未设置" }}</span>
-        </div>
-
-        <div class="status-item">
-            <span class="material-symbols-outlined">label</span>
-            <span>{{ storyId }}</span>
-        </div>
-
-        <div class="status-item validation" :class="validationClass">
-            <span class="material-symbols-outlined">{{ validationIcon }}</span>
-            <span class="validation-message">{{ validationMessage }}</span>
-            <span class="validation-count error">E: {{ errorCount }}</span>
-            <span class="validation-count warning">W: {{ warningCount }}</span>
-        </div>
-
-        <div class="status-item auto-save">
-            <span class="material-symbols-outlined pulse">cloud_done</span>
-            <span>自动保存</span>
+            <div
+                class="corner-item autosave"
+                :title="`自动保存到${autosaveTarget}，每 ${autosaveIntervalSec} 秒一次`"
+            >
+                <span class="material-symbols-outlined pulse">cloud_done</span>
+                <span class="corner-label">自动保存中</span>
+                <span class="autosave-meta">{{ autosaveIntervalSec }}s</span>
+            </div>
         </div>
     </div>
 </template>
@@ -62,6 +74,14 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    autosaveIntervalSec: {
+        type: Number,
+        default: 30,
+    },
+    autosaveTarget: {
+        type: String,
+        default: "浏览器本地存储",
+    },
 });
 
 const validationIcon = computed(() => {
@@ -86,38 +106,47 @@ const validationMessage = computed(() => {
 <style scoped>
 .status-bar {
     position: fixed;
-    bottom: 16px;
     left: 16px;
     right: 16px;
-    height: 44px;
+    bottom: 16px;
+    min-height: 48px;
+    border-radius: 20px;
+    z-index: 50;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 14px 0 24px;
+    gap: 16px;
+}
+
+.status-left {
+    min-width: 0;
     display: flex;
     align-items: center;
-    padding: 0 32px;
-    gap: 24px;
-    border-radius: 20px;
-    border: none;
-    z-index: 50;
+    gap: 22px;
+    flex-wrap: wrap;
 }
 
 .status-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
     font-weight: 500;
     color: #1d1d1f;
+    opacity: 0.78;
+    white-space: nowrap;
     font-family:
         "SF Pro Text",
         -apple-system,
         BlinkMacSystemFont,
         sans-serif;
-    opacity: 0.75;
-    white-space: nowrap;
 }
 
 .status-item .material-symbols-outlined {
     font-size: 18px;
-    opacity: 0.65;
+    opacity: 0.68;
 }
 
 .status-item.warning {
@@ -130,57 +159,60 @@ const validationMessage = computed(() => {
     opacity: 1;
 }
 
-.status-item.validation {
+.status-corner-panel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 14px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.48);
+    border: 0.5px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.corner-item {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.35);
-    border: 0.5px solid rgba(255, 255, 255, 0.4);
-    opacity: 1;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 650;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.45);
+    border: 0.5px solid rgba(255, 255, 255, 0.5);
 }
 
-.status-item.validation.is-valid {
-    color: #34c759;
+.corner-item .material-symbols-outlined {
+    font-size: 17px;
 }
 
-.status-item.validation.is-valid .material-symbols-outlined {
-    color: #34c759;
-    opacity: 1;
-}
-
-.status-item.validation.has-warning {
-    color: #ff9500;
-}
-
-.status-item.validation.has-warning .material-symbols-outlined {
-    color: #ff9500;
-    opacity: 1;
-}
-
-.status-item.validation.has-error {
-    color: #ff3b30;
-}
-
-.status-item.validation.has-error .material-symbols-outlined {
-    color: #ff3b30;
-    opacity: 1;
-}
-
-.validation-message {
+.corner-label {
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.01em;
+}
+
+/* Validation variants */
+.corner-item.validation.is-valid {
+    color: #34c759;
+}
+
+.corner-item.validation.has-warning {
+    color: #ff9500;
+}
+
+.corner-item.validation.has-error {
+    color: #ff3b30;
 }
 
 .validation-count {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 800;
     letter-spacing: 0.01em;
-    padding: 2px 6px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.5);
+    padding: 2px 6px;
+    background: rgba(255, 255, 255, 0.58);
 }
 
 .validation-count.error {
@@ -191,24 +223,29 @@ const validationMessage = computed(() => {
     color: #ff9500;
 }
 
-.status-item.auto-save {
-    margin-left: auto;
+/* Autosave */
+.corner-item.autosave {
     color: #34c759;
-    opacity: 1;
 }
 
-.status-item.auto-save .material-symbols-outlined {
-    color: #34c759;
-    opacity: 1;
+.autosave-meta {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.58);
+    color: #1f9a4a;
 }
 
 @keyframes pulse {
     0%,
     100% {
         opacity: 1;
+        transform: translateY(0);
     }
     50% {
-        opacity: 0.45;
+        opacity: 0.55;
+        transform: translateY(-0.5px);
     }
 }
 

@@ -1,13 +1,18 @@
 # NarrRail Web Editor
 
-基于 Vue 3 + Svelte Flow 的 NarrRail 剧情可视化编辑器。
+基于 **Vue 3 + Svelte Flow** 的 NarrRail 剧情可视化编辑器。  
+面向编剧与关卡叙事同学，支持节点式编辑、YAML 导入导出、实时校验与本地自动保存。
+
+---
 
 ## 技术栈
 
-- **Vue 3**: UI 框架（工具栏、属性面板等）
-- **Svelte Flow**: 节点编辑器核心（@xyflow/svelte）
-- **YAML**: YAML 解析与生成
-- **Vite**: 构建工具
+- **Vue 3**：整体 UI 容器（工具栏、属性面板、状态栏等）
+- **Svelte Flow (@xyflow/svelte)**：图编辑核心（节点、连线、交互）
+- **YAML**：脚本解析与生成
+- **Vite**：开发与构建
+
+---
 
 ## 快速开始
 
@@ -19,17 +24,12 @@ npm install
 npm run dev -- --host
 ```
 
-服务器启动后会显示多个访问地址：
-```
-➜  Local:   http://localhost:5173/
-➜  Network: http://192.168.1.3:5173/
-```
+启动后通常会显示：
 
-**访问编辑器：**
-1. 首选：使用 Network 地址（如 http://192.168.1.3:5173/）
-2. 备选：使用 http://localhost:5173/
+- `Local: http://localhost:5173/`
+- `Network: http://<你的本机IP>:5173/`
 
-**注意：** 如果浏览器无法连接 localhost，请使用 Network 地址（本机 IP）。
+> 若 `localhost` 不可访问，请使用 `Network` 地址。
 
 ### 生产构建
 
@@ -37,127 +37,186 @@ npm run dev -- --host
 npm run build
 ```
 
-生成的 `dist/index.html` 是一个单文件应用，可以直接双击打开。
+构建产物在 `dist/`。  
+可直接打开 `dist/index.html` 进行离线使用。
 
-## 功能特性
+---
 
-### 当前版本 (v0.1.0 - 基础框架)
+## 当前功能（已实现）
 
-- ✅ 基础 UI 布局（工具栏 + 画布 + 属性面板 + 状态栏）
-- ✅ Vue 3 + Svelte 混用架构
-- ✅ YAML 导入/导出功能
-- ✅ 前端验证功能
-- ✅ localStorage 自动保存
-- 🚧 Svelte Flow 图编辑器集成（开发中）
-- 🚧 节点创建与编辑（开发中）
-- 🚧 自定义节点类型（开发中）
+### 编辑器核心
 
-### 计划功能
+- ✅ 基础布局（工具栏 + 图编辑区 + 属性面板 + 变量面板 + 状态栏）
+- ✅ 6 种节点类型：
+  - `Dialogue`
+  - `Choice`
+  - `Jump`
+  - `SetVariable`
+  - `EmitEvent`
+  - `End`
+- ✅ 右键画布创建节点
+- ✅ 节点拖拽、连线、删除（含边级联删除）
+- ✅ 选中节点后属性编辑
+- ✅ 选中边后可编辑：
+  - `priority`
+  - `condition.logic`
+  - `condition.terms`（JSON）
 
-- 节点类型：Dialogue, Choice, Jump, SetVariable, EmitEvent, End
-- 边条件编辑
-- 变量管理
-- 实时验证
-- 错误高亮
+### 交互增强
 
-## 项目结构
+- ✅ 左键拖拽框选多个节点
+- ✅ 多选节点后可整体拖动
+- ✅ 鼠标中键拖动画布
+- ✅ 连线样式切换：**直线 / 曲线**
+  - 当前默认：**直线**
+- ✅ 焦点模式（可开关）
+  - 当前默认：**关闭**
+- ✅ 自动排布（层级排布 + Choice 分支扇出优化）
+- ✅ 导入 YAML 后自动执行一次自动排布
 
-```
+### YAML 导入导出
+
+- ✅ 导出符合当前脚本规范（重点：`Choice` 节点使用 `choices` 根字段）
+- ✅ 导入兼容两种 Choice 格式：
+  - 新格式：`choices: []`
+  - 旧格式：`choice: { choices: [] }`
+- ✅ Choice 选项通过 `sourceHandle=choice-{index}` 映射目标节点
+
+### 校验与状态
+
+- ✅ 实时验证（节点/边/入口/Choice 映射/条件结构等）
+- ✅ 手动“验证”按钮输出详细错误与警告
+- ✅ 状态栏右下角显示：
+  - 实时验证状态与 `E/W` 数量
+  - 自动保存状态
+
+### 本地存储
+
+- ✅ 自动保存到 `localStorage`
+- ✅ 默认每 **30 秒** 保存一次
+- ✅ 存储键格式：`narrrail_<storyId>`
+- ✅ 保存内容：`nodes / edges / meta / variables / lastModified`
+
+---
+
+## 项目结构（当前）
+
+```text
 NarrRail.WebEditor/
-├── package.json            # 项目配置
-├── vite.config.js          # Vite 配置
-├── index.html              # 应用入口
+├── package.json
+├── vite.config.js
+├── index.html
 ├── src/
-│   ├── main.js            # Vue 应用入口
-│   ├── App.vue            # 根组件
+│   ├── main.js
+│   ├── App.vue
 │   ├── components/
-│   │   ├── Toolbar.vue    # 工具栏
-│   │   ├── GraphEditor.svelte  # Svelte Flow 图编辑器
-│   │   ├── PropertyPanel.vue   # 属性面板
-│   │   └── StatusBar.vue       # 状态栏
+│   │   ├── Toolbar.vue
+│   │   ├── GraphEditor.svelte
+│   │   ├── GraphEditorWrapper.vue
+│   │   ├── PropertyPanel.vue
+│   │   ├── VariablePanel.vue
+│   │   └── StatusBar.vue
+│   ├── nodes/
+│   │   ├── DialogueNode.svelte
+│   │   ├── ChoiceNode.svelte
+│   │   ├── JumpNode.svelte
+│   │   ├── SetVariableNode.svelte
+│   │   ├── EmitEventNode.svelte
+│   │   └── EndNode.svelte
 │   ├── utils/
-│   │   ├── yaml-exporter.js   # YAML 导出
-│   │   ├── yaml-importer.js   # YAML 导入
-│   │   ├── storage.js         # localStorage 封装
-│   │   └── validation.js      # 前端验证
+│   │   ├── yaml-exporter.js
+│   │   ├── yaml-importer.js
+│   │   ├── validation.js
+│   │   └── storage.js
 │   └── styles/
-│       └── editor.css         # 全局样式
+│       └── editor.css
 └── README.md
 ```
 
+---
+
 ## 使用流程
 
-### 编剧工作流
+### 常规创作流
 
-1. 双击 `dist/index.html` 打开编辑器（或运行 `npm run dev`）
-2. 点击"新建"创建新剧情
-3. 右键画布 → 添加节点（开发中）
-4. 连接节点
-5. 编辑节点属性（右侧面板）
-6. 点击"验证"检查错误
-7. 点击"导出"下载 YAML 文件
-8. 将 YAML 文件拖到 UE Content Browser
-9. 在 UE 中测试剧情
+1. 打开编辑器（`npm run dev` 或 `dist/index.html`）
+2. 新建剧情或导入 YAML
+3. 添加/连接节点
+4. 编辑节点与边属性
+5. 查看实时验证结果（右下角）
+6. 导出 YAML
+7. 导入 UE 测试
 
-### 迭代修改流程
+### 迭代修改流
 
 1. 在 UE 中发现问题
-2. 打开编辑器，点击"导入"
-3. 选择之前导出的 YAML 文件
-4. 修改节点/边
-5. 重新导出
-6. 拖到 UE 覆盖旧文件
-7. UE 自动重新导入
+2. 回到编辑器导入原 YAML
+3. 修改图结构/属性
+4. 导出覆盖
+5. 在 UE 重新验证
 
-## 开发进度
+---
 
-- [x] 阶段 0: 项目初始化
-- [x] 阶段 1: 基础框架
-- [ ] 阶段 2: 图编辑器核心（进行中）
-- [ ] 阶段 3: YAML 导入/导出（基础完成，待测试）
-- [ ] 阶段 4: 属性编辑面板（基础完成，待扩展）
-- [ ] 阶段 5: 本地存储（已完成）
-- [ ] 阶段 6: 前端验证（已完成）
+## 开发进度（更新）
+
+- [x] 阶段 0：项目初始化
+- [x] 阶段 1：基础框架
+- [x] 阶段 2：图编辑器核心（节点/连线/删除/多选/中键平移）
+- [x] 阶段 3：YAML 导入导出（含 Choice 规范修正与兼容导入）
+- [x] 阶段 4：属性编辑面板（节点 + 边属性）
+- [x] 阶段 5：本地存储与自动保存
+- [x] 阶段 6：前端验证（实时 + 手动）
+
+---
+
+## 已知限制 / 待优化
+
+- 条件编辑目前 `terms` 仍以 JSON 文本输入为主（后续可视化表单化）
+- 超大图（数百节点）仍需继续优化布局与渲染性能
+- 目前无完整撤销/重做历史系统（规划中）
+
+---
 
 ## 浏览器兼容性
 
-推荐使用以下浏览器：
+推荐：
 
 - Chrome 90+
-- Firefox 88+
 - Edge 90+
-- Safari 14+ (macOS)
+- Firefox 88+
+- Safari 14+（macOS）
+
+---
 
 ## 故障排除
 
-### 编辑器无法启动
+### 无法启动
 
-- 确保已安装 Node.js 16+
-- 运行 `npm install` 安装依赖
-- 检查端口 5173 是否被占用
+- 检查 Node.js 版本（建议 16+）
+- 重新执行 `npm install`
+- 检查 5173 端口占用
 
-### 浏览器无法连接 localhost
+### 无法访问 localhost
 
-**问题：** Firefox 或其他浏览器显示"无法连接到 localhost:5173"
+- 使用 `npm run dev -- --host`
+- 改用 Network 地址访问
 
-**解决方案：**
-1. 使用 `npm run dev -- --host` 启动服务器（带 --host 参数）
-2. 使用 Network 地址访问（如 http://192.168.1.3:5173/）而不是 localhost
-3. 或者尝试 http://127.0.0.1:5173/
+### YAML 导入/导出异常
 
-### 导出的 YAML 无法导入 UE
+- 先点击“验证”查看错误
+- 检查入口节点、节点 ID 唯一性、边引用有效性
+- 检查 `Choice` 节点字段是否为 `choices`（不是 `choice.choices`）
 
-- 点击"验证"检查错误
-- 确保所有必填字段已填写
-- 确保节点 ID 唯一
-- 确保边引用的节点存在
+---
 
 ## 许可证
 
-本项目是 NarrRail UE5 插件的一部分，遵循相同的许可证。
+本项目是 NarrRail UE5 插件的一部分，遵循仓库统一许可证。
+
+---
 
 ## 参考资料
 
-- [Svelte Flow 官方文档](https://svelteflow.dev/)
-- [Vue 3 官方文档](https://vuejs.org/)
-- [Vite 官方文档](https://vitejs.dev/)
+- Svelte Flow: https://svelteflow.dev/
+- Vue 3: https://vuejs.org/
+- Vite: https://vitejs.dev/

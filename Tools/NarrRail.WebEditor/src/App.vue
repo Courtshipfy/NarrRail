@@ -1,101 +1,113 @@
 <template>
-  <div class="editor-container">
-    <div class="main-content">
-      <div class="graph-editor-wrapper">
-        <GraphEditorWrapper :nodes="nodes" :edges="edges" />
-      </div>
-    </div>
+    <div class="editor-container">
+        <div class="main-content">
+            <div class="graph-editor-wrapper">
+                <GraphEditorWrapper
+                    :nodes="nodes"
+                    :edges="edges"
+                    :edge-render-mode="edgeRenderMode"
+                />
+            </div>
+        </div>
 
-    <Toolbar
-      :focus-mode-enabled="focusModeEnabled"
-      :edge-style="edgeRenderMode"
-      @new="handleNew"
-      @import="handleImport"
-      @export="handleExport"
-      @validate="handleValidate"
-      @auto-layout="handleAutoLayout"
-      @toggle-edge-style="handleToggleEdgeRenderMode"
-      @toggle-focus-mode="handleToggleFocusMode"
-      @help="handleHelp"
-    />
+        <Toolbar
+            :focus-mode-enabled="focusModeEnabled"
+            :edge-style="edgeRenderMode"
+            @new="handleNew"
+            @import="handleImport"
+            @export="handleExport"
+            @undo="handleUndo"
+            @redo="handleRedo"
+            @validate="handleValidate"
+            @auto-layout="handleAutoLayout"
+            @toggle-edge-style="handleToggleEdgeRenderMode"
+            @toggle-focus-mode="handleToggleFocusMode"
+            @help="handleHelp"
+        />
 
-    <StatusBar
-      :node-count="nodes.length"
-      :edge-count="edges.length"
-      :story-id="storyMeta.storyId"
-      :entry-node-id="storyMeta.entryNodeId"
-      :error-count="validationResult.errors.length"
-      :warning-count="validationResult.warnings.length"
-    />
+        <StatusBar
+            :node-count="nodes.length"
+            :edge-count="edges.length"
+            :story-id="storyMeta.storyId"
+            :entry-node-id="storyMeta.entryNodeId"
+            :error-count="validationResult.errors.length"
+            :warning-count="validationResult.warnings.length"
+            :autosave-interval-sec="30"
+            :autosave-target="`localStorage:narrrail_${storyMeta.storyId || 'NewStory'}`"
+        />
 
-    <PropertyPanel
-      :selected-node="selectedNode"
-      :entry-node-id="storyMeta.entryNodeId"
-      @update="handleNodeUpdate"
-      @set-entry-node="handleSetEntryNode"
-    />
+        <PropertyPanel
+            :selected-node="selectedNode"
+            :entry-node-id="storyMeta.entryNodeId"
+            @update="handleNodeUpdate"
+            @set-entry-node="handleSetEntryNode"
+        />
 
-    <VariablePanel :variables="variables" @update="handleVariablesUpdate" />
+        <VariablePanel :variables="variables" @update="handleVariablesUpdate" />
 
-    <div v-if="selectedEdge" class="edge-editor glass-morphism-strong">
-      <div class="edge-editor-header">
-        <h3>边属性</h3>
-        <button class="close-btn" @click="clearEdgeSelection">✕</button>
-      </div>
+        <div v-if="selectedEdge" class="edge-editor glass-morphism-strong">
+            <div class="edge-editor-header">
+                <h3>边属性</h3>
+                <button class="close-btn" @click="clearEdgeSelection">✕</button>
+            </div>
 
-      <div class="form-group">
-        <label>Edge ID</label>
-        <input class="form-input" :value="selectedEdge.id" readonly />
-      </div>
+            <div class="form-group">
+                <label>Edge ID</label>
+                <input class="form-input" :value="selectedEdge.id" readonly />
+            </div>
 
-      <div class="form-group">
-        <label>Source → Target</label>
+            <div class="form-group">
+                <label>Source → Target</label>
+                <input
+                    class="form-input"
+                    :value="`${selectedEdge.source} → ${selectedEdge.target}`"
+                    readonly
+                />
+            </div>
+
+            <div class="form-group">
+                <label>优先级 (priority)</label>
+                <input
+                    type="number"
+                    class="form-input"
+                    v-model.number="edgeDraft.priority"
+                />
+            </div>
+
+            <div class="form-group">
+                <label>条件逻辑 (condition.logic)</label>
+                <select class="form-input" v-model="edgeDraft.logic">
+                    <option value="All">All</option>
+                    <option value="Any">Any</option>
+                    <option value="Not">Not</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>条件项 JSON (condition.terms)</label>
+                <textarea
+                    class="form-textarea"
+                    v-model="edgeDraft.termsText"
+                    placeholder='[{"variable":{"name":"Affinity","type":"Int","scope":"Session"},"operator":">=","compareValue":"10"}]'
+                />
+            </div>
+
+            <div class="edge-editor-actions">
+                <button class="action-btn primary" @click="applyEdgeDraft">
+                    应用
+                </button>
+                <button class="action-btn" @click="resetEdgeDraft">重置</button>
+            </div>
+        </div>
+
         <input
-          class="form-input"
-          :value="`${selectedEdge.source} → ${selectedEdge.target}`"
-          readonly
+            ref="fileInput"
+            type="file"
+            accept=".yaml,.yml"
+            style="display: none"
+            @change="handleFileChange"
         />
-      </div>
-
-      <div class="form-group">
-        <label>优先级 (priority)</label>
-        <input type="number" class="form-input" v-model.number="edgeDraft.priority" />
-      </div>
-
-      <div class="form-group">
-        <label>条件逻辑 (condition.logic)</label>
-        <select class="form-input" v-model="edgeDraft.logic">
-          <option value="All">All</option>
-          <option value="Any">Any</option>
-          <option value="Not">Not</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>条件项 JSON (condition.terms)</label>
-        <textarea
-          class="form-textarea"
-          v-model="edgeDraft.termsText"
-          placeholder='[{"variable":{"name":"Affinity","type":"Int","scope":"Session"},"operator":">=","compareValue":"10"}]'
-        />
-      </div>
-
-      <div class="edge-editor-actions">
-        <button class="action-btn primary" @click="applyEdgeDraft">应用</button>
-        <button class="action-btn" @click="resetEdgeDraft">重置</button>
-      </div>
     </div>
-
-
-
-    <input
-      ref="fileInput"
-      type="file"
-      accept=".yaml,.yml"
-      style="display: none"
-      @change="handleFileChange"
-    />
-  </div>
 </template>
 
 <script setup>
@@ -111,59 +123,62 @@ import { validateStory } from "./utils/validation.js";
 import storage from "./utils/storage.js";
 
 const nodes = ref([
-  {
-    id: "node-1",
-    type: "dialogue",
-    position: { x: 220, y: 120 },
-    data: { speakerId: "Alice", textKey: "你好！欢迎使用 NarrRail 编辑器。" },
-  },
-  {
-    id: "node-2",
-    type: "choice",
-    position: { x: 560, y: 120 },
-    data: { choices: [{ textKey: "继续对话" }, { textKey: "结束对话" }] },
-  },
-  {
-    id: "node-3",
-    type: "dialogue",
-    position: { x: 900, y: 40 },
-    data: { speakerId: "Bob", textKey: "很高兴认识你！" },
-  },
-  {
-    id: "node-4",
-    type: "end",
-    position: { x: 900, y: 220 },
-    data: {},
-  },
+    {
+        id: "node-1",
+        type: "dialogue",
+        position: { x: 220, y: 120 },
+        data: {
+            speakerId: "Alice",
+            textKey: "你好！欢迎使用 NarrRail 编辑器。",
+        },
+    },
+    {
+        id: "node-2",
+        type: "choice",
+        position: { x: 560, y: 120 },
+        data: { choices: [{ textKey: "继续对话" }, { textKey: "结束对话" }] },
+    },
+    {
+        id: "node-3",
+        type: "dialogue",
+        position: { x: 900, y: 40 },
+        data: { speakerId: "Bob", textKey: "很高兴认识你！" },
+    },
+    {
+        id: "node-4",
+        type: "end",
+        position: { x: 900, y: 220 },
+        data: {},
+    },
 ]);
 
 const edges = ref([
-  {
-    id: "e1-2",
-    source: "node-1",
-    target: "node-2",
-    type: "straight",
-    animated: false,
-    data: { priority: 0, condition: { logic: "All", terms: [] } },
-  },
-  {
-    id: "e2-3",
-    source: "node-2",
-    sourceHandle: "choice-0",
-    target: "node-3",
-    type: "straight",
-    animated: false,
-    data: { priority: 0, condition: { logic: "All", terms: [] } },
-  },
-  {
-    id: "e2-4",
-    source: "node-2",
-    sourceHandle: "choice-1",
-    target: "node-4",
-    type: "straight",
-    animated: false,
-    data: { priority: 0, condition: { logic: "All", terms: [] } },
-  },
+    {
+        id: "e1-2",
+        source: "node-1",
+        target: "node-2",
+        type: "straight",
+        animated: false,
+        data: { priority: 0, condition: { logic: "All", terms: [] } },
+    },
+    {
+        id: "e2-3",
+        source: "node-2",
+        sourceHandle: "choice-0",
+        target: "node-3",
+        type: "straight",
+        animated: false,
+        data: { priority: 0, condition: { logic: "All", terms: [] } },
+    },
+    {
+        id: "e2-4",
+        source: "node-2",
+        sourceHandle: "choice-1",
+        target: "node-4",
+        type: "straight",
+        animated: false,
+        data: { priority: 0, condition: { logic: "All", terms: [] } },
+    },
 ]);
 
 const selectedNode = ref(null);
@@ -171,10 +186,16 @@ const selectedEdge = ref(null);
 const focusModeEnabled = ref(false);
 const edgeRenderMode = ref("straight");
 
+const undoStack = ref([]);
+const redoStack = ref([]);
+const isApplyingHistory = ref(false);
+const isNodeDragInProgress = ref(false);
+const MAX_HISTORY_SIZE = 100;
+
 const storyMeta = ref({
-  storyId: "DemoStory",
-  entryNodeId: "node-1",
-  schemaVersion: 1,
+    storyId: "DemoStory",
+    entryNodeId: "node-1",
+    schemaVersion: 1,
 });
 
 const variables = ref([]);
@@ -185,846 +206,1070 @@ const hasErrors = computed(() => validationResult.value.errors.length > 0);
 const hasWarnings = computed(() => validationResult.value.warnings.length > 0);
 
 const edgeDraft = reactive({
-  priority: 0,
-  logic: "All",
-  termsText: "[]",
+    priority: 0,
+    logic: "All",
+    termsText: "[]",
 });
 
 let autoSaveTimer = null;
 
 function safeClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
+    return JSON.parse(JSON.stringify(obj));
+}
+
+function createStateSnapshot() {
+    return {
+        nodes: safeClone(nodes.value),
+        edges: safeClone(edges.value),
+        storyMeta: safeClone(storyMeta.value),
+        variables: safeClone(variables.value),
+        selectedNode: selectedNode.value ? safeClone(selectedNode.value) : null,
+        selectedEdge: selectedEdge.value ? safeClone(selectedEdge.value) : null,
+    };
+}
+
+function applyStateSnapshot(snapshot) {
+    if (!snapshot) return;
+
+    isApplyingHistory.value = true;
+
+    nodes.value = safeClone(snapshot.nodes || []);
+    edges.value = safeClone(snapshot.edges || []);
+    storyMeta.value = safeClone(
+        snapshot.storyMeta || {
+            storyId: "NewStory",
+            entryNodeId: "",
+            schemaVersion: 1,
+        },
+    );
+    variables.value = safeClone(snapshot.variables || []);
+    selectedNode.value = snapshot.selectedNode
+        ? safeClone(snapshot.selectedNode)
+        : null;
+    selectedEdge.value = snapshot.selectedEdge
+        ? safeClone(snapshot.selectedEdge)
+        : null;
+
+    runRealtimeValidation();
+    applyEdgeVisualStyles();
+    syncEdgeDraftFromSelection();
+
+    isApplyingHistory.value = false;
+}
+
+function pushHistorySnapshot() {
+    if (isApplyingHistory.value) return;
+
+    undoStack.value.push(createStateSnapshot());
+    if (undoStack.value.length > MAX_HISTORY_SIZE) {
+        undoStack.value.shift();
+    }
+    redoStack.value = [];
+}
+
+function handleNodeDragStart() {
+    if (isNodeDragInProgress.value) return;
+    isNodeDragInProgress.value = true;
+    pushHistorySnapshot();
+}
+
+function handleNodeDragStop() {
+    isNodeDragInProgress.value = false;
 }
 
 function isDeepEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
+    return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function normalizeEdge(edge) {
-  return {
-    ...edge,
-    type: edge?.type || "straight",
-    animated: edge?.animated ?? false,
-    style: edge?.style || "stroke: rgba(168, 85, 247, 0.55); stroke-width: 2px;",
-    data: {
-      priority: edge?.data?.priority ?? 0,
-      condition: {
-        logic: edge?.data?.condition?.logic || "All",
-        terms: Array.isArray(edge?.data?.condition?.terms) ? edge.data.condition.terms : [],
-      },
-    },
-  };
+    return {
+        ...edge,
+        type: edge?.type || "straight",
+        animated: edge?.animated ?? false,
+        style:
+            edge?.style ||
+            "stroke: rgba(168, 85, 247, 0.55); stroke-width: 2px;",
+        data: {
+            priority: edge?.data?.priority ?? 0,
+            condition: {
+                logic: edge?.data?.condition?.logic || "All",
+                terms: Array.isArray(edge?.data?.condition?.terms)
+                    ? edge.data.condition.terms
+                    : [],
+            },
+        },
+    };
 }
 
 function isValidChoiceHandle(node, sourceHandle) {
-  if (!node || node.type !== "choice") return true;
-  if (!sourceHandle) return true;
-  const match = /^choice-(\d+)$/.exec(sourceHandle);
-  if (!match) return false;
-  const index = Number(match[1]);
-  const count = Array.isArray(node.data?.choices) ? node.data.choices.length : 0;
-  return Number.isInteger(index) && index >= 0 && index < count;
+    if (!node || node.type !== "choice") return true;
+    if (!sourceHandle) return true;
+    const match = /^choice-(\d+)$/.exec(sourceHandle);
+    if (!match) return false;
+    const index = Number(match[1]);
+    const count = Array.isArray(node.data?.choices)
+        ? node.data.choices.length
+        : 0;
+    return Number.isInteger(index) && index >= 0 && index < count;
 }
 
 function sanitizeEdges(rawEdges) {
-  const seenIds = new Set();
-  return (rawEdges || [])
-    .map(normalizeEdge)
-    .filter((edge) => {
-      if (!edge?.id || seenIds.has(edge.id)) return false;
-      seenIds.add(edge.id);
+    const seenIds = new Set();
+    return (rawEdges || []).map(normalizeEdge).filter((edge) => {
+        if (!edge?.id || seenIds.has(edge.id)) return false;
+        seenIds.add(edge.id);
 
-      const sourceNode = nodes.value.find((n) => n.id === edge.source);
-      const targetNode = nodes.value.find((n) => n.id === edge.target);
-      if (!sourceNode || !targetNode) return false;
+        const sourceNode = nodes.value.find((n) => n.id === edge.source);
+        const targetNode = nodes.value.find((n) => n.id === edge.target);
+        if (!sourceNode || !targetNode) return false;
 
-      return isValidChoiceHandle(sourceNode, edge.sourceHandle);
+        return isValidChoiceHandle(sourceNode, edge.sourceHandle);
     });
 }
 
 function syncChoiceEdgesForNode(choiceNode, currentEdges) {
-  if (!choiceNode || choiceNode.type !== "choice") return currentEdges;
-  return (currentEdges || []).filter((edge) => {
-    if (edge.source !== choiceNode.id) return true;
-    return isValidChoiceHandle(choiceNode, edge.sourceHandle);
-  });
+    if (!choiceNode || choiceNode.type !== "choice") return currentEdges;
+    return (currentEdges || []).filter((edge) => {
+        if (edge.source !== choiceNode.id) return true;
+        return isValidChoiceHandle(choiceNode, edge.sourceHandle);
+    });
 }
 
 function isEdgeFocused(edge) {
-  if (selectedEdge.value) return selectedEdge.value.id === edge.id;
-  if (selectedNode.value) {
-    return edge.source === selectedNode.value.id || edge.target === selectedNode.value.id;
-  }
-  return false;
+    if (selectedEdge.value) return selectedEdge.value.id === edge.id;
+    if (selectedNode.value) {
+        return (
+            edge.source === selectedNode.value.id ||
+            edge.target === selectedNode.value.id
+        );
+    }
+    return false;
 }
 
 function deriveEdgeStyle(edge, visualOffset = 0) {
-  const focused = isEdgeFocused(edge);
-  const baseColor = "168, 85, 247";
+    const focused = isEdgeFocused(edge);
+    const baseColor = "168, 85, 247";
 
-  const pathOffset = Math.max(8, 26 + visualOffset);
-  const borderRadius = 12 + Math.min(Math.abs(visualOffset) * 0.35, 10);
+    const pathOffset = Math.max(8, 26 + visualOffset);
+    const borderRadius = 12 + Math.min(Math.abs(visualOffset) * 0.35, 10);
 
-  if (focusModeEnabled.value) {
-    if (focused) {
-      return {
-        style: "stroke: rgba(168, 85, 247, 0.95); stroke-width: 3.5px; stroke-linecap: round;",
-        animated: true,
-        pathOptions: { offset: pathOffset, borderRadius },
-        zIndex: 30,
-      };
+    if (focusModeEnabled.value) {
+        if (focused) {
+            return {
+                style: "stroke: rgba(168, 85, 247, 0.95); stroke-width: 3.5px; stroke-linecap: round;",
+                animated: true,
+                pathOptions: { offset: pathOffset, borderRadius },
+                zIndex: 30,
+            };
+        }
+        return {
+            style: "stroke: rgba(168, 85, 247, 0.12); stroke-width: 1.5px; stroke-linecap: round;",
+            animated: false,
+            pathOptions: { offset: pathOffset, borderRadius },
+            zIndex: 3,
+        };
     }
-    return {
-      style: "stroke: rgba(168, 85, 247, 0.12); stroke-width: 1.5px; stroke-linecap: round;",
-      animated: false,
-      pathOptions: { offset: pathOffset, borderRadius },
-      zIndex: 3,
-    };
-  }
 
-  if (focused) {
-    return {
-      style: `stroke: rgba(${baseColor}, 0.88); stroke-width: 3px; stroke-linecap: round;`,
-      animated: true,
-      pathOptions: { offset: pathOffset, borderRadius },
-      zIndex: 25,
-    };
-  }
+    if (focused) {
+        return {
+            style: `stroke: rgba(${baseColor}, 0.88); stroke-width: 3px; stroke-linecap: round;`,
+            animated: true,
+            pathOptions: { offset: pathOffset, borderRadius },
+            zIndex: 25,
+        };
+    }
 
-  return {
-    style: `stroke: rgba(${baseColor}, 0.52); stroke-width: 2px; stroke-linecap: round;`,
-    animated: false,
-    pathOptions: { offset: pathOffset, borderRadius },
-    zIndex: 5,
-  };
+    return {
+        style: `stroke: rgba(${baseColor}, 0.52); stroke-width: 2px; stroke-linecap: round;`,
+        animated: false,
+        pathOptions: { offset: pathOffset, borderRadius },
+        zIndex: 5,
+    };
 }
 
 function buildSourceFanOutOffsetMap(edgesList) {
-  const bySource = new Map();
-  edgesList.forEach((edge) => {
-    if (!bySource.has(edge.source)) bySource.set(edge.source, []);
-    bySource.get(edge.source).push(edge);
-  });
-
-  const offsetMap = new Map();
-
-  bySource.forEach((list) => {
-    const sorted = [...list].sort((a, b) => {
-      const ai = getChoiceHandleIndex(a.sourceHandle);
-      const bi = getChoiceHandleIndex(b.sourceHandle);
-
-      if (ai != null && bi != null && ai !== bi) return ai - bi;
-      if (ai != null && bi == null) return -1;
-      if (ai == null && bi != null) return 1;
-      return String(a.target).localeCompare(String(b.target));
+    const bySource = new Map();
+    edgesList.forEach((edge) => {
+        if (!bySource.has(edge.source)) bySource.set(edge.source, []);
+        bySource.get(edge.source).push(edge);
     });
 
-    const center = (sorted.length - 1) / 2;
-    sorted.forEach((edge, idx) => {
-      offsetMap.set(edge.id, (idx - center) * 12);
-    });
-  });
+    const offsetMap = new Map();
 
-  return offsetMap;
+    bySource.forEach((list) => {
+        const sorted = [...list].sort((a, b) => {
+            const ai = getChoiceHandleIndex(a.sourceHandle);
+            const bi = getChoiceHandleIndex(b.sourceHandle);
+
+            if (ai != null && bi != null && ai !== bi) return ai - bi;
+            if (ai != null && bi == null) return -1;
+            if (ai == null && bi != null) return 1;
+            return String(a.target).localeCompare(String(b.target));
+        });
+
+        const center = (sorted.length - 1) / 2;
+        sorted.forEach((edge, idx) => {
+            offsetMap.set(edge.id, (idx - center) * 12);
+        });
+    });
+
+    return offsetMap;
 }
 
 function buildParallelEdgeOffsetMap(edgesList) {
-  const byPair = new Map();
+    const byPair = new Map();
 
-  edgesList.forEach((edge) => {
-    const key = `${edge.source}->${edge.target}`;
-    if (!byPair.has(key)) byPair.set(key, []);
-    byPair.get(key).push(edge);
-  });
-
-  const offsetMap = new Map();
-
-  byPair.forEach((list) => {
-    if (list.length === 1) {
-      offsetMap.set(list[0].id, 0);
-      return;
-    }
-
-    const center = (list.length - 1) / 2;
-    list.forEach((edge, idx) => {
-      offsetMap.set(edge.id, (idx - center) * 16);
+    edgesList.forEach((edge) => {
+        const key = `${edge.source}->${edge.target}`;
+        if (!byPair.has(key)) byPair.set(key, []);
+        byPair.get(key).push(edge);
     });
-  });
 
-  return offsetMap;
+    const offsetMap = new Map();
+
+    byPair.forEach((list) => {
+        if (list.length === 1) {
+            offsetMap.set(list[0].id, 0);
+            return;
+        }
+
+        const center = (list.length - 1) / 2;
+        list.forEach((edge, idx) => {
+            offsetMap.set(edge.id, (idx - center) * 16);
+        });
+    });
+
+    return offsetMap;
 }
 
 function applyEdgeVisualStyles() {
-  const sourceFanOutOffsets = buildSourceFanOutOffsetMap(edges.value);
-  const parallelOffsets = buildParallelEdgeOffsetMap(edges.value);
-  const isBezier = edgeRenderMode.value === "bezier";
-  const edgeType = isBezier ? "default" : "straight";
+    const sourceFanOutOffsets = buildSourceFanOutOffsetMap(edges.value);
+    const parallelOffsets = buildParallelEdgeOffsetMap(edges.value);
+    const isBezier = edgeRenderMode.value === "bezier";
+    const edgeType = isBezier ? "default" : "straight";
 
-  const next = edges.value.map((edge) => {
-    const sourceOffset = sourceFanOutOffsets.get(edge.id) ?? 0;
-    const parallelOffset = parallelOffsets.get(edge.id) ?? 0;
-    const visualOffset = sourceOffset + parallelOffset;
+    const next = edges.value.map((edge) => {
+        const sourceOffset = sourceFanOutOffsets.get(edge.id) ?? 0;
+        const parallelOffset = parallelOffsets.get(edge.id) ?? 0;
+        const visualOffset = sourceOffset + parallelOffset;
 
-    const { style, animated, pathOptions, zIndex } = deriveEdgeStyle(edge, visualOffset);
+        const { style, animated, pathOptions, zIndex } = deriveEdgeStyle(
+            edge,
+            visualOffset,
+        );
 
-    return {
-      ...edge,
-      style,
-      animated,
-      type: edgeType,
-      ...(isBezier ? { pathOptions } : { pathOptions: undefined }),
-      zIndex,
-    };
-  });
+        return {
+            ...edge,
+            style,
+            animated,
+            type: edgeType,
+            ...(isBezier ? { pathOptions } : { pathOptions: undefined }),
+            zIndex,
+        };
+    });
 
-  if (!isDeepEqual(next, edges.value)) {
-    edges.value = safeClone(next);
-  }
+    if (!isDeepEqual(next, edges.value)) {
+        edges.value = safeClone(next);
+    }
 }
 
 function runRealtimeValidation() {
-  validationResult.value = validateStory(nodes.value, edges.value, storyMeta.value);
+    validationResult.value = validateStory(
+        nodes.value,
+        edges.value,
+        storyMeta.value,
+    );
 }
 
 function setupAutoSave() {
-  if (autoSaveTimer) clearInterval(autoSaveTimer);
-  autoSaveTimer = storage.setupAutoSave(storyMeta.value.storyId || "NewStory", () => ({
-    nodes: nodes.value,
-    edges: edges.value,
-    meta: storyMeta.value,
-    variables: variables.value,
-  }));
+    if (autoSaveTimer) clearInterval(autoSaveTimer);
+    autoSaveTimer = storage.setupAutoSave(
+        storyMeta.value.storyId || "NewStory",
+        () => ({
+            nodes: nodes.value,
+            edges: edges.value,
+            meta: storyMeta.value,
+            variables: variables.value,
+        }),
+    );
 }
 
 function syncEdgeDraftFromSelection() {
-  if (!selectedEdge.value) return;
-  edgeDraft.priority = selectedEdge.value.data?.priority ?? 0;
-  edgeDraft.logic = selectedEdge.value.data?.condition?.logic || "All";
-  edgeDraft.termsText = JSON.stringify(selectedEdge.value.data?.condition?.terms || [], null, 2);
+    if (!selectedEdge.value) return;
+    edgeDraft.priority = selectedEdge.value.data?.priority ?? 0;
+    edgeDraft.logic = selectedEdge.value.data?.condition?.logic || "All";
+    edgeDraft.termsText = JSON.stringify(
+        selectedEdge.value.data?.condition?.terms || [],
+        null,
+        2,
+    );
 }
 
 function applyEdgeDraft() {
-  if (!selectedEdge.value) return;
-  let parsedTerms = [];
-  try {
-    parsedTerms = JSON.parse(edgeDraft.termsText || "[]");
-    if (!Array.isArray(parsedTerms)) throw new Error("condition.terms 必须是数组");
-  } catch (err) {
-    alert(`边条件 JSON 格式错误: ${err.message}`);
-    return;
-  }
+    if (!selectedEdge.value) return;
+    let parsedTerms = [];
+    try {
+        parsedTerms = JSON.parse(edgeDraft.termsText || "[]");
+        if (!Array.isArray(parsedTerms))
+            throw new Error("condition.terms 必须是数组");
+    } catch (err) {
+        alert(`边条件 JSON 格式错误: ${err.message}`);
+        return;
+    }
 
-  handleEdgeUpdate({
-    ...selectedEdge.value,
-    data: {
-      ...(selectedEdge.value.data || {}),
-      priority: Number.isFinite(edgeDraft.priority) ? edgeDraft.priority : 0,
-      condition: { logic: edgeDraft.logic || "All", terms: parsedTerms },
-    },
-  });
+    handleEdgeUpdate({
+        ...selectedEdge.value,
+        data: {
+            ...(selectedEdge.value.data || {}),
+            priority: Number.isFinite(edgeDraft.priority)
+                ? edgeDraft.priority
+                : 0,
+            condition: { logic: edgeDraft.logic || "All", terms: parsedTerms },
+        },
+    });
 }
 
 function resetEdgeDraft() {
-  syncEdgeDraftFromSelection();
+    syncEdgeDraftFromSelection();
 }
 
 function clearEdgeSelection() {
-  selectedEdge.value = null;
-  applyEdgeVisualStyles();
+    selectedEdge.value = null;
+    applyEdgeVisualStyles();
 }
 
 function handleNodeClick(event) {
-  selectedNode.value = event.detail ? safeClone(event.detail) : null;
-  if (selectedNode.value) selectedEdge.value = null;
-  applyEdgeVisualStyles();
+    selectedNode.value = event.detail ? safeClone(event.detail) : null;
+    if (selectedNode.value) selectedEdge.value = null;
+    applyEdgeVisualStyles();
 }
 
 function handleEdgeClick(event) {
-  selectedEdge.value = event.detail ? normalizeEdge(safeClone(event.detail)) : null;
-  if (selectedEdge.value) selectedNode.value = null;
-  syncEdgeDraftFromSelection();
-  applyEdgeVisualStyles();
+    selectedEdge.value = event.detail
+        ? normalizeEdge(safeClone(event.detail))
+        : null;
+    if (selectedEdge.value) selectedNode.value = null;
+    syncEdgeDraftFromSelection();
+    applyEdgeVisualStyles();
 }
 
 function handleNodesChange(event) {
-  const nextNodes = Array.isArray(event.detail) ? event.detail : [];
-  if (!isDeepEqual(nextNodes, nodes.value)) nodes.value = safeClone(nextNodes);
+    const nextNodes = Array.isArray(event.detail) ? event.detail : [];
+    if (!isDeepEqual(nextNodes, nodes.value)) {
+        if (!isNodeDragInProgress.value) {
+            pushHistorySnapshot();
+        }
+        nodes.value = safeClone(nextNodes);
+    }
 
-  if (selectedNode.value) {
-    const latestNode = nodes.value.find((n) => n.id === selectedNode.value.id);
-    selectedNode.value = latestNode ? safeClone(latestNode) : null;
-  }
+    if (selectedNode.value) {
+        const latestNode = nodes.value.find(
+            (n) => n.id === selectedNode.value.id,
+        );
+        selectedNode.value = latestNode ? safeClone(latestNode) : null;
+    }
 
-  if (selectedEdge.value) {
-    const latestEdge = edges.value.find((e) => e.id === selectedEdge.value.id);
-    selectedEdge.value = latestEdge ? normalizeEdge(safeClone(latestEdge)) : null;
-    syncEdgeDraftFromSelection();
-  }
+    if (selectedEdge.value) {
+        const latestEdge = edges.value.find(
+            (e) => e.id === selectedEdge.value.id,
+        );
+        selectedEdge.value = latestEdge
+            ? normalizeEdge(safeClone(latestEdge))
+            : null;
+        syncEdgeDraftFromSelection();
+    }
 
-  applyEdgeVisualStyles();
+    applyEdgeVisualStyles();
 }
 
 function handleEdgesChange(event) {
-  const incomingEdges = Array.isArray(event.detail) ? event.detail : [];
-  const sanitized = sanitizeEdges(incomingEdges);
-  if (!isDeepEqual(sanitized, edges.value)) edges.value = safeClone(sanitized);
+    const incomingEdges = Array.isArray(event.detail) ? event.detail : [];
+    const sanitized = sanitizeEdges(incomingEdges);
+    if (!isDeepEqual(sanitized, edges.value)) {
+        pushHistorySnapshot();
+        edges.value = safeClone(sanitized);
+    }
 
-  if (selectedEdge.value) {
-    const latestEdge = edges.value.find((e) => e.id === selectedEdge.value.id);
-    selectedEdge.value = latestEdge ? normalizeEdge(safeClone(latestEdge)) : null;
-    syncEdgeDraftFromSelection();
-  }
+    if (selectedEdge.value) {
+        const latestEdge = edges.value.find(
+            (e) => e.id === selectedEdge.value.id,
+        );
+        selectedEdge.value = latestEdge
+            ? normalizeEdge(safeClone(latestEdge))
+            : null;
+        syncEdgeDraftFromSelection();
+    }
 
-  applyEdgeVisualStyles();
+    applyEdgeVisualStyles();
 }
 
 function buildLayers(nodesInput, edgesInput, entryNodeId) {
-  const nodeIds = nodesInput.map((n) => n.id);
-  const inDegree = new Map(nodeIds.map((id) => [id, 0]));
-  const outgoing = new Map(nodeIds.map((id) => [id, []]));
+    const nodeIds = nodesInput.map((n) => n.id);
+    const inDegree = new Map(nodeIds.map((id) => [id, 0]));
+    const outgoing = new Map(nodeIds.map((id) => [id, []]));
 
-  edgesInput.forEach((e) => {
-    if (inDegree.has(e.target) && outgoing.has(e.source)) {
-      inDegree.set(e.target, inDegree.get(e.target) + 1);
-      outgoing.get(e.source).push(e.target);
+    edgesInput.forEach((e) => {
+        if (inDegree.has(e.target) && outgoing.has(e.source)) {
+            inDegree.set(e.target, inDegree.get(e.target) + 1);
+            outgoing.get(e.source).push(e.target);
+        }
+    });
+
+    const roots = nodeIds.filter((id) => inDegree.get(id) === 0);
+    const orderedRoots = [
+        ...(entryNodeId && roots.includes(entryNodeId) ? [entryNodeId] : []),
+        ...roots.filter((id) => id !== entryNodeId),
+    ];
+
+    const queue = [...orderedRoots];
+    const layer = new Map(nodeIds.map((id) => [id, 0]));
+    const visited = new Set();
+
+    while (queue.length > 0) {
+        const cur = queue.shift();
+        if (visited.has(cur)) continue;
+        visited.add(cur);
+
+        const curLayer = layer.get(cur) ?? 0;
+        for (const next of outgoing.get(cur) || []) {
+            layer.set(next, Math.max(layer.get(next) ?? 0, curLayer + 1));
+            inDegree.set(next, inDegree.get(next) - 1);
+            if (inDegree.get(next) <= 0) queue.push(next);
+        }
     }
-  });
 
-  const roots = nodeIds.filter((id) => inDegree.get(id) === 0);
-  const orderedRoots = [
-    ...(entryNodeId && roots.includes(entryNodeId) ? [entryNodeId] : []),
-    ...roots.filter((id) => id !== entryNodeId),
-  ];
+    // 处理有环或未访问节点
+    let maxLayer = 0;
+    layer.forEach((v) => {
+        if (v > maxLayer) maxLayer = v;
+    });
 
-  const queue = [...orderedRoots];
-  const layer = new Map(nodeIds.map((id) => [id, 0]));
-  const visited = new Set();
+    nodeIds.forEach((id) => {
+        if (!visited.has(id)) {
+            maxLayer += 1;
+            layer.set(id, maxLayer);
+        }
+    });
 
-  while (queue.length > 0) {
-    const cur = queue.shift();
-    if (visited.has(cur)) continue;
-    visited.add(cur);
-
-    const curLayer = layer.get(cur) ?? 0;
-    for (const next of outgoing.get(cur) || []) {
-      layer.set(next, Math.max(layer.get(next) ?? 0, curLayer + 1));
-      inDegree.set(next, inDegree.get(next) - 1);
-      if (inDegree.get(next) <= 0) queue.push(next);
-    }
-  }
-
-  // 处理有环或未访问节点
-  let maxLayer = 0;
-  layer.forEach((v) => {
-    if (v > maxLayer) maxLayer = v;
-  });
-
-  nodeIds.forEach((id) => {
-    if (!visited.has(id)) {
-      maxLayer += 1;
-      layer.set(id, maxLayer);
-    }
-  });
-
-  return layer;
+    return layer;
 }
 
 function orderNodesWithinLayer(list, desiredYById = null) {
-  const byY = [...list].sort((a, b) => {
-    const ay = desiredYById?.get(a.id) ?? a.position?.y ?? 0;
-    const by = desiredYById?.get(b.id) ?? b.position?.y ?? 0;
-    return ay - by;
-  });
+    const byY = [...list].sort((a, b) => {
+        const ay = desiredYById?.get(a.id) ?? a.position?.y ?? 0;
+        const by = desiredYById?.get(b.id) ?? b.position?.y ?? 0;
+        return ay - by;
+    });
 
-  const choiceNodes = byY.filter((n) => n.type === "choice");
-  const endNodes = byY.filter((n) => n.type === "end");
-  const regularNodes = byY.filter((n) => n.type !== "choice" && n.type !== "end");
+    const choiceNodes = byY.filter((n) => n.type === "choice");
+    const endNodes = byY.filter((n) => n.type === "end");
+    const regularNodes = byY.filter(
+        (n) => n.type !== "choice" && n.type !== "end",
+    );
 
-  const centered = [...regularNodes];
-  const centerIndex = Math.floor(centered.length / 2);
-  centered.splice(centerIndex, 0, ...choiceNodes);
+    const centered = [...regularNodes];
+    const centerIndex = Math.floor(centered.length / 2);
+    centered.splice(centerIndex, 0, ...choiceNodes);
 
-  return [...centered, ...endNodes];
+    return [...centered, ...endNodes];
 }
 
 function getChoiceHandleIndex(sourceHandle) {
-  if (!sourceHandle) return null;
-  const match = /^choice-(\d+)$/.exec(sourceHandle);
-  if (!match) return null;
-  return Number(match[1]);
+    if (!sourceHandle) return null;
+    const match = /^choice-(\d+)$/.exec(sourceHandle);
+    if (!match) return null;
+    return Number(match[1]);
 }
 
 function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
-  if (!incomingEdges || incomingEdges.length === 0) return null;
+    if (!incomingEdges || incomingEdges.length === 0) return null;
 
-  const fanOutSpread = 90;
-  let total = 0;
-  let count = 0;
+    const fanOutSpread = 90;
+    let total = 0;
+    let count = 0;
 
-  incomingEdges.forEach((edge) => {
-    const sourceY = assignedYById.get(edge.source);
-    if (sourceY == null) return;
+    incomingEdges.forEach((edge) => {
+        const sourceY = assignedYById.get(edge.source);
+        if (sourceY == null) return;
 
-    const sourceNode = nodeMap.get(edge.source);
-    const handleIndex = getChoiceHandleIndex(edge.sourceHandle);
+        const sourceNode = nodeMap.get(edge.source);
+        const handleIndex = getChoiceHandleIndex(edge.sourceHandle);
 
-    if (handleIndex != null && sourceNode?.type === "choice") {
-      const choiceCount = Array.isArray(sourceNode.data?.choices)
-        ? sourceNode.data.choices.length
-        : 0;
-      const center = (Math.max(choiceCount, 1) - 1) / 2;
-      const offset = (handleIndex - center) * fanOutSpread;
-      total += sourceY + offset;
-    } else {
-      total += sourceY;
-    }
+        if (handleIndex != null && sourceNode?.type === "choice") {
+            const choiceCount = Array.isArray(sourceNode.data?.choices)
+                ? sourceNode.data.choices.length
+                : 0;
+            const center = (Math.max(choiceCount, 1) - 1) / 2;
+            const offset = (handleIndex - center) * fanOutSpread;
+            total += sourceY + offset;
+        } else {
+            total += sourceY;
+        }
 
-    count += 1;
-  });
+        count += 1;
+    });
 
-  if (count === 0) return null;
-  return total / count;
+    if (count === 0) return null;
+    return total / count;
 }
 
 function resolveLayerYCollisions(orderedNodes, desiredYById, startY, minGap) {
-  const result = new Map();
-  if (orderedNodes.length === 0) return result;
+    const result = new Map();
+    if (orderedNodes.length === 0) return result;
 
-  let cursor = startY;
-  orderedNodes.forEach((node) => {
-    const desiredY = desiredYById.get(node.id) ?? cursor;
-    const y = Math.max(desiredY, cursor);
-    result.set(node.id, y);
-    cursor = y + minGap;
-  });
-
-  const assignedValues = orderedNodes.map((n) => result.get(n.id));
-  const desiredValues = orderedNodes.map((n) => desiredYById.get(n.id) ?? result.get(n.id));
-  const avgAssigned =
-    assignedValues.reduce((sum, v) => sum + v, 0) / Math.max(assignedValues.length, 1);
-  const avgDesired =
-    desiredValues.reduce((sum, v) => sum + v, 0) / Math.max(desiredValues.length, 1);
-
-  const shiftUpLimit = Math.max(Math.min(...assignedValues) - startY, 0);
-  const shift = Math.max(Math.min(avgDesired - avgAssigned, shiftUpLimit), 0);
-
-  if (shift > 0) {
+    let cursor = startY;
     orderedNodes.forEach((node) => {
-      result.set(node.id, result.get(node.id) - shift);
+        const desiredY = desiredYById.get(node.id) ?? cursor;
+        const y = Math.max(desiredY, cursor);
+        result.set(node.id, y);
+        cursor = y + minGap;
     });
-  }
 
-  return result;
+    const assignedValues = orderedNodes.map((n) => result.get(n.id));
+    const desiredValues = orderedNodes.map(
+        (n) => desiredYById.get(n.id) ?? result.get(n.id),
+    );
+    const avgAssigned =
+        assignedValues.reduce((sum, v) => sum + v, 0) /
+        Math.max(assignedValues.length, 1);
+    const avgDesired =
+        desiredValues.reduce((sum, v) => sum + v, 0) /
+        Math.max(desiredValues.length, 1);
+
+    const shiftUpLimit = Math.max(Math.min(...assignedValues) - startY, 0);
+    const shift = Math.max(Math.min(avgDesired - avgAssigned, shiftUpLimit), 0);
+
+    if (shift > 0) {
+        orderedNodes.forEach((node) => {
+            result.set(node.id, result.get(node.id) - shift);
+        });
+    }
+
+    return result;
 }
 
 function handleAutoLayout() {
-  if (nodes.value.length === 0) return;
+    if (nodes.value.length === 0) return;
 
-  const rankSep = 360;
-  const nodeSep = 185;
-  const startX = 140;
-  const startY = 110;
+    const rankSep = 360;
+    const nodeSep = 185;
+    const startX = 140;
+    const startY = 110;
 
-  const layerMap = buildLayers(nodes.value, edges.value, storyMeta.value.entryNodeId);
-  const nodeMap = new Map(nodes.value.map((n) => [n.id, n]));
-  const incomingByTarget = new Map();
+    const layerMap = buildLayers(
+        nodes.value,
+        edges.value,
+        storyMeta.value.entryNodeId,
+    );
+    const nodeMap = new Map(nodes.value.map((n) => [n.id, n]));
+    const incomingByTarget = new Map();
 
-  edges.value.forEach((edge) => {
-    if (!incomingByTarget.has(edge.target)) incomingByTarget.set(edge.target, []);
-    incomingByTarget.get(edge.target).push(edge);
-  });
-
-  const grouped = new Map();
-  nodes.value.forEach((node) => {
-    const l = layerMap.get(node.id) ?? 0;
-    if (!grouped.has(l)) grouped.set(l, []);
-    grouped.get(l).push(node);
-  });
-
-  const layers = [...grouped.keys()].sort((a, b) => a - b);
-  const assignedYById = new Map();
-
-  layers.forEach((layer) => {
-    const layerNodes = grouped.get(layer) || [];
-    const desiredYById = new Map();
-
-    const fallbackOrder = orderNodesWithinLayer(layerNodes);
-    fallbackOrder.forEach((node, idx) => {
-      desiredYById.set(node.id, startY + idx * nodeSep);
+    edges.value.forEach((edge) => {
+        if (!incomingByTarget.has(edge.target))
+            incomingByTarget.set(edge.target, []);
+        incomingByTarget.get(edge.target).push(edge);
     });
 
-    layerNodes.forEach((node) => {
-      const incomingEdges = (incomingByTarget.get(node.id) || []).filter((edge) => {
-        const sourceLayer = layerMap.get(edge.source) ?? 0;
-        return sourceLayer < layer;
-      });
-
-      const incomingDesiredY = computeIncomingDesiredY(
-        node,
-        incomingEdges,
-        assignedYById,
-        nodeMap,
-      );
-
-      if (incomingDesiredY != null) {
-        desiredYById.set(node.id, incomingDesiredY);
-      }
+    const grouped = new Map();
+    nodes.value.forEach((node) => {
+        const l = layerMap.get(node.id) ?? 0;
+        if (!grouped.has(l)) grouped.set(l, []);
+        grouped.get(l).push(node);
     });
 
-    const ordered = orderNodesWithinLayer(layerNodes, desiredYById);
-    const resolvedY = resolveLayerYCollisions(ordered, desiredYById, startY, nodeSep);
+    const layers = [...grouped.keys()].sort((a, b) => a - b);
+    const assignedYById = new Map();
 
-    ordered.forEach((node) => {
-      assignedYById.set(node.id, resolvedY.get(node.id) ?? startY);
+    layers.forEach((layer) => {
+        const layerNodes = grouped.get(layer) || [];
+        const desiredYById = new Map();
+
+        const fallbackOrder = orderNodesWithinLayer(layerNodes);
+        fallbackOrder.forEach((node, idx) => {
+            desiredYById.set(node.id, startY + idx * nodeSep);
+        });
+
+        layerNodes.forEach((node) => {
+            const incomingEdges = (incomingByTarget.get(node.id) || []).filter(
+                (edge) => {
+                    const sourceLayer = layerMap.get(edge.source) ?? 0;
+                    return sourceLayer < layer;
+                },
+            );
+
+            const incomingDesiredY = computeIncomingDesiredY(
+                node,
+                incomingEdges,
+                assignedYById,
+                nodeMap,
+            );
+
+            if (incomingDesiredY != null) {
+                desiredYById.set(node.id, incomingDesiredY);
+            }
+        });
+
+        const ordered = orderNodesWithinLayer(layerNodes, desiredYById);
+        const resolvedY = resolveLayerYCollisions(
+            ordered,
+            desiredYById,
+            startY,
+            nodeSep,
+        );
+
+        ordered.forEach((node) => {
+            assignedYById.set(node.id, resolvedY.get(node.id) ?? startY);
+        });
     });
-  });
 
-  const nextNodes = nodes.value.map((node) => {
-    const l = layerMap.get(node.id) ?? 0;
-    const y = assignedYById.get(node.id) ?? startY;
-    return {
-      ...node,
-      position: { x: startX + l * rankSep, y },
-    };
-  });
+    const nextNodes = nodes.value.map((node) => {
+        const l = layerMap.get(node.id) ?? 0;
+        const y = assignedYById.get(node.id) ?? startY;
+        return {
+            ...node,
+            position: { x: startX + l * rankSep, y },
+        };
+    });
 
-  nodes.value = safeClone(nextNodes);
+    if (!isDeepEqual(nextNodes, nodes.value)) {
+        pushHistorySnapshot();
+        nodes.value = safeClone(nextNodes);
+    }
 }
 
 function handleToggleFocusMode() {
-  focusModeEnabled.value = !focusModeEnabled.value;
-  applyEdgeVisualStyles();
+    focusModeEnabled.value = !focusModeEnabled.value;
+    applyEdgeVisualStyles();
 }
 
 function handleToggleEdgeRenderMode() {
-  edgeRenderMode.value = edgeRenderMode.value === "straight" ? "bezier" : "straight";
-  applyEdgeVisualStyles();
+    edgeRenderMode.value =
+        edgeRenderMode.value === "straight" ? "bezier" : "straight";
+    applyEdgeVisualStyles();
+}
+
+function handleUndo() {
+    if (undoStack.value.length === 0) return;
+
+    const current = createStateSnapshot();
+    const prev = undoStack.value.pop();
+
+    redoStack.value.push(current);
+    applyStateSnapshot(prev);
+}
+
+function handleRedo() {
+    if (redoStack.value.length === 0) return;
+
+    const current = createStateSnapshot();
+    const next = redoStack.value.pop();
+
+    undoStack.value.push(current);
+    applyStateSnapshot(next);
+}
+
+function handleGlobalKeyDown(event) {
+    const activeElement = document.activeElement;
+    const isInputFocused =
+        activeElement?.tagName === "INPUT" ||
+        activeElement?.tagName === "TEXTAREA" ||
+        activeElement?.isContentEditable;
+
+    if (isInputFocused) return;
+
+    const key = String(event.key || "").toLowerCase();
+    const isCtrlOrMeta = event.ctrlKey || event.metaKey;
+
+    if (isCtrlOrMeta && !event.shiftKey && key === "z") {
+        event.preventDefault();
+        handleUndo();
+        return;
+    }
+
+    if (
+        (isCtrlOrMeta && key === "y") ||
+        (isCtrlOrMeta && event.shiftKey && key === "z")
+    ) {
+        event.preventDefault();
+        handleRedo();
+    }
 }
 
 onMounted(() => {
-  window.addEventListener("node-click", handleNodeClick);
-  window.addEventListener("edge-click", handleEdgeClick);
-  window.addEventListener("nodes-change", handleNodesChange);
-  window.addEventListener("edges-change", handleEdgesChange);
+    window.addEventListener("node-click", handleNodeClick);
+    window.addEventListener("edge-click", handleEdgeClick);
+    window.addEventListener("nodes-change", handleNodesChange);
+    window.addEventListener("edges-change", handleEdgesChange);
+    window.addEventListener("node-drag-start", handleNodeDragStart);
+    window.addEventListener("node-drag-stop", handleNodeDragStop);
+    window.addEventListener("keydown", handleGlobalKeyDown);
 
-  setupAutoSave();
-  runRealtimeValidation();
-  applyEdgeVisualStyles();
+    setupAutoSave();
+    runRealtimeValidation();
+    applyEdgeVisualStyles();
 });
 
 onUnmounted(() => {
-  if (autoSaveTimer) clearInterval(autoSaveTimer);
-  window.removeEventListener("node-click", handleNodeClick);
-  window.removeEventListener("edge-click", handleEdgeClick);
-  window.removeEventListener("nodes-change", handleNodesChange);
-  window.removeEventListener("edges-change", handleEdgesChange);
+    if (autoSaveTimer) clearInterval(autoSaveTimer);
+    window.removeEventListener("node-click", handleNodeClick);
+    window.removeEventListener("edge-click", handleEdgeClick);
+    window.removeEventListener("nodes-change", handleNodesChange);
+    window.removeEventListener("edges-change", handleEdgesChange);
+    window.removeEventListener("node-drag-start", handleNodeDragStart);
+    window.removeEventListener("node-drag-stop", handleNodeDragStop);
+    window.removeEventListener("keydown", handleGlobalKeyDown);
 });
 
 watch(
-  () => [nodes.value, edges.value, storyMeta.value.entryNodeId],
-  () => runRealtimeValidation(),
-  { deep: true, immediate: true },
+    () => [nodes.value, edges.value, storyMeta.value.entryNodeId],
+    () => runRealtimeValidation(),
+    { deep: true, immediate: true },
 );
 
 watch(
-  () => storyMeta.value.storyId,
-  () => setupAutoSave(),
+    () => storyMeta.value.storyId,
+    () => setupAutoSave(),
 );
 
 watch(
-  () => [selectedNode.value?.id, selectedEdge.value?.id, focusModeEnabled.value, edgeRenderMode.value],
-  () => applyEdgeVisualStyles(),
+    () => [
+        selectedNode.value?.id,
+        selectedEdge.value?.id,
+        focusModeEnabled.value,
+        edgeRenderMode.value,
+    ],
+    () => applyEdgeVisualStyles(),
 );
 
 function handleNew() {
-  if (nodes.value.length > 0 && !confirm("创建新剧情将清空当前内容，是否继续？")) return;
+    if (
+        nodes.value.length > 0 &&
+        !confirm("创建新剧情将清空当前内容，是否继续？")
+    )
+        return;
 
-  nodes.value = [];
-  edges.value = [];
-  selectedNode.value = null;
-  selectedEdge.value = null;
-  storyMeta.value = { storyId: "NewStory", entryNodeId: "", schemaVersion: 1 };
-  variables.value = [];
-  runRealtimeValidation();
+    if (
+        nodes.value.length > 0 ||
+        edges.value.length > 0 ||
+        variables.value.length > 0
+    ) {
+        pushHistorySnapshot();
+    }
+
+    nodes.value = [];
+    edges.value = [];
+    selectedNode.value = null;
+    selectedEdge.value = null;
+    storyMeta.value = {
+        storyId: "NewStory",
+        entryNodeId: "",
+        schemaVersion: 1,
+    };
+    variables.value = [];
+    runRealtimeValidation();
 }
 
 function handleImport() {
-  fileInput.value?.click();
+    fileInput.value?.click();
 }
 
 function handleFileChange(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const imported = importFromYAML(String(e.target?.result || ""));
-      nodes.value = safeClone(imported.nodes || []);
-      edges.value = safeClone(sanitizeEdges(imported.edges || []));
-      storyMeta.value = {
-        schemaVersion: imported.meta?.schemaVersion ?? 1,
-        storyId: imported.meta?.storyId || "ImportedStory",
-        entryNodeId: imported.meta?.entryNodeId || "",
-      };
-      variables.value = safeClone(imported.variables || []);
-      selectedNode.value = null;
-      selectedEdge.value = null;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const imported = importFromYAML(String(e.target?.result || ""));
+            pushHistorySnapshot();
+            nodes.value = safeClone(imported.nodes || []);
+            edges.value = safeClone(sanitizeEdges(imported.edges || []));
+            storyMeta.value = {
+                schemaVersion: imported.meta?.schemaVersion ?? 1,
+                storyId: imported.meta?.storyId || "ImportedStory",
+                entryNodeId: imported.meta?.entryNodeId || "",
+            };
+            variables.value = safeClone(imported.variables || []);
+            selectedNode.value = null;
+            selectedEdge.value = null;
 
-      // 导入成功后默认执行一次自动排布，提升可读性
-      handleAutoLayout();
+            // 导入成功后默认执行一次自动排布，提升可读性
+            handleAutoLayout();
 
-      runRealtimeValidation();
-      applyEdgeVisualStyles();
-      alert(`导入成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`);
-    } catch (error) {
-      alert(`导入失败: ${error.message}`);
-    }
-  };
+            runRealtimeValidation();
+            applyEdgeVisualStyles();
+            alert(
+                `导入成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`,
+            );
+        } catch (error) {
+            alert(`导入失败: ${error.message}`);
+        }
+    };
 
-  reader.readAsText(file);
-  event.target.value = "";
+    reader.readAsText(file);
+    event.target.value = "";
 }
 
 function handleExport() {
-  if (nodes.value.length === 0) {
-    alert("没有可导出的内容");
-    return;
-  }
+    if (nodes.value.length === 0) {
+        alert("没有可导出的内容");
+        return;
+    }
 
-  try {
-    exportToYAML(nodes.value, edges.value, variables.value, storyMeta.value);
-    alert(`导出成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`);
-  } catch (error) {
-    alert(`导出失败: ${error.message}`);
-  }
+    try {
+        exportToYAML(
+            nodes.value,
+            edges.value,
+            variables.value,
+            storyMeta.value,
+        );
+        alert(
+            `导出成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`,
+        );
+    } catch (error) {
+        alert(`导出失败: ${error.message}`);
+    }
 }
 
 function handleValidate() {
-  runRealtimeValidation();
-  const result = validationResult.value;
-  if (result.errors.length === 0 && result.warnings.length === 0) {
-    alert("验证通过！没有发现错误。");
-    return;
-  }
+    runRealtimeValidation();
+    const result = validationResult.value;
+    if (result.errors.length === 0 && result.warnings.length === 0) {
+        alert("验证通过！没有发现错误。");
+        return;
+    }
 
-  let message = "验证结果：\n\n";
-  if (result.errors.length > 0) {
-    message += `错误 (${result.errors.length}):\n`;
-    result.errors.forEach((err) => (message += `- ${err.message}\n`));
-  }
-  if (result.warnings.length > 0) {
-    message += `\n警告 (${result.warnings.length}):\n`;
-    result.warnings.forEach((warn) => (message += `- ${warn.message}\n`));
-  }
-  alert(message);
+    let message = "验证结果：\n\n";
+    if (result.errors.length > 0) {
+        message += `错误 (${result.errors.length}):\n`;
+        result.errors.forEach((err) => (message += `- ${err.message}\n`));
+    }
+    if (result.warnings.length > 0) {
+        message += `\n警告 (${result.warnings.length}):\n`;
+        result.warnings.forEach((warn) => (message += `- ${warn.message}\n`));
+    }
+    alert(message);
 }
 
 function handleHelp() {
-  alert(
-    "NarrRail Story Editor\n\n" +
-      "快捷操作：\n" +
-      "- 右键画布：添加节点\n" +
-      "- 点击“自动排布”：按层级整理节点\n" +
-      "- 点击“连线样式”：直线/曲线切换\n" +
-      "- 点击“焦点模式”：弱化非相关连线\n" +
-      "- 点击边：编辑边的优先级和条件\n" +
-      "- Delete键：删除选中的节点或边",
-  );
+    alert(
+        "NarrRail Story Editor\n\n" +
+            "快捷操作：\n" +
+            "- 右键画布：添加节点\n" +
+            "- 点击“自动排布”：按层级整理节点\n" +
+            "- 点击“连线样式”：直线/曲线切换\n" +
+            "- 点击“焦点模式”：弱化非相关连线\n" +
+            "- 点击边：编辑边的优先级和条件\n" +
+            "- Delete键：删除选中的节点或边",
+    );
 }
 
 function handleNodeUpdate(updatedNode) {
-  if (!updatedNode) return;
+    if (!updatedNode) return;
 
-  const prevId = selectedNode.value?.id;
-  let index = -1;
-  if (prevId) index = nodes.value.findIndex((n) => n.id === prevId);
-  if (index === -1) index = nodes.value.findIndex((n) => n.id === updatedNode.id);
-  if (index === -1) return;
+    const prevId = selectedNode.value?.id;
+    let index = -1;
+    if (prevId) index = nodes.value.findIndex((n) => n.id === prevId);
+    if (index === -1)
+        index = nodes.value.findIndex((n) => n.id === updatedNode.id);
+    if (index === -1) return;
 
-  const oldId = nodes.value[index].id;
-  const nextNode = safeClone(updatedNode);
-  if (isDeepEqual(nodes.value[index], nextNode)) return;
-  nodes.value[index] = nextNode;
+    const oldId = nodes.value[index].id;
+    const nextNode = safeClone(updatedNode);
+    if (isDeepEqual(nodes.value[index], nextNode)) return;
+    pushHistorySnapshot();
+    nodes.value[index] = nextNode;
 
-  let nextEdges = [...edges.value];
-  if (oldId !== nextNode.id) {
-    nextEdges = nextEdges.map((edge) => ({
-      ...edge,
-      source: edge.source === oldId ? nextNode.id : edge.source,
-      target: edge.target === oldId ? nextNode.id : edge.target,
-    }));
+    let nextEdges = [...edges.value];
+    if (oldId !== nextNode.id) {
+        nextEdges = nextEdges.map((edge) => ({
+            ...edge,
+            source: edge.source === oldId ? nextNode.id : edge.source,
+            target: edge.target === oldId ? nextNode.id : edge.target,
+        }));
 
-    if (storyMeta.value.entryNodeId === oldId) {
-      storyMeta.value.entryNodeId = nextNode.id;
+        if (storyMeta.value.entryNodeId === oldId) {
+            storyMeta.value.entryNodeId = nextNode.id;
+        }
     }
-  }
 
-  nextEdges = syncChoiceEdgesForNode(nextNode, nextEdges);
-  edges.value = safeClone(sanitizeEdges(nextEdges));
+    nextEdges = syncChoiceEdgesForNode(nextNode, nextEdges);
+    edges.value = safeClone(sanitizeEdges(nextEdges));
 
-  if (selectedEdge.value) {
-    const latestEdge = edges.value.find((e) => e.id === selectedEdge.value.id);
-    selectedEdge.value = latestEdge ? normalizeEdge(safeClone(latestEdge)) : null;
-    syncEdgeDraftFromSelection();
-  }
+    if (selectedEdge.value) {
+        const latestEdge = edges.value.find(
+            (e) => e.id === selectedEdge.value.id,
+        );
+        selectedEdge.value = latestEdge
+            ? normalizeEdge(safeClone(latestEdge))
+            : null;
+        syncEdgeDraftFromSelection();
+    }
 
-  selectedNode.value = safeClone(nextNode);
-  applyEdgeVisualStyles();
+    selectedNode.value = safeClone(nextNode);
+    applyEdgeVisualStyles();
 }
 
 function handleEdgeUpdate(updatedEdge) {
-  if (!updatedEdge) return;
+    if (!updatedEdge) return;
 
-  const edgeId = updatedEdge.id || selectedEdge.value?.id;
-  if (!edgeId) return;
+    const edgeId = updatedEdge.id || selectedEdge.value?.id;
+    if (!edgeId) return;
 
-  const normalized = normalizeEdge({ ...updatedEdge, id: edgeId });
-  const sourceNode = nodes.value.find((n) => n.id === normalized.source);
-  const targetNode = nodes.value.find((n) => n.id === normalized.target);
-  if (!sourceNode || !targetNode) {
-    alert("边更新失败：源节点或目标节点不存在。");
-    return;
-  }
+    const normalized = normalizeEdge({ ...updatedEdge, id: edgeId });
+    const sourceNode = nodes.value.find((n) => n.id === normalized.source);
+    const targetNode = nodes.value.find((n) => n.id === normalized.target);
+    if (!sourceNode || !targetNode) {
+        alert("边更新失败：源节点或目标节点不存在。");
+        return;
+    }
 
-  if (!isValidChoiceHandle(sourceNode, normalized.sourceHandle)) {
-    alert("边更新失败：Choice 节点 sourceHandle 无效。");
-    return;
-  }
+    if (!isValidChoiceHandle(sourceNode, normalized.sourceHandle)) {
+        alert("边更新失败：Choice 节点 sourceHandle 无效。");
+        return;
+    }
 
-  const index = edges.value.findIndex((e) => e.id === edgeId);
-  const nextEdges = [...edges.value];
-  if (index === -1) nextEdges.push(normalized);
-  else nextEdges[index] = normalized;
+    const index = edges.value.findIndex((e) => e.id === edgeId);
+    const nextEdges = [...edges.value];
+    if (index === -1) nextEdges.push(normalized);
+    else nextEdges[index] = normalized;
 
-  edges.value = safeClone(sanitizeEdges(nextEdges));
-  const latestEdge = edges.value.find((e) => e.id === edgeId);
-  selectedEdge.value = latestEdge ? safeClone(latestEdge) : null;
-  syncEdgeDraftFromSelection();
-  applyEdgeVisualStyles();
+    const sanitizedNext = sanitizeEdges(nextEdges);
+    if (!isDeepEqual(sanitizedNext, edges.value)) {
+        pushHistorySnapshot();
+        edges.value = safeClone(sanitizedNext);
+    }
+
+    const latestEdge = edges.value.find((e) => e.id === edgeId);
+    selectedEdge.value = latestEdge ? safeClone(latestEdge) : null;
+    syncEdgeDraftFromSelection();
+    applyEdgeVisualStyles();
 }
 
 function handleSetEntryNode(nodeId) {
-  storyMeta.value.entryNodeId = nodeId;
+    if (storyMeta.value.entryNodeId === nodeId) return;
+    pushHistorySnapshot();
+    storyMeta.value.entryNodeId = nodeId;
 }
 
 function handleVariablesUpdate(updatedVariables) {
-  variables.value = safeClone(updatedVariables || []);
+    const nextVariables = safeClone(updatedVariables || []);
+    if (isDeepEqual(nextVariables, variables.value)) return;
+    pushHistorySnapshot();
+    variables.value = nextVariables;
 }
 </script>
 
 <style scoped>
 .editor-container {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0;
-  position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    position: relative;
 }
 
 .main-content {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    overflow: hidden;
 }
 
 .graph-editor-wrapper {
-  flex: 1;
-  position: relative;
+    flex: 1;
+    position: relative;
 }
 
 .edge-editor {
-  position: fixed;
-  right: 16px;
-  top: 100px;
-  width: 360px;
-  max-height: calc(100vh - 190px);
-  overflow: auto;
-  z-index: 60;
-  padding: 16px;
-  border-radius: 16px;
+    position: fixed;
+    right: 16px;
+    top: 100px;
+    width: 360px;
+    max-height: calc(100vh - 190px);
+    overflow: auto;
+    z-index: 60;
+    padding: 16px;
+    border-radius: 16px;
 }
 
 .edge-editor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
 }
 
 .edge-editor-header h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
 }
 
 .close-btn {
-  border: none;
-  border-radius: 8px;
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.06);
+    border: none;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.06);
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
 }
 
 .form-group label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
 }
 
 .form-input,
 .form-textarea {
-  width: 100%;
-  border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.55);
-  padding: 10px 12px;
-  font-size: 14px;
-  color: #1e293b;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.55);
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #1e293b;
 }
 
 .form-input:focus,
 .form-textarea:focus {
-  outline: 2px solid rgba(59, 130, 246, 0.35);
+    outline: 2px solid rgba(59, 130, 246, 0.35);
 }
 
 .form-textarea {
-  min-height: 100px;
-  resize: vertical;
+    min-height: 100px;
+    resize: vertical;
 }
 
 .edge-editor-actions {
-  display: flex;
-  gap: 8px;
+    display: flex;
+    gap: 8px;
 }
 
 .action-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 10px 14px;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.08);
-  font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.08);
+    font-weight: 600;
 }
 
 .action-btn.primary {
-  background: rgba(59, 130, 246, 0.22);
-  color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.22);
+    color: #1d4ed8;
 }
-
-
 </style>
