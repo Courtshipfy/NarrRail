@@ -33,6 +33,17 @@
 
     <button
       class="toolbar-button secondary bouncy-feedback spring-animation"
+      @click="$emit('toggle-edge-style')"
+      :title="edgeStyle === 'straight' ? '当前为直线，点击切换为曲线' : '当前为曲线，点击切换为直线'"
+    >
+      <span class="material-symbols-outlined">
+        {{ edgeStyle === 'straight' ? 'timeline' : 'device_hub' }}
+      </span>
+      <span>{{ edgeStyle === 'straight' ? '连线: 直线' : '连线: 曲线' }}</span>
+    </button>
+
+    <button
+      class="toolbar-button secondary bouncy-feedback spring-animation"
       :class="{ active: focusModeEnabled }"
       @click="$emit('toggle-focus-mode')"
       :title="focusModeEnabled ? '关闭焦点模式' : '开启焦点模式（弱化非相关连线）'"
@@ -55,6 +66,10 @@ defineProps({
   focusModeEnabled: {
     type: Boolean,
     default: false
+  },
+  edgeStyle: {
+    type: String,
+    default: 'straight'
   }
 });
 
@@ -64,6 +79,7 @@ defineEmits([
   'export',
   'validate',
   'auto-layout',
+  'toggle-edge-style',
   'toggle-focus-mode',
   'help'
 ]);

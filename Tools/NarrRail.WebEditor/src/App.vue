@@ -8,11 +8,13 @@
 
     <Toolbar
       :focus-mode-enabled="focusModeEnabled"
+      :edge-style="edgeRenderMode"
       @new="handleNew"
       @import="handleImport"
       @export="handleExport"
       @validate="handleValidate"
       @auto-layout="handleAutoLayout"
+      @toggle-edge-style="handleToggleEdgeRenderMode"
       @toggle-focus-mode="handleToggleFocusMode"
       @help="handleHelp"
     />
@@ -144,7 +146,7 @@ const edges = ref([
     id: "e1-2",
     source: "node-1",
     target: "node-2",
-    type: "smoothstep",
+    type: "straight",
     animated: false,
     data: { priority: 0, condition: { logic: "All", terms: [] } },
   },
@@ -153,7 +155,7 @@ const edges = ref([
     source: "node-2",
     sourceHandle: "choice-0",
     target: "node-3",
-    type: "smoothstep",
+    type: "straight",
     animated: false,
     data: { priority: 0, condition: { logic: "All", terms: [] } },
   },
@@ -162,7 +164,7 @@ const edges = ref([
     source: "node-2",
     sourceHandle: "choice-1",
     target: "node-4",
-    type: "smoothstep",
+    type: "straight",
     animated: false,
     data: { priority: 0, condition: { logic: "All", terms: [] } },
   },
@@ -170,7 +172,8 @@ const edges = ref([
 
 const selectedNode = ref(null);
 const selectedEdge = ref(null);
-const focusModeEnabled = ref(true);
+const focusModeEnabled = ref(false);
+const edgeRenderMode = ref("straight");
 
 const storyMeta = ref({
   storyId: "DemoStory",
@@ -204,7 +207,7 @@ function isDeepEqual(a, b) {
 function normalizeEdge(edge) {
   return {
     ...edge,
-    type: edge?.type || "smoothstep",
+    type: edge?.type || "straight",
     animated: edge?.animated ?? false,
     style: edge?.style || "stroke: rgba(168, 85, 247, 0.55); stroke-width: 2px;",
     data: {
@@ -259,40 +262,123 @@ function isEdgeFocused(edge) {
   return false;
 }
 
-function deriveEdgeStyle(edge) {
+function deriveEdgeStyle(edge, visualOffset = 0) {
   const focused = isEdgeFocused(edge);
   const baseColor = "168, 85, 247";
+
+  const pathOffset = Math.max(8, 26 + visualOffset);
+  const borderRadius = 12 + Math.min(Math.abs(visualOffset) * 0.35, 10);
 
   if (focusModeEnabled.value) {
     if (focused) {
       return {
-        style: "stroke: rgba(168, 85, 247, 0.95); stroke-width: 3.5px;",
+        style: "stroke: rgba(168, 85, 247, 0.95); stroke-width: 3.5px; stroke-linecap: round;",
         animated: true,
+        pathOptions: { offset: pathOffset, borderRadius },
+        zIndex: 30,
       };
     }
     return {
-      style: "stroke: rgba(168, 85, 247, 0.12); stroke-width: 1.5px;",
+      style: "stroke: rgba(168, 85, 247, 0.12); stroke-width: 1.5px; stroke-linecap: round;",
       animated: false,
+      pathOptions: { offset: pathOffset, borderRadius },
+      zIndex: 3,
     };
   }
 
   if (focused) {
     return {
-      style: `stroke: rgba(${baseColor}, 0.88); stroke-width: 3px;`,
+      style: `stroke: rgba(${baseColor}, 0.88); stroke-width: 3px; stroke-linecap: round;`,
       animated: true,
+      pathOptions: { offset: pathOffset, borderRadius },
+      zIndex: 25,
     };
   }
 
   return {
-    style: `stroke: rgba(${baseColor}, 0.52); stroke-width: 2px;`,
+    style: `stroke: rgba(${baseColor}, 0.52); stroke-width: 2px; stroke-linecap: round;`,
     animated: false,
+    pathOptions: { offset: pathOffset, borderRadius },
+    zIndex: 5,
   };
 }
 
+function buildSourceFanOutOffsetMap(edgesList) {
+  const bySource = new Map();
+  edgesList.forEach((edge) => {
+    if (!bySource.has(edge.source)) bySource.set(edge.source, []);
+    bySource.get(edge.source).push(edge);
+  });
+
+  const offsetMap = new Map();
+
+  bySource.forEach((list) => {
+    const sorted = [...list].sort((a, b) => {
+      const ai = getChoiceHandleIndex(a.sourceHandle);
+      const bi = getChoiceHandleIndex(b.sourceHandle);
+
+      if (ai != null && bi != null && ai !== bi) return ai - bi;
+      if (ai != null && bi == null) return -1;
+      if (ai == null && bi != null) return 1;
+      return String(a.target).localeCompare(String(b.target));
+    });
+
+    const center = (sorted.length - 1) / 2;
+    sorted.forEach((edge, idx) => {
+      offsetMap.set(edge.id, (idx - center) * 12);
+    });
+  });
+
+  return offsetMap;
+}
+
+function buildParallelEdgeOffsetMap(edgesList) {
+  const byPair = new Map();
+
+  edgesList.forEach((edge) => {
+    const key = `${edge.source}->${edge.target}`;
+    if (!byPair.has(key)) byPair.set(key, []);
+    byPair.get(key).push(edge);
+  });
+
+  const offsetMap = new Map();
+
+  byPair.forEach((list) => {
+    if (list.length === 1) {
+      offsetMap.set(list[0].id, 0);
+      return;
+    }
+
+    const center = (list.length - 1) / 2;
+    list.forEach((edge, idx) => {
+      offsetMap.set(edge.id, (idx - center) * 16);
+    });
+  });
+
+  return offsetMap;
+}
+
 function applyEdgeVisualStyles() {
+  const sourceFanOutOffsets = buildSourceFanOutOffsetMap(edges.value);
+  const parallelOffsets = buildParallelEdgeOffsetMap(edges.value);
+  const isBezier = edgeRenderMode.value === "bezier";
+  const edgeType = isBezier ? "default" : "straight";
+
   const next = edges.value.map((edge) => {
-    const { style, animated } = deriveEdgeStyle(edge);
-    return { ...edge, style, animated, type: "smoothstep" };
+    const sourceOffset = sourceFanOutOffsets.get(edge.id) ?? 0;
+    const parallelOffset = parallelOffsets.get(edge.id) ?? 0;
+    const visualOffset = sourceOffset + parallelOffset;
+
+    const { style, animated, pathOptions, zIndex } = deriveEdgeStyle(edge, visualOffset);
+
+    return {
+      ...edge,
+      style,
+      animated,
+      type: edgeType,
+      ...(isBezier ? { pathOptions } : { pathOptions: undefined }),
+      zIndex,
+    };
   });
 
   if (!isDeepEqual(next, edges.value)) {
@@ -447,15 +533,110 @@ function buildLayers(nodesInput, edgesInput, entryNodeId) {
   return layer;
 }
 
+function orderNodesWithinLayer(list, desiredYById = null) {
+  const byY = [...list].sort((a, b) => {
+    const ay = desiredYById?.get(a.id) ?? a.position?.y ?? 0;
+    const by = desiredYById?.get(b.id) ?? b.position?.y ?? 0;
+    return ay - by;
+  });
+
+  const choiceNodes = byY.filter((n) => n.type === "choice");
+  const endNodes = byY.filter((n) => n.type === "end");
+  const regularNodes = byY.filter((n) => n.type !== "choice" && n.type !== "end");
+
+  const centered = [...regularNodes];
+  const centerIndex = Math.floor(centered.length / 2);
+  centered.splice(centerIndex, 0, ...choiceNodes);
+
+  return [...centered, ...endNodes];
+}
+
+function getChoiceHandleIndex(sourceHandle) {
+  if (!sourceHandle) return null;
+  const match = /^choice-(\d+)$/.exec(sourceHandle);
+  if (!match) return null;
+  return Number(match[1]);
+}
+
+function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
+  if (!incomingEdges || incomingEdges.length === 0) return null;
+
+  const fanOutSpread = 90;
+  let total = 0;
+  let count = 0;
+
+  incomingEdges.forEach((edge) => {
+    const sourceY = assignedYById.get(edge.source);
+    if (sourceY == null) return;
+
+    const sourceNode = nodeMap.get(edge.source);
+    const handleIndex = getChoiceHandleIndex(edge.sourceHandle);
+
+    if (handleIndex != null && sourceNode?.type === "choice") {
+      const choiceCount = Array.isArray(sourceNode.data?.choices)
+        ? sourceNode.data.choices.length
+        : 0;
+      const center = (Math.max(choiceCount, 1) - 1) / 2;
+      const offset = (handleIndex - center) * fanOutSpread;
+      total += sourceY + offset;
+    } else {
+      total += sourceY;
+    }
+
+    count += 1;
+  });
+
+  if (count === 0) return null;
+  return total / count;
+}
+
+function resolveLayerYCollisions(orderedNodes, desiredYById, startY, minGap) {
+  const result = new Map();
+  if (orderedNodes.length === 0) return result;
+
+  let cursor = startY;
+  orderedNodes.forEach((node) => {
+    const desiredY = desiredYById.get(node.id) ?? cursor;
+    const y = Math.max(desiredY, cursor);
+    result.set(node.id, y);
+    cursor = y + minGap;
+  });
+
+  const assignedValues = orderedNodes.map((n) => result.get(n.id));
+  const desiredValues = orderedNodes.map((n) => desiredYById.get(n.id) ?? result.get(n.id));
+  const avgAssigned =
+    assignedValues.reduce((sum, v) => sum + v, 0) / Math.max(assignedValues.length, 1);
+  const avgDesired =
+    desiredValues.reduce((sum, v) => sum + v, 0) / Math.max(desiredValues.length, 1);
+
+  const shiftUpLimit = Math.max(Math.min(...assignedValues) - startY, 0);
+  const shift = Math.max(Math.min(avgDesired - avgAssigned, shiftUpLimit), 0);
+
+  if (shift > 0) {
+    orderedNodes.forEach((node) => {
+      result.set(node.id, result.get(node.id) - shift);
+    });
+  }
+
+  return result;
+}
+
 function handleAutoLayout() {
   if (nodes.value.length === 0) return;
 
-  const rankSep = 340;
-  const nodeSep = 170;
+  const rankSep = 360;
+  const nodeSep = 185;
   const startX = 140;
   const startY = 110;
 
   const layerMap = buildLayers(nodes.value, edges.value, storyMeta.value.entryNodeId);
+  const nodeMap = new Map(nodes.value.map((n) => [n.id, n]));
+  const incomingByTarget = new Map();
+
+  edges.value.forEach((edge) => {
+    if (!incomingByTarget.has(edge.target)) incomingByTarget.set(edge.target, []);
+    incomingByTarget.get(edge.target).push(edge);
+  });
 
   const grouped = new Map();
   nodes.value.forEach((node) => {
@@ -464,17 +645,50 @@ function handleAutoLayout() {
     grouped.get(l).push(node);
   });
 
-  grouped.forEach((list) => {
-    list.sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0));
+  const layers = [...grouped.keys()].sort((a, b) => a - b);
+  const assignedYById = new Map();
+
+  layers.forEach((layer) => {
+    const layerNodes = grouped.get(layer) || [];
+    const desiredYById = new Map();
+
+    const fallbackOrder = orderNodesWithinLayer(layerNodes);
+    fallbackOrder.forEach((node, idx) => {
+      desiredYById.set(node.id, startY + idx * nodeSep);
+    });
+
+    layerNodes.forEach((node) => {
+      const incomingEdges = (incomingByTarget.get(node.id) || []).filter((edge) => {
+        const sourceLayer = layerMap.get(edge.source) ?? 0;
+        return sourceLayer < layer;
+      });
+
+      const incomingDesiredY = computeIncomingDesiredY(
+        node,
+        incomingEdges,
+        assignedYById,
+        nodeMap,
+      );
+
+      if (incomingDesiredY != null) {
+        desiredYById.set(node.id, incomingDesiredY);
+      }
+    });
+
+    const ordered = orderNodesWithinLayer(layerNodes, desiredYById);
+    const resolvedY = resolveLayerYCollisions(ordered, desiredYById, startY, nodeSep);
+
+    ordered.forEach((node) => {
+      assignedYById.set(node.id, resolvedY.get(node.id) ?? startY);
+    });
   });
 
   const nextNodes = nodes.value.map((node) => {
     const l = layerMap.get(node.id) ?? 0;
-    const list = grouped.get(l) || [];
-    const idx = list.findIndex((n) => n.id === node.id);
+    const y = assignedYById.get(node.id) ?? startY;
     return {
       ...node,
-      position: { x: startX + l * rankSep, y: startY + Math.max(idx, 0) * nodeSep },
+      position: { x: startX + l * rankSep, y },
     };
   });
 
@@ -483,6 +697,11 @@ function handleAutoLayout() {
 
 function handleToggleFocusMode() {
   focusModeEnabled.value = !focusModeEnabled.value;
+  applyEdgeVisualStyles();
+}
+
+function handleToggleEdgeRenderMode() {
+  edgeRenderMode.value = edgeRenderMode.value === "straight" ? "bezier" : "straight";
   applyEdgeVisualStyles();
 }
 
@@ -517,7 +736,7 @@ watch(
 );
 
 watch(
-  () => [selectedNode.value?.id, selectedEdge.value?.id, focusModeEnabled.value],
+  () => [selectedNode.value?.id, selectedEdge.value?.id, focusModeEnabled.value, edgeRenderMode.value],
   () => applyEdgeVisualStyles(),
 );
 
@@ -607,6 +826,7 @@ function handleHelp() {
       "快捷操作：\n" +
       "- 右键画布：添加节点\n" +
       "- 点击“自动排布”：按层级整理节点\n" +
+      "- 点击“连线样式”：直线/曲线切换\n" +
       "- 点击“焦点模式”：弱化非相关连线\n" +
       "- 点击边：编辑边的优先级和条件\n" +
       "- Delete键：删除选中的节点或边",
