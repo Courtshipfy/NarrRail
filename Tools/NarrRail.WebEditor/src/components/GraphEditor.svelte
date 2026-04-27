@@ -123,24 +123,8 @@
     }
   }
 
-  // 监听 store 变化
-  $: {
-    console.log('edgesStore 当前值:', $edgesStore);
-    // 每次 edgesStore 变化时，主动触发事件
-    if ($edgesStore) {
-      const event = new CustomEvent('edges-change', { detail: $edgesStore });
-      window.dispatchEvent(event);
-    }
-  }
-
-  $: {
-    console.log('nodesStore 当前值:', $nodesStore);
-    // 每次 nodesStore 变化时，主动触发事件
-    if ($nodesStore) {
-      const event = new CustomEvent('nodes-change', { detail: $nodesStore });
-      window.dispatchEvent(event);
-    }
-  }
+  // 不再在 store 响应式块里广播事件，避免与外部同步形成回流/重复触发。
+  // 事件只在用户交互处理函数中发出（如 handleNodesChange / handleEdgesChange / handleConnect）。
 
   // 定义节点类型
   const nodeTypes = {
@@ -295,6 +279,8 @@
     console.log('边被点击:', edge);
     selectedEdges = [edge];
     selectedNodes = [];
+    const customEvent = new CustomEvent('edge-click', { detail: edge });
+    window.dispatchEvent(customEvent);
   }
 
   // 处理画布点击（空白处）
@@ -303,8 +289,10 @@
     selectedNodes = [];
     selectedEdges = [];
     // 点击空白处，取消选中
-    const customEvent = new CustomEvent('node-click', { detail: null });
-    window.dispatchEvent(customEvent);
+    const nodeEvent = new CustomEvent('node-click', { detail: null });
+    window.dispatchEvent(nodeEvent);
+    const edgeEvent = new CustomEvent('edge-click', { detail: null });
+    window.dispatchEvent(edgeEvent);
   }
 
   // 处理画布右键
@@ -331,9 +319,12 @@
       data: getDefaultNodeData(type)
     };
 
-    nodesStore.update(nodes => [...nodes, newNode]);
-    const event = new CustomEvent('nodes-change', { detail: $nodesStore });
-    window.dispatchEvent(event);
+    nodesStore.update(nodes => {
+      const updated = [...nodes, newNode];
+      const event = new CustomEvent('nodes-change', { detail: updated });
+      window.dispatchEvent(event);
+      return updated;
+    });
 
     contextMenu.show = false;
   }
