@@ -86,11 +86,7 @@
       </div>
     </div>
 
-    <div class="validation-badge" :class="{ error: hasErrors, warning: !hasErrors && hasWarnings }">
-      <span v-if="hasErrors">错误 {{ validationResult.errors.length }}</span>
-      <span v-else-if="hasWarnings">警告 {{ validationResult.warnings.length }}</span>
-      <span v-else>实时验证通过</span>
-    </div>
+
 
     <input
       ref="fileInput"
@@ -774,6 +770,10 @@ function handleFileChange(event) {
       variables.value = safeClone(imported.variables || []);
       selectedNode.value = null;
       selectedEdge.value = null;
+
+      // 导入成功后默认执行一次自动排布，提升可读性
+      handleAutoLayout();
+
       runRealtimeValidation();
       applyEdgeVisualStyles();
       alert(`导入成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`);
@@ -1026,27 +1026,5 @@ function handleVariablesUpdate(updatedVariables) {
   color: #1d4ed8;
 }
 
-.validation-badge {
-  position: fixed;
-  right: 16px;
-  bottom: 68px;
-  z-index: 70;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: rgba(52, 199, 89, 0.18);
-  color: #166534;
-  font-size: 12px;
-  font-weight: 700;
-  backdrop-filter: blur(10px);
-}
 
-.validation-badge.warning {
-  background: rgba(245, 158, 11, 0.22);
-  color: #92400e;
-}
-
-.validation-badge.error {
-  background: rgba(239, 68, 68, 0.22);
-  color: #991b1b;
-}
 </style>

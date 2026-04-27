@@ -61,10 +61,12 @@
   }
 
   .jump-node.selected {
-    border-color: rgba(0, 122, 255, 0.8);
-    box-shadow: 0 8px 32px rgba(0, 122, 255, 0.3),
-                0 0 0 4px rgba(0, 122, 255, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 122, 255, 0.92);
+    box-shadow: 0 10px 28px rgba(0, 122, 255, 0.24),
+                0 0 0 2px rgba(255, 255, 255, 0.95),
+                0 0 0 6px rgba(0, 122, 255, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
   }
 
   .node-header {

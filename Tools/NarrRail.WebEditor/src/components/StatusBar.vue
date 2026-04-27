@@ -22,7 +22,7 @@
 
         <div class="status-item validation" :class="validationClass">
             <span class="material-symbols-outlined">{{ validationIcon }}</span>
-            <span>验证</span>
+            <span class="validation-message">{{ validationMessage }}</span>
             <span class="validation-count error">E: {{ errorCount }}</span>
             <span class="validation-count warning">W: {{ warningCount }}</span>
         </div>
@@ -74,6 +74,12 @@ const validationClass = computed(() => {
     if (props.errorCount > 0) return "has-error";
     if (props.warningCount > 0) return "has-warning";
     return "is-valid";
+});
+
+const validationMessage = computed(() => {
+    if (props.errorCount > 0) return `实时验证错误 ${props.errorCount}`;
+    if (props.warningCount > 0) return `实时验证警告 ${props.warningCount}`;
+    return "实时验证通过";
 });
 </script>
 
@@ -160,6 +166,12 @@ const validationClass = computed(() => {
 .status-item.validation.has-error .material-symbols-outlined {
     color: #ff3b30;
     opacity: 1;
+}
+
+.validation-message {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 .validation-count {

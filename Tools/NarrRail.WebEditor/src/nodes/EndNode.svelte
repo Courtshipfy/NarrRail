@@ -56,10 +56,12 @@
   }
 
   .end-node.selected {
-    border-color: rgba(255, 59, 48, 0.8);
-    box-shadow: 0 8px 32px rgba(255, 59, 48, 0.3),
-                0 0 0 4px rgba(255, 59, 48, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 59, 48, 0.88);
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.18),
+                0 0 0 2px rgba(255, 255, 255, 0.92),
+                0 0 0 6px rgba(255, 59, 48, 0.22),
+                inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
   }
 
   .node-header {

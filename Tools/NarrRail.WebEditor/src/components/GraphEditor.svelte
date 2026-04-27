@@ -374,6 +374,8 @@
     nodesDraggable={true}
     nodesConnectable={true}
     elementsSelectable={true}
+    selectionOnDrag={true}
+    panOnDrag={[1]}
     fitView
     minZoom={0.2}
     maxZoom={2}
@@ -478,6 +480,27 @@
   :global(.svelte-flow__handle:hover) {
     background: rgba(168, 85, 247, 1);
     transform: scale(1.2);
+  }
+
+  /* 多选框（marquee）：内部全透明，仅显示一个外扩包裹边框 */
+  :global(.svelte-flow__selection) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    pointer-events: none !important;
+    overflow: visible !important;
+  }
+
+  :global(.svelte-flow__selection:before) {
+    content: "";
+    position: absolute;
+    inset: -10px; /* 外扩，和节点保持“包住但留缝”的距离 */
+    background: transparent !important;
+    border: 2px solid rgba(99, 102, 241, 0.78) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.92);
+    pointer-events: none !important;
   }
 
   /* 调整控制面板位置 */

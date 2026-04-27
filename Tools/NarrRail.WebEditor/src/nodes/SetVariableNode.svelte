@@ -69,10 +69,11 @@
   }
 
   .setvariable-node.selected {
-    border-color: rgba(175, 82, 222, 0.8);
-    box-shadow: 0 8px 32px rgba(175, 82, 222, 0.3),
-                0 0 0 4px rgba(175, 82, 222, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: rgba(99, 102, 241, 0.85);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.2),
+                0 0 0 2px rgba(255, 255, 255, 0.95),
+                0 0 0 6px rgba(99, 102, 241, 0.24),
+                inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
 
   .node-header {

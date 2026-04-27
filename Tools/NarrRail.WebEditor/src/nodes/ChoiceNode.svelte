@@ -74,10 +74,13 @@
   }
 
   .choice-node.selected {
-    border-color: rgba(255, 204, 0, 0.8);
-    box-shadow: 0 8px 32px rgba(255, 204, 0, 0.3),
-                0 0 0 4px rgba(255, 204, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 204, 0, 0.78);
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 28px rgba(15, 23, 42, 0.14),
+      0 0 0 2px rgba(255, 255, 255, 0.9),
+      0 0 0 6px rgba(168, 85, 247, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
 
   .node-header {
