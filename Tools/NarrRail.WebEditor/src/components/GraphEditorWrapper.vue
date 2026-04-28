@@ -19,6 +19,10 @@ const props = defineProps({
         type: String,
         default: "straight",
     },
+    presetSpeakers: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const container = ref(null);
@@ -38,6 +42,7 @@ onMounted(() => {
                     nodes: props.nodes,
                     edges: props.edges,
                     edgeRenderMode: props.edgeRenderMode,
+                    presetSpeakers: props.presetSpeakers,
                 },
             });
             console.log("Svelte instance created:", svelteInstance);
@@ -81,6 +86,16 @@ watch(
             svelteInstance.$set({ edgeRenderMode: newEdgeRenderMode });
         }
     },
+);
+
+watch(
+    () => props.presetSpeakers,
+    (newPresetSpeakers) => {
+        if (svelteInstance) {
+            svelteInstance.$set({ presetSpeakers: newPresetSpeakers });
+        }
+    },
+    { deep: true },
 );
 </script>
 

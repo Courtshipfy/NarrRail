@@ -6,6 +6,7 @@
                     :nodes="nodes"
                     :edges="edges"
                     :edge-render-mode="edgeRenderMode"
+                    :preset-speakers="presetSpeakers"
                 />
             </div>
         </div>
@@ -39,11 +40,17 @@
         <PropertyPanel
             :selected-node="selectedNode"
             :entry-node-id="storyMeta.entryNodeId"
+            :preset-speakers="presetSpeakers"
             @update="handleNodeUpdate"
             @set-entry-node="handleSetEntryNode"
         />
 
-        <VariablePanel :variables="variables" @update="handleVariablesUpdate" />
+        <VariablePanel
+            :variables="variables"
+            :preset-speakers="presetSpeakers"
+            @update="handleVariablesUpdate"
+            @update-speakers="handlePresetSpeakersUpdate"
+        />
 
         <div v-if="selectedEdge" class="edge-editor glass-morphism-strong">
             <div class="edge-editor-header">
@@ -84,12 +91,90 @@
             </div>
 
             <div class="form-group">
-                <label>条件项 JSON (condition.terms)</label>
-                <textarea
-                    class="form-textarea"
-                    v-model="edgeDraft.termsText"
-                    placeholder='[{"variable":{"name":"Affinity","type":"Int","scope":"Session"},"operator":">=","compareValue":"10"}]'
-                />
+                <label>条件项 (condition.terms)</label>
+                <div class="condition-editor">
+                    <div
+                        v-if="edgeDraft.terms.length === 0"
+                        class="condition-empty"
+                    >
+                        暂无条件项（空数组表示恒真条件）
+                    </div>
+
+                    <div
+                        v-for="(term, index) in edgeDraft.terms"
+                        :key="`term-${index}`"
+                        class="condition-term-card"
+                    >
+                        <div class="condition-term-header">
+                            <span>Term #{{ index + 1 }}</span>
+                            <button
+                                class="mini-btn danger"
+                                @click="removeEdgeConditionTerm(index)"
+                            >
+                                删除
+                            </button>
+                        </div>
+
+                        <div class="condition-grid">
+                            <input
+                                class="form-input"
+                                v-model="term.variable.name"
+                                placeholder="变量名 (variable.name)"
+                            />
+                            <select
+                                class="form-input"
+                                v-model="term.variable.type"
+                            >
+                                <option
+                                    v-for="type in conditionVariableTypes"
+                                    :key="type"
+                                    :value="type"
+                                >
+                                    {{ type }}
+                                </option>
+                            </select>
+                            <select
+                                class="form-input"
+                                v-model="term.variable.scope"
+                            >
+                                <option
+                                    v-for="scope in conditionVariableScopes"
+                                    :key="scope"
+                                    :value="scope"
+                                >
+                                    {{ scope }}
+                                </option>
+                            </select>
+                            <select class="form-input" v-model="term.operator">
+                                <option
+                                    v-for="op in conditionOperators"
+                                    :key="op"
+                                    :value="op"
+                                >
+                                    {{ op }}
+                                </option>
+                            </select>
+                            <input
+                                class="form-input"
+                                v-model="term.compareValue"
+                                placeholder="比较值 (compareValue)"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="condition-actions">
+                        <button
+                            class="mini-btn primary"
+                            @click="addEdgeConditionTerm"
+                        >
+                            + 添加条件项
+                        </button>
+                    </div>
+
+                    <p v-if="edgeDraftError" class="condition-error">
+                        {{ edgeDraftError }}
+                    </p>
+                </div>
             </div>
 
             <div class="edge-editor-actions">
@@ -199,6 +284,7 @@ const storyMeta = ref({
 });
 
 const variables = ref([]);
+const presetSpeakers = ref([]);
 const fileInput = ref(null);
 
 const validationResult = ref({ errors: [], warnings: [] });
@@ -208,8 +294,15 @@ const hasWarnings = computed(() => validationResult.value.warnings.length > 0);
 const edgeDraft = reactive({
     priority: 0,
     logic: "All",
-    termsText: "[]",
+    terms: [],
 });
+
+const edgeDraftError = ref("");
+const validationDebounceTimer = ref(null);
+const conditionOperators = ["==", "!=", ">", ">=", "<", "<="];
+const conditionVariableTypes = ["Bool", "Int", "Float", "String"];
+const conditionVariableScopes = ["Session", "Global"];
+const VALID_LOGICS = new Set(["All", "Any", "Not"]);
 
 let autoSaveTimer = null;
 
@@ -223,6 +316,7 @@ function createStateSnapshot() {
         edges: safeClone(edges.value),
         storyMeta: safeClone(storyMeta.value),
         variables: safeClone(variables.value),
+        presetSpeakers: safeClone(presetSpeakers.value),
         selectedNode: selectedNode.value ? safeClone(selectedNode.value) : null,
         selectedEdge: selectedEdge.value ? safeClone(selectedEdge.value) : null,
     };
@@ -243,6 +337,7 @@ function applyStateSnapshot(snapshot) {
         },
     );
     variables.value = safeClone(snapshot.variables || []);
+    presetSpeakers.value = safeClone(snapshot.presetSpeakers || []);
     selectedNode.value = snapshot.selectedNode
         ? safeClone(snapshot.selectedNode)
         : null;
@@ -250,7 +345,7 @@ function applyStateSnapshot(snapshot) {
         ? safeClone(snapshot.selectedEdge)
         : null;
 
-    runRealtimeValidation();
+    scheduleRealtimeValidation();
     applyEdgeVisualStyles();
     syncEdgeDraftFromSelection();
 
@@ -313,18 +408,55 @@ function isValidChoiceHandle(node, sourceHandle) {
     return Number.isInteger(index) && index >= 0 && index < count;
 }
 
-function sanitizeEdges(rawEdges) {
+function sanitizeEdges(rawEdges, nodeList = nodes.value) {
     const seenIds = new Set();
+    const nodeMap = new Map((nodeList || []).map((n) => [n.id, n]));
+
     return (rawEdges || []).map(normalizeEdge).filter((edge) => {
         if (!edge?.id || seenIds.has(edge.id)) return false;
         seenIds.add(edge.id);
 
-        const sourceNode = nodes.value.find((n) => n.id === edge.source);
-        const targetNode = nodes.value.find((n) => n.id === edge.target);
+        const sourceNode = nodeMap.get(edge.source);
+        const targetNode = nodeMap.get(edge.target);
         if (!sourceNode || !targetNode) return false;
 
         return isValidChoiceHandle(sourceNode, edge.sourceHandle);
     });
+}
+
+function normalizePresetSpeakers(input) {
+    const safeList = Array.isArray(input) ? input : [];
+    const seen = new Set();
+    const normalized = [];
+
+    safeList.forEach((speaker) => {
+        const id =
+            typeof speaker === "string"
+                ? speaker.trim()
+                : String(speaker?.id || "").trim();
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+
+        const displayName =
+            typeof speaker === "object" && speaker?.displayName
+                ? String(speaker.displayName).trim()
+                : "";
+
+        normalized.push(displayName ? { id, displayName } : { id });
+    });
+
+    return normalized;
+}
+
+function derivePresetSpeakersFromNodes(nodeList) {
+    const sourceNodes = Array.isArray(nodeList) ? nodeList : [];
+    const collected = sourceNodes
+        .filter((node) => node?.type === "dialogue")
+        .map((node) => String(node?.data?.speakerId || "").trim())
+        .filter((id) => id.length > 0)
+        .map((id) => ({ id }));
+
+    return normalizePresetSpeakers(collected);
 }
 
 function syncChoiceEdgesForNode(choiceNode, currentEdges) {
@@ -481,6 +613,16 @@ function runRealtimeValidation() {
     );
 }
 
+function scheduleRealtimeValidation() {
+    if (validationDebounceTimer.value) {
+        clearTimeout(validationDebounceTimer.value);
+    }
+    validationDebounceTimer.value = setTimeout(() => {
+        runRealtimeValidation();
+        validationDebounceTimer.value = null;
+    }, 180);
+}
+
 function setupAutoSave() {
     if (autoSaveTimer) clearInterval(autoSaveTimer);
     autoSaveTimer = storage.setupAutoSave(
@@ -490,33 +632,66 @@ function setupAutoSave() {
             edges: edges.value,
             meta: storyMeta.value,
             variables: variables.value,
+            presetSpeakers: presetSpeakers.value,
         }),
     );
+}
+
+function normalizeConditionTerm(term = {}) {
+    return {
+        variable: {
+            name: String(term?.variable?.name || ""),
+            type: conditionVariableTypes.includes(term?.variable?.type)
+                ? term.variable.type
+                : "String",
+            scope: conditionVariableScopes.includes(term?.variable?.scope)
+                ? term.variable.scope
+                : "Session",
+        },
+        operator: conditionOperators.includes(term?.operator)
+            ? term.operator
+            : "==",
+        compareValue:
+            term?.compareValue == null ? "" : String(term.compareValue),
+    };
+}
+
+function normalizeConditionTerms(terms) {
+    if (!Array.isArray(terms)) return [];
+    return terms.map((term) => normalizeConditionTerm(term));
 }
 
 function syncEdgeDraftFromSelection() {
     if (!selectedEdge.value) return;
     edgeDraft.priority = selectedEdge.value.data?.priority ?? 0;
     edgeDraft.logic = selectedEdge.value.data?.condition?.logic || "All";
-    edgeDraft.termsText = JSON.stringify(
+    edgeDraft.terms = normalizeConditionTerms(
         selectedEdge.value.data?.condition?.terms || [],
-        null,
-        2,
     );
+    edgeDraftError.value = "";
 }
 
 function applyEdgeDraft() {
     if (!selectedEdge.value) return;
-    let parsedTerms = [];
-    try {
-        parsedTerms = JSON.parse(edgeDraft.termsText || "[]");
-        if (!Array.isArray(parsedTerms))
-            throw new Error("condition.terms 必须是数组");
-    } catch (err) {
-        alert(`边条件 JSON 格式错误: ${err.message}`);
+
+    const logic = VALID_LOGICS.has(edgeDraft.logic) ? edgeDraft.logic : "All";
+    const parsedTerms = normalizeConditionTerms(edgeDraft.terms);
+
+    for (let i = 0; i < parsedTerms.length; i++) {
+        const term = parsedTerms[i];
+        if (!term.variable.name.trim()) {
+            edgeDraftError.value = `Term #${i + 1} 的 variable.name 不能为空`;
+            return;
+        }
+    }
+
+    if (logic === "Not" && parsedTerms.length !== 1) {
+        edgeDraftError.value =
+            "logic=Not 时 condition.terms 建议且通常应为 1 项";
         return;
     }
 
+    edgeDraftError.value = "";
     handleEdgeUpdate({
         ...selectedEdge.value,
         data: {
@@ -524,9 +699,25 @@ function applyEdgeDraft() {
             priority: Number.isFinite(edgeDraft.priority)
                 ? edgeDraft.priority
                 : 0,
-            condition: { logic: edgeDraft.logic || "All", terms: parsedTerms },
+            condition: { logic, terms: parsedTerms },
         },
     });
+}
+
+function addEdgeConditionTerm() {
+    edgeDraft.terms.push(
+        normalizeConditionTerm({
+            variable: { name: "", type: "String", scope: "Session" },
+            operator: "==",
+            compareValue: "",
+        }),
+    );
+    edgeDraftError.value = "";
+}
+
+function removeEdgeConditionTerm(index) {
+    edgeDraft.terms.splice(index, 1);
+    edgeDraftError.value = "";
 }
 
 function resetEdgeDraft() {
@@ -911,6 +1102,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     if (autoSaveTimer) clearInterval(autoSaveTimer);
+    if (validationDebounceTimer.value) {
+        clearTimeout(validationDebounceTimer.value);
+        validationDebounceTimer.value = null;
+    }
     window.removeEventListener("node-click", handleNodeClick);
     window.removeEventListener("edge-click", handleEdgeClick);
     window.removeEventListener("nodes-change", handleNodesChange);
@@ -922,7 +1117,7 @@ onUnmounted(() => {
 
 watch(
     () => [nodes.value, edges.value, storyMeta.value.entryNodeId],
-    () => runRealtimeValidation(),
+    () => scheduleRealtimeValidation(),
     { deep: true, immediate: true },
 );
 
@@ -951,7 +1146,8 @@ function handleNew() {
     if (
         nodes.value.length > 0 ||
         edges.value.length > 0 ||
-        variables.value.length > 0
+        variables.value.length > 0 ||
+        presetSpeakers.value.length > 0
     ) {
         pushHistorySnapshot();
     }
@@ -966,7 +1162,8 @@ function handleNew() {
         schemaVersion: 1,
     };
     variables.value = [];
-    runRealtimeValidation();
+    presetSpeakers.value = [];
+    scheduleRealtimeValidation();
 }
 
 function handleImport() {
@@ -977,19 +1174,65 @@ function handleFileChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const hasCurrentData =
+        nodes.value.length > 0 ||
+        edges.value.length > 0 ||
+        variables.value.length > 0 ||
+        presetSpeakers.value.length > 0;
+    if (hasCurrentData && !confirm("导入将覆盖当前编辑内容，是否继续？")) {
+        event.target.value = "";
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
             const imported = importFromYAML(String(e.target?.result || ""));
-            pushHistorySnapshot();
-            nodes.value = safeClone(imported.nodes || []);
-            edges.value = safeClone(sanitizeEdges(imported.edges || []));
-            storyMeta.value = {
+            const importedNodes = safeClone(imported.nodes || []);
+            const importedEdges = safeClone(
+                sanitizeEdges(imported.edges || [], importedNodes),
+            );
+            const importedMeta = {
                 schemaVersion: imported.meta?.schemaVersion ?? 1,
                 storyId: imported.meta?.storyId || "ImportedStory",
                 entryNodeId: imported.meta?.entryNodeId || "",
             };
+
+            if (importedMeta.schemaVersion !== 1) {
+                const proceed = confirm(
+                    `检测到 schemaVersion=${importedMeta.schemaVersion}（当前编辑器按 v1 处理）。是否继续导入？`,
+                );
+                if (!proceed) return;
+            }
+
+            const precheck = validateStory(
+                importedNodes,
+                importedEdges,
+                importedMeta,
+            );
+            if (precheck.errors.length > 0) {
+                const preview = precheck.errors
+                    .slice(0, 8)
+                    .map((err) => `- ${err.message}`)
+                    .join("\n");
+                const proceed = confirm(
+                    `导入内容存在 ${precheck.errors.length} 个错误：\n${preview}\n\n仍然继续导入吗？`,
+                );
+                if (!proceed) return;
+            }
+
+            const importedPresetSpeakers = normalizePresetSpeakers(
+                imported.presetSpeakers,
+            );
+            pushHistorySnapshot();
+            nodes.value = importedNodes;
+            edges.value = importedEdges;
+            storyMeta.value = importedMeta;
             variables.value = safeClone(imported.variables || []);
+            presetSpeakers.value =
+                importedPresetSpeakers.length > 0
+                    ? importedPresetSpeakers
+                    : derivePresetSpeakersFromNodes(importedNodes);
             selectedNode.value = null;
             selectedEdge.value = null;
 
@@ -1014,6 +1257,27 @@ function handleExport() {
     if (nodes.value.length === 0) {
         alert("没有可导出的内容");
         return;
+    }
+
+    runRealtimeValidation();
+    const result = validationResult.value;
+
+    if (result.errors.length > 0) {
+        const preview = result.errors
+            .slice(0, 8)
+            .map((err) => `- ${err.message}`)
+            .join("\n");
+        alert(
+            `导出已阻止：存在 ${result.errors.length} 个验证错误。\n\n${preview}`,
+        );
+        return;
+    }
+
+    if (result.warnings.length > 0) {
+        const proceed = confirm(
+            `当前有 ${result.warnings.length} 个警告，是否仍然导出？`,
+        );
+        if (!proceed) return;
     }
 
     try {
@@ -1158,6 +1422,13 @@ function handleVariablesUpdate(updatedVariables) {
     pushHistorySnapshot();
     variables.value = nextVariables;
 }
+
+function handlePresetSpeakersUpdate(updatedSpeakers) {
+    const nextSpeakers = normalizePresetSpeakers(updatedSpeakers || []);
+    if (isDeepEqual(nextSpeakers, presetSpeakers.value)) return;
+    pushHistorySnapshot();
+    presetSpeakers.value = safeClone(nextSpeakers);
+}
 </script>
 
 <style scoped>
@@ -1252,6 +1523,81 @@ function handleVariablesUpdate(updatedVariables) {
 .form-textarea {
     min-height: 100px;
     resize: vertical;
+}
+
+.condition-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.condition-empty {
+    font-size: 12px;
+    color: #64748b;
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.condition-term-card {
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.condition-term-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.condition-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.condition-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.mini-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    background: rgba(15, 23, 42, 0.08);
+    color: #1e293b;
+}
+
+.mini-btn.primary {
+    background: rgba(59, 130, 246, 0.2);
+    color: #1d4ed8;
+}
+
+.mini-btn.danger {
+    background: rgba(239, 68, 68, 0.14);
+    color: #b91c1c;
+}
+
+.condition-error {
+    margin: 0;
+    font-size: 12px;
+    color: #b91c1c;
+    background: rgba(254, 226, 226, 0.9);
+    border-radius: 8px;
+    padding: 6px 8px;
 }
 
 .edge-editor-actions {

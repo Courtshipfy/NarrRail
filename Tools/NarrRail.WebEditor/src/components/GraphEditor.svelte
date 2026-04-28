@@ -14,6 +14,7 @@
   export let nodes = [];
   export let edges = [];
   export let edgeRenderMode = 'straight';
+  export let presetSpeakers = [];
 
   const nodesStore = writable([]);
   const edgesStore = writable([]);
@@ -22,11 +23,38 @@
   let selectedEdges = [];
   let currentEdgeType = 'straight';
   let isNodeDragging = false;
+  let pendingNodesDispatch = null;
+  let pendingEdgesDispatch = null;
+  let dispatchTimer = null;
+
+  function scheduleDispatch(eventName, detail) {
+    if (eventName === 'nodes-change') {
+      pendingNodesDispatch = detail;
+    } else if (eventName === 'edges-change') {
+      pendingEdgesDispatch = detail;
+    }
+
+    if (dispatchTimer) return;
+
+    dispatchTimer = setTimeout(() => {
+      if (pendingNodesDispatch) {
+        const nodeEvent = new CustomEvent('nodes-change', { detail: pendingNodesDispatch });
+        window.dispatchEvent(nodeEvent);
+      }
+
+      if (pendingEdgesDispatch) {
+        const edgeEvent = new CustomEvent('edges-change', { detail: pendingEdgesDispatch });
+        window.dispatchEvent(edgeEvent);
+      }
+
+      pendingNodesDispatch = null;
+      pendingEdgesDispatch = null;
+      dispatchTimer = null;
+    }, 0);
+  }
 
   // 初始化时设置数据
   onMount(() => {
-    console.log('GraphEditor mounted with nodes:', nodes);
-    console.log('GraphEditor mounted with edges:', edges);
     nodesStore.set(nodes);
     edgesStore.set(edges);
 
@@ -45,21 +73,13 @@
           return;
         }
 
-        console.log('删除键被按下，选中的节点:', selectedNodes, '选中的边:', selectedEdges);
-
         // 删除选中的节点
         if (selectedNodes.length > 0) {
           const nodeIdsToRemove = selectedNodes.map(n => n.id);
-          console.log('准备删除节点:', nodeIdsToRemove);
 
           nodesStore.update(nodes => {
             const updated = nodes.filter(n => !nodeIdsToRemove.includes(n.id));
-            console.log('删除后的节点列表:', updated);
-
-            // 触发节点变化事件
-            const event = new CustomEvent('nodes-change', { detail: updated });
-            window.dispatchEvent(event);
-
+            scheduleDispatch('nodes-change', updated);
             return updated;
           });
 
@@ -69,12 +89,7 @@
               !nodeIdsToRemove.includes(e.source) &&
               !nodeIdsToRemove.includes(e.target)
             );
-            console.log('级联删除边后的边列表:', updated);
-
-            // 触发边变化事件
-            const event = new CustomEvent('edges-change', { detail: updated });
-            window.dispatchEvent(event);
-
+            scheduleDispatch('edges-change', updated);
             return updated;
           });
 
@@ -84,16 +99,10 @@
         // 删除选中的边
         if (selectedEdges.length > 0) {
           const edgeIdsToRemove = selectedEdges.map(e => e.id);
-          console.log('准备删除边:', edgeIdsToRemove);
 
           edgesStore.update(edges => {
             const updated = edges.filter(e => !edgeIdsToRemove.includes(e.id));
-            console.log('删除后的边列表:', updated);
-
-            // 触发边变化事件
-            const event = new CustomEvent('edges-change', { detail: updated });
-            window.dispatchEvent(event);
-
+            scheduleDispatch('edges-change', updated);
             return updated;
           });
 
@@ -114,14 +123,12 @@
   // 监听外部 props 变化
   $: {
     if (nodes && Array.isArray(nodes)) {
-      console.log('外部 nodes 变化:', nodes);
       nodesStore.set(nodes);
     }
   }
 
   $: {
     if (edges && Array.isArray(edges)) {
-      console.log('外部 edges 变化:', edges);
       edgesStore.set(edges);
     }
   }
@@ -147,8 +154,6 @@
 
   // 处理节点变化
   function handleNodesChange(changes) {
-    console.log('handleNodesChange 被调用:', changes);
-
     const hasDraggingPositionChange = changes.some(
       (change) => change.type === 'position' && change.dragging === true
     );
@@ -163,7 +168,6 @@
       const removedNodeIds = [];
 
       changes.forEach(change => {
-        console.log('节点变化类型:', change.type, change);
         if (change.type === 'position') {
           const node = updated.find(n => n.id === change.id);
           if (node && change.position) {
@@ -185,31 +189,21 @@
             !removedNodeIds.includes(edge.source) &&
             !removedNodeIds.includes(edge.target)
           );
-
-          console.log('级联删除边，剩余边:', filteredEdges);
-          const edgeEvent = new CustomEvent('edges-change', { detail: filteredEdges });
-          window.dispatchEvent(edgeEvent);
-
+          scheduleDispatch('edges-change', filteredEdges);
           return filteredEdges;
         });
       }
 
-      // 立即触发节点变化事件
-      console.log('触发 nodes-change 事件:', updated);
-      const nodeEvent = new CustomEvent('nodes-change', { detail: updated });
-      window.dispatchEvent(nodeEvent);
-
+      scheduleDispatch('nodes-change', updated);
       return updated;
     });
   }
 
   // 处理边变化
   function handleEdgesChange(changes) {
-    console.log('handleEdgesChange 被调用:', changes);
     edgesStore.update(edges => {
       let updated = [...edges];
       changes.forEach(change => {
-        console.log('边变化类型:', change.type, change);
         if (change.type === 'remove') {
           updated = updated.filter(e => e.id !== change.id);
         } else if (change.type === 'add') {
@@ -221,22 +215,16 @@
             style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;'
           };
           updated.push(newEdge);
-          console.log('添加新边:', newEdge);
         }
       });
 
-      // 立即触发事件
-      console.log('触发 edges-change 事件 (from handleEdgesChange):', updated);
-      const event = new CustomEvent('edges-change', { detail: updated });
-      window.dispatchEvent(event);
-
+      scheduleDispatch('edges-change', updated);
       return updated;
     });
   }
 
   // 处理连接
   function handleConnect(connection) {
-    console.log('handleConnect 被调用:', connection);
     const newEdge = {
       id: `e${Date.now()}`,
       source: connection.source,
@@ -250,25 +238,15 @@
       }
     };
 
-    console.log('创建新边:', newEdge);
-
     edgesStore.update(edges => {
       const updated = [...edges, newEdge];
-      console.log('更新后的边列表:', updated);
-
-      // 立即触发事件
-      console.log('触发 edges-change 事件:', updated);
-      const event = new CustomEvent('edges-change', { detail: updated });
-      window.dispatchEvent(event);
-
+      scheduleDispatch('edges-change', updated);
       return updated;
     });
   }
 
   // 处理节点拖拽结束
   function handleNodeDragStop(event) {
-    console.log('节点拖拽结束:', event);
-
     if (isNodeDragging) {
       isNodeDragging = false;
       const dragStopEvent = new CustomEvent('node-drag-stop');
@@ -276,27 +254,19 @@
     }
 
     // 拖拽结束后再同步一次最新节点数据
-    const syncEvent = new CustomEvent('nodes-change', { detail: $nodesStore });
-    window.dispatchEvent(syncEvent);
+    scheduleDispatch('nodes-change', $nodesStore);
   }
 
   // 处理边更新
-  function handleEdgeUpdate(event) {
-    console.log('边更新:', event);
-  }
+  function handleEdgeUpdate(event) {}
 
-  function handleEdgeUpdateStart(event) {
-    console.log('边更新开始:', event);
-  }
+  function handleEdgeUpdateStart(event) {}
 
-  function handleEdgeUpdateEnd(event) {
-    console.log('边更新结束:', event);
-  }
+  function handleEdgeUpdateEnd(event) {}
 
   // 处理节点点击
   function handleNodeClick(event) {
     const node = event.detail.node;
-    console.log('节点被点击:', node);
     selectedNodes = [node];
     selectedEdges = [];
     const customEvent = new CustomEvent('node-click', { detail: node });
@@ -306,7 +276,6 @@
   // 处理边点击
   function handleEdgeClick(event) {
     const edge = event.detail.edge;
-    console.log('边被点击:', edge);
     selectedEdges = [edge];
     selectedNodes = [];
     const customEvent = new CustomEvent('edge-click', { detail: edge });
@@ -315,7 +284,6 @@
 
   // 处理画布点击（空白处）
   function handlePaneClick(event) {
-    console.log('画布被点击');
     selectedNodes = [];
     selectedEdges = [];
     // 点击空白处，取消选中
@@ -351,8 +319,7 @@
 
     nodesStore.update(nodes => {
       const updated = [...nodes, newNode];
-      const event = new CustomEvent('nodes-change', { detail: updated });
-      window.dispatchEvent(event);
+      scheduleDispatch('nodes-change', updated);
       return updated;
     });
 
@@ -362,8 +329,13 @@
   // 获取默认节点数据
   function getDefaultNodeData(type) {
     switch (type) {
-      case 'dialogue':
-        return { speakerId: '', textKey: '' };
+      case 'dialogue': {
+        const firstSpeaker = Array.isArray(presetSpeakers) ? presetSpeakers[0] : null;
+        const defaultSpeakerId = typeof firstSpeaker === 'string'
+          ? firstSpeaker
+          : (firstSpeaker?.id || '');
+        return { speakerId: defaultSpeakerId, textKey: '' };
+      }
       case 'choice':
         return { choices: [] };
       case 'jump':

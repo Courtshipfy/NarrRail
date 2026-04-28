@@ -33,9 +33,7 @@ export function importFromYAML(yamlString) {
     };
 
     // 提取节点数据
-    if (node.dialogue) {
-      base.data = { ...node.dialogue };
-    } else if (node.nodeType === "Choice" || node.choice || node.choices) {
+    if (node.nodeType === "Choice" || node.choice || node.choices) {
       // Choice 节点：兼容新旧格式，只保存选项文本，不保存 targetNodeId（通过边表示）
       const choiceArray = getChoiceArray(node);
       base.data = {
@@ -43,6 +41,8 @@ export function importFromYAML(yamlString) {
           textKey: c.textKey,
         })),
       };
+    } else if (node.dialogue) {
+      base.data = { ...node.dialogue };
     } else if (node.jump) {
       base.data = { ...node.jump };
     } else if (node.actions) {
