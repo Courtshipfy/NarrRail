@@ -2,9 +2,13 @@
     <ScriptLibraryPage
         v-if="currentView === 'library'"
         :is-dark-mode="darkModeEnabled"
+        :variables="variables"
+        :preset-speakers="presetSpeakers"
         @toggle-theme="handleToggleDarkMode"
         @open-script="handleOpenScriptFromLibrary"
         @open-empty="handleOpenEmptyEditor"
+        @update-variables="handleVariablesUpdate"
+        @update-speakers="handlePresetSpeakersUpdate"
     />
 
     <div v-else class="editor-container">
