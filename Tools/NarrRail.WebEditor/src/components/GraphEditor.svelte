@@ -23,6 +23,7 @@
   let selectedEdges = [];
   let currentEdgeType = 'straight';
   let isNodeDragging = false;
+  let suppressNodeClickUntil = 0;
   let pendingNodesDispatch = null;
   let pendingEdgesDispatch = null;
   let dispatchTimer = null;
@@ -249,6 +250,7 @@
   function handleNodeDragStop(event) {
     if (isNodeDragging) {
       isNodeDragging = false;
+      suppressNodeClickUntil = Date.now() + 180;
       const dragStopEvent = new CustomEvent('node-drag-stop');
       window.dispatchEvent(dragStopEvent);
     }
@@ -266,6 +268,10 @@
 
   // 处理节点点击
   function handleNodeClick(event) {
+    if (Date.now() < suppressNodeClickUntil) {
+      return;
+    }
+
     const node = event.detail.node;
     selectedNodes = [node];
     selectedEdges = [];

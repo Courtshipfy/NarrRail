@@ -114,6 +114,15 @@
 
         <button
             class="toolbar-button secondary bouncy-feedback spring-animation"
+            @click="$emit('go-library')"
+            title="返回脚本库页面"
+        >
+            <span class="material-symbols-outlined">library_books</span>
+            <span>脚本库</span>
+        </button>
+
+        <button
+            class="toolbar-button secondary bouncy-feedback spring-animation"
             @click="$emit('help')"
         >
             <span class="material-symbols-outlined">help</span>
@@ -149,6 +158,7 @@ defineEmits([
     "toggle-edge-style",
     "toggle-focus-mode",
     "toggle-dark-mode",
+    "go-library",
     "help",
 ]);
 </script>

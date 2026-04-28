@@ -1,5 +1,13 @@
 <template>
-    <div class="editor-container">
+    <ScriptLibraryPage
+        v-if="currentView === 'library'"
+        :is-dark-mode="darkModeEnabled"
+        @toggle-theme="handleToggleDarkMode"
+        @open-script="handleOpenScriptFromLibrary"
+        @open-empty="handleOpenEmptyEditor"
+    />
+
+    <div v-else class="editor-container">
         <div class="main-content">
             <div class="graph-editor-wrapper">
                 <GraphEditorWrapper
@@ -25,6 +33,7 @@
             @toggle-edge-style="handleToggleEdgeRenderMode"
             @toggle-focus-mode="handleToggleFocusMode"
             @toggle-dark-mode="handleToggleDarkMode"
+            @go-library="handleGoLibrary"
             @help="handleHelp"
         />
 
@@ -204,6 +213,7 @@ import GraphEditorWrapper from "./components/GraphEditorWrapper.vue";
 import PropertyPanel from "./components/PropertyPanel.vue";
 import VariablePanel from "./components/VariablePanel.vue";
 import StatusBar from "./components/StatusBar.vue";
+import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
 import { exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
 import { validateStory } from "./utils/validation.js";
@@ -274,6 +284,9 @@ const focusModeEnabled = ref(false);
 const darkModeEnabled = ref(false);
 const edgeRenderMode = ref("straight");
 const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
+
+const currentView = ref("library");
+const selectedScriptEntry = ref(null);
 
 const undoStack = ref([]);
 const redoStack = ref([]);
@@ -1073,6 +1086,33 @@ function handleToggleDarkMode() {
 function handleToggleEdgeRenderMode() {
     edgeRenderMode.value =
         edgeRenderMode.value === "straight" ? "bezier" : "straight";
+    applyEdgeVisualStyles();
+}
+
+function handleGoLibrary() {
+    currentView.value = "library";
+}
+
+function handleOpenEmptyEditor() {
+    selectedScriptEntry.value = null;
+    currentView.value = "editor";
+}
+
+function handleOpenScriptFromLibrary(scriptEntry) {
+    selectedScriptEntry.value = safeClone(scriptEntry || null);
+
+    if (scriptEntry?.storyId) {
+        storyMeta.value = {
+            ...storyMeta.value,
+            storyId: scriptEntry.storyId,
+            entryNodeId:
+                storyMeta.value.entryNodeId || nodes.value[0]?.id || "",
+            schemaVersion: storyMeta.value.schemaVersion || 1,
+        };
+    }
+
+    currentView.value = "editor";
+    scheduleRealtimeValidation();
     applyEdgeVisualStyles();
 }
 
