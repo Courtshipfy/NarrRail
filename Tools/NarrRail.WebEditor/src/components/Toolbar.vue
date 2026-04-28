@@ -102,6 +102,18 @@
 
         <button
             class="toolbar-button secondary bouncy-feedback spring-animation"
+            :class="{ active: isDarkMode }"
+            @click="$emit('toggle-dark-mode')"
+            :title="isDarkMode ? '切换为浅色模式' : '切换为深色模式'"
+        >
+            <span class="material-symbols-outlined">
+                {{ isDarkMode ? "light_mode" : "dark_mode" }}
+            </span>
+            <span>{{ isDarkMode ? "主题: 深色" : "主题: 浅色" }}</span>
+        </button>
+
+        <button
+            class="toolbar-button secondary bouncy-feedback spring-animation"
             @click="$emit('help')"
         >
             <span class="material-symbols-outlined">help</span>
@@ -120,6 +132,10 @@ defineProps({
         type: String,
         default: "straight",
     },
+    isDarkMode: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 defineEmits([
@@ -132,6 +148,7 @@ defineEmits([
     "auto-layout",
     "toggle-edge-style",
     "toggle-focus-mode",
+    "toggle-dark-mode",
     "help",
 ]);
 </script>

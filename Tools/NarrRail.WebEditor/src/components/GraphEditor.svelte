@@ -1,7 +1,7 @@
 <script>
   import { writable } from 'svelte/store';
   import { onMount } from 'svelte';
-  import { SvelteFlow, Controls, Background, MiniMap } from '@xyflow/svelte';
+  import { SvelteFlow, Controls, Background } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
 
   import DialogueNode from '../nodes/DialogueNode.svelte';
@@ -388,11 +388,7 @@
       showFitView={true}
       style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); border-radius: 12px; border: 0.5px solid rgba(0, 0, 0, 0.04);"
     />
-    <MiniMap
-      nodeColor="#a855f7"
-      maskColor="rgba(255, 255, 255, 0.6)"
-      style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); border-radius: 12px; border: 0.5px solid rgba(0, 0, 0, 0.04);"
-    />
+
   </SvelteFlow>
 
   {#if contextMenu.show}

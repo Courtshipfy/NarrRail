@@ -1,138 +1,607 @@
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --nr-bg: #f5f5f7;
+    --nr-text: #1d1d1f;
+    --nr-noise-color: rgba(0, 0, 0, 0.01);
+}
+
+body.dark-theme,
+body[data-theme="dark"] {
+    --nr-bg: #0b1020;
+    --nr-text: #e5e7eb;
+    --nr-noise-color: rgba(255, 255, 255, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not(.light-theme):not([data-theme="light"]) {
+        --nr-bg: #0b1020;
+        --nr-text: #e5e7eb;
+        --nr-noise-color: rgba(255, 255, 255, 0.02);
+    }
 }
 
 body {
-  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-               'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  overflow: hidden;
-  position: relative;
-  background: #f5f5f7;
+    font-family:
+        "Be Vietnam Pro",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "PingFang SC",
+        "Hiragino Sans GB",
+        "Microsoft YaHei",
+        "Helvetica Neue",
+        Helvetica,
+        Arial,
+        sans-serif;
+    overflow: hidden;
+    position: relative;
+    background: var(--nr-bg);
+    color: var(--nr-text);
+    transition:
+        background 0.25s ease,
+        color 0.25s ease;
 }
 
 /* Apple Music 风格的 Mesh Gradient */
 body::before {
-  content: '';
-  position: fixed;
-  width: 200%;
-  height: 200%;
-  top: -50%;
-  left: -50%;
-  z-index: -1;
-  background:
-    radial-gradient(ellipse at 15% 20%, rgba(255, 45, 85, 0.15) 0%, transparent 40%),
-    radial-gradient(ellipse at 85% 15%, rgba(255, 159, 10, 0.12) 0%, transparent 40%),
-    radial-gradient(ellipse at 50% 50%, rgba(88, 86, 214, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 20% 80%, rgba(255, 55, 95, 0.1) 0%, transparent 45%),
-    radial-gradient(ellipse at 80% 75%, rgba(52, 199, 89, 0.08) 0%, transparent 40%),
-    radial-gradient(ellipse at 45% 30%, rgba(90, 200, 250, 0.1) 0%, transparent 45%),
-    radial-gradient(ellipse at 70% 60%, rgba(191, 90, 242, 0.09) 0%, transparent 40%);
-  filter: blur(60px);
-  animation: mesh-gradient-flow 30s ease-in-out infinite;
+    content: "";
+    position: fixed;
+    width: 200%;
+    height: 200%;
+    top: -50%;
+    left: -50%;
+    z-index: -1;
+    background:
+        radial-gradient(
+            ellipse at 15% 20%,
+            rgba(255, 45, 85, 0.15) 0%,
+            transparent 40%
+        ),
+        radial-gradient(
+            ellipse at 85% 15%,
+            rgba(255, 159, 10, 0.12) 0%,
+            transparent 40%
+        ),
+        radial-gradient(
+            ellipse at 50% 50%,
+            rgba(88, 86, 214, 0.08) 0%,
+            transparent 50%
+        ),
+        radial-gradient(
+            ellipse at 20% 80%,
+            rgba(255, 55, 95, 0.1) 0%,
+            transparent 45%
+        ),
+        radial-gradient(
+            ellipse at 80% 75%,
+            rgba(52, 199, 89, 0.08) 0%,
+            transparent 40%
+        ),
+        radial-gradient(
+            ellipse at 45% 30%,
+            rgba(90, 200, 250, 0.1) 0%,
+            transparent 45%
+        ),
+        radial-gradient(
+            ellipse at 70% 60%,
+            rgba(191, 90, 242, 0.09) 0%,
+            transparent 40%
+        );
+    filter: blur(60px);
+    animation: mesh-gradient-flow 30s ease-in-out infinite;
 }
 
 /* 添加细微的噪点纹理（Apple 风格） */
 body::after {
-  content: '';
-  position: fixed;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  z-index: -1;
-  background-image:
-    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.01) 2px, rgba(0,0,0,0.01) 4px),
-    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.01) 2px, rgba(0,0,0,0.01) 4px);
-  opacity: 0.3;
-  pointer-events: none;
+    content: "";
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            var(--nr-noise-color) 2px,
+            var(--nr-noise-color) 4px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 2px,
+            var(--nr-noise-color) 2px,
+            var(--nr-noise-color) 4px
+        );
+    opacity: 0.3;
+    pointer-events: none;
 }
 
 @keyframes mesh-gradient-flow {
-  0%, 100% {
-    transform: translate(0, 0) rotate(0deg) scale(1);
-  }
-  25% {
-    transform: translate(-2%, 2%) rotate(1deg) scale(1.02);
-  }
-  50% {
-    transform: translate(1%, -1%) rotate(-0.5deg) scale(0.98);
-  }
-  75% {
-    transform: translate(-1%, 1%) rotate(0.5deg) scale(1.01);
-  }
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+    25% {
+        transform: translate(-2%, 2%) rotate(1deg) scale(1.02);
+    }
+    50% {
+        transform: translate(1%, -1%) rotate(-0.5deg) scale(0.98);
+    }
+    75% {
+        transform: translate(-1%, 1%) rotate(0.5deg) scale(1.01);
+    }
 }
 
 #app {
-  width: 100vw;
-  height: 100vh;
+    width: 100vw;
+    height: 100vh;
 }
 
 /* Glassmorphism utilities */
 .glass-morphism {
-  background: rgba(249, 249, 251, 0.2);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border: 0.5px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08),
-              inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
+    background: rgba(249, 249, 251, 0.2);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    box-shadow:
+        0 8px 32px 0 rgba(31, 38, 135, 0.08),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .glass-morphism-strong {
-  background: rgba(249, 249, 251, 0.2);
-  backdrop-filter: blur(50px) saturate(200%);
-  -webkit-backdrop-filter: blur(50px) saturate(200%);
-  border: 0.5px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.1),
-              inset 0 1px 1px 0 rgba(255, 255, 255, 0.5);
+    background: rgba(249, 249, 251, 0.2);
+    backdrop-filter: blur(50px) saturate(200%);
+    -webkit-backdrop-filter: blur(50px) saturate(200%);
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+        0 10px 40px 0 rgba(31, 38, 135, 0.1),
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 /* Dot grid background */
 .dot-grid {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-  background-size: 20px 20px;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
 }
 
 /* Spring animation */
 .spring-animation {
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* Bouncy feedback */
 .bouncy-feedback:active {
-  transform: scale(0.95);
+    transform: scale(0.95);
 }
 
 /* Scale on hover */
 .scale-up-hover:hover {
-  transform: scale(1.05);
+    transform: scale(1.05);
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(90deg, #f472b6, #a855f7, #3b82f6, #f472b6);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: gradient-text-flow 3s ease infinite;
+    background: linear-gradient(90deg, #f472b6, #a855f7, #3b82f6, #f472b6);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradient-text-flow 3s ease infinite;
 }
 
 @keyframes gradient-text-flow {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 /* Jelly node shadow */
 .jelly-node {
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05),
-              inset 0 2px 4px rgba(255, 255, 255, 0.9);
+    box-shadow:
+        0 10px 30px -5px rgba(0, 0, 0, 0.05),
+        inset 0 2px 4px rgba(255, 255, 255, 0.9);
+}
+
+/* Dark theme overrides */
+body.dark-theme::before,
+body[data-theme="dark"]::before {
+    background:
+        radial-gradient(
+            ellipse at 15% 20%,
+            rgba(244, 63, 94, 0.18) 0%,
+            transparent 45%
+        ),
+        radial-gradient(
+            ellipse at 85% 15%,
+            rgba(99, 102, 241, 0.2) 0%,
+            transparent 45%
+        ),
+        radial-gradient(
+            ellipse at 50% 50%,
+            rgba(14, 165, 233, 0.12) 0%,
+            transparent 55%
+        ),
+        radial-gradient(
+            ellipse at 20% 80%,
+            rgba(236, 72, 153, 0.16) 0%,
+            transparent 50%
+        ),
+        radial-gradient(
+            ellipse at 80% 75%,
+            rgba(34, 197, 94, 0.14) 0%,
+            transparent 45%
+        ),
+        radial-gradient(
+            ellipse at 45% 30%,
+            rgba(168, 85, 247, 0.16) 0%,
+            transparent 50%
+        ),
+        radial-gradient(
+            ellipse at 70% 60%,
+            rgba(59, 130, 246, 0.14) 0%,
+            transparent 45%
+        );
+    filter: blur(70px);
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not(.light-theme):not([data-theme="light"])::before {
+        background:
+            radial-gradient(
+                ellipse at 15% 20%,
+                rgba(244, 63, 94, 0.18) 0%,
+                transparent 45%
+            ),
+            radial-gradient(
+                ellipse at 85% 15%,
+                rgba(99, 102, 241, 0.2) 0%,
+                transparent 45%
+            ),
+            radial-gradient(
+                ellipse at 50% 50%,
+                rgba(14, 165, 233, 0.12) 0%,
+                transparent 55%
+            ),
+            radial-gradient(
+                ellipse at 20% 80%,
+                rgba(236, 72, 153, 0.16) 0%,
+                transparent 50%
+            ),
+            radial-gradient(
+                ellipse at 80% 75%,
+                rgba(34, 197, 94, 0.14) 0%,
+                transparent 45%
+            ),
+            radial-gradient(
+                ellipse at 45% 30%,
+                rgba(168, 85, 247, 0.16) 0%,
+                transparent 50%
+            ),
+            radial-gradient(
+                ellipse at 70% 60%,
+                rgba(59, 130, 246, 0.14) 0%,
+                transparent 45%
+            );
+        filter: blur(70px);
+    }
+}
+
+body.dark-theme .glass-morphism,
+body[data-theme="dark"] .glass-morphism {
+    background: rgba(15, 23, 42, 0.5) !important;
+    border: 0.5px solid rgba(148, 163, 184, 0.28) !important;
+    box-shadow:
+        0 10px 32px rgba(0, 0, 0, 0.35),
+        inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-theme .glass-morphism-strong,
+body[data-theme="dark"] .glass-morphism-strong {
+    background: rgba(15, 23, 42, 0.62) !important;
+    border: 0.5px solid rgba(148, 163, 184, 0.32) !important;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.45),
+        inset 0 1px 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+body.dark-theme .toolbar-button,
+body[data-theme="dark"] .toolbar-button {
+    background: rgba(30, 41, 59, 0.72) !important;
+    color: #e5e7eb !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+    box-shadow:
+        0 2px 10px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+body.dark-theme .toolbar-button:hover,
+body[data-theme="dark"] .toolbar-button:hover {
+    background: rgba(51, 65, 85, 0.82) !important;
+}
+
+body.dark-theme .toolbar-title,
+body.dark-theme .panel-title,
+body.dark-theme .form-label,
+body.dark-theme .status-item,
+body.dark-theme .corner-label,
+body.dark-theme .variable-name,
+body.dark-theme .speaker-name,
+body[data-theme="dark"] .toolbar-title,
+body[data-theme="dark"] .panel-title,
+body[data-theme="dark"] .form-label,
+body[data-theme="dark"] .status-item,
+body[data-theme="dark"] .corner-label,
+body[data-theme="dark"] .variable-name,
+body[data-theme="dark"] .speaker-name {
+    color: #e5e7eb !important;
+}
+
+body.dark-theme .form-input,
+body.dark-theme .form-textarea,
+body[data-theme="dark"] .form-input,
+body[data-theme="dark"] .form-textarea {
+    background: rgba(30, 41, 59, 0.72) !important;
+    color: #f8fafc !important;
+}
+
+body.dark-theme .form-input::placeholder,
+body.dark-theme .form-textarea::placeholder,
+body[data-theme="dark"] .form-input::placeholder,
+body[data-theme="dark"] .form-textarea::placeholder {
+    color: rgba(203, 213, 225, 0.72) !important;
+}
+
+/* Full dark coverage: canvas + panels + nodes + controls */
+body.dark-theme,
+body[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+body.dark-theme .editor-container,
+body.dark-theme .main-content,
+body.dark-theme .graph-editor-wrapper,
+body.dark-theme .graph-editor,
+body[data-theme="dark"] .editor-container,
+body[data-theme="dark"] .main-content,
+body[data-theme="dark"] .graph-editor-wrapper,
+body[data-theme="dark"] .graph-editor {
+    background: transparent !important;
+}
+
+/* Svelte Flow canvas / pane / backgrounds */
+body.dark-theme .svelte-flow,
+body.dark-theme .svelte-flow__renderer,
+body.dark-theme .svelte-flow__pane,
+body[data-theme="dark"] .svelte-flow,
+body[data-theme="dark"] .svelte-flow__renderer,
+body[data-theme="dark"] .svelte-flow__pane {
+    background: rgba(2, 6, 23, 0.35) !important;
+}
+
+body.dark-theme .svelte-flow__background,
+body[data-theme="dark"] .svelte-flow__background {
+    background: transparent !important;
+}
+
+body.dark-theme .svelte-flow__background pattern circle,
+body[data-theme="dark"] .svelte-flow__background pattern circle {
+    fill: rgba(148, 163, 184, 0.22) !important;
+}
+
+/* Controls / minimap / resize tools */
+body.dark-theme .svelte-flow__controls,
+body.dark-theme .svelte-flow__minimap,
+body[data-theme="dark"] .svelte-flow__controls,
+body[data-theme="dark"] .svelte-flow__minimap {
+    background: rgba(15, 23, 42, 0.84) !important;
+    border: 1px solid rgba(148, 163, 184, 0.32) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.dark-theme .svelte-flow__controls button,
+body[data-theme="dark"] .svelte-flow__controls button {
+    background: rgba(30, 41, 59, 0.85) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+body.dark-theme .svelte-flow__controls button:hover,
+body[data-theme="dark"] .svelte-flow__controls button:hover {
+    background: rgba(51, 65, 85, 0.92) !important;
+}
+
+/* Selection marquee */
+body.dark-theme .svelte-flow__selection:before,
+body[data-theme="dark"] .svelte-flow__selection:before {
+    border-color: rgba(129, 140, 248, 0.9) !important;
+    box-shadow: 0 0 0 1px rgba(30, 41, 59, 1) !important;
+}
+
+/* Handles / edges */
+body.dark-theme .svelte-flow__handle,
+body[data-theme="dark"] .svelte-flow__handle {
+    background: rgba(167, 139, 250, 0.95) !important;
+    border: 2px solid rgba(15, 23, 42, 0.95) !important;
+    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.45) !important;
+}
+
+body.dark-theme .svelte-flow__edge-path,
+body[data-theme="dark"] .svelte-flow__edge-path {
+    stroke: rgba(168, 85, 247, 0.72) !important;
+}
+
+/* Panels (left/right/edge/status/toolbar) */
+body.dark-theme .toolbar,
+body.dark-theme .status-bar,
+body.dark-theme .status-corner-panel,
+body.dark-theme .corner-item,
+body.dark-theme .property-panel,
+body.dark-theme .variable-panel,
+body.dark-theme .edge-editor,
+body.dark-theme .panel-trigger,
+body.dark-theme .add-form,
+body.dark-theme .glass-input,
+body[data-theme="dark"] .toolbar,
+body[data-theme="dark"] .status-bar,
+body[data-theme="dark"] .status-corner-panel,
+body[data-theme="dark"] .corner-item,
+body[data-theme="dark"] .property-panel,
+body[data-theme="dark"] .variable-panel,
+body[data-theme="dark"] .edge-editor,
+body[data-theme="dark"] .panel-trigger,
+body[data-theme="dark"] .add-form,
+body[data-theme="dark"] .glass-input {
+    background: rgba(15, 23, 42, 0.82) !important;
+    border-color: rgba(148, 163, 184, 0.3) !important;
+    color: #e5e7eb !important;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-theme .status-item,
+body.dark-theme .panel-subtitle,
+body.dark-theme .variable-type,
+body.dark-theme .variable-value,
+body.dark-theme .choice-hint,
+body.dark-theme .corner-label,
+body.dark-theme .autosave-meta,
+body.dark-theme .validation-count,
+body.dark-theme .section-title,
+body[data-theme="dark"] .status-item,
+body[data-theme="dark"] .panel-subtitle,
+body[data-theme="dark"] .variable-type,
+body[data-theme="dark"] .variable-value,
+body[data-theme="dark"] .choice-hint,
+body[data-theme="dark"] .corner-label,
+body[data-theme="dark"] .autosave-meta,
+body[data-theme="dark"] .validation-count,
+body[data-theme="dark"] .section-title {
+    color: #cbd5e1 !important;
+}
+
+/* Inputs / selects / textareas / buttons */
+body.dark-theme input,
+body.dark-theme select,
+body.dark-theme textarea,
+body.dark-theme .form-input,
+body.dark-theme .form-textarea,
+body.dark-theme .action-btn,
+body.dark-theme .mini-btn,
+body.dark-theme .add-choice-btn,
+body.dark-theme .confirm-btn,
+body.dark-theme .cancel-btn,
+body.dark-theme .close-btn,
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] .form-input,
+body[data-theme="dark"] .form-textarea,
+body[data-theme="dark"] .action-btn,
+body[data-theme="dark"] .mini-btn,
+body[data-theme="dark"] .add-choice-btn,
+body[data-theme="dark"] .confirm-btn,
+body[data-theme="dark"] .cancel-btn,
+body[data-theme="dark"] .close-btn {
+    background: rgba(30, 41, 59, 0.84) !important;
+    color: #f8fafc !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+/* Context menu */
+body.dark-theme .context-menu,
+body.dark-theme .context-menu-item,
+body.dark-theme .context-menu-header,
+body[data-theme="dark"] .context-menu,
+body[data-theme="dark"] .context-menu-item,
+body[data-theme="dark"] .context-menu-header {
+    background: rgba(15, 23, 42, 0.95) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+/* All node cards */
+body.dark-theme .dialogue-node,
+body.dark-theme .choice-node,
+body.dark-theme .jump-node,
+body.dark-theme .setvariable-node,
+body.dark-theme .emitevent-node,
+body.dark-theme .end-node,
+body[data-theme="dark"] .dialogue-node,
+body[data-theme="dark"] .choice-node,
+body[data-theme="dark"] .jump-node,
+body[data-theme="dark"] .setvariable-node,
+body[data-theme="dark"] .emitevent-node,
+body[data-theme="dark"] .end-node {
+    background: rgba(15, 23, 42, 0.95) !important;
+    border-color: rgba(148, 163, 184, 0.45) !important;
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Node internals */
+body.dark-theme .node-header,
+body[data-theme="dark"] .node-header {
+    border-bottom-color: rgba(148, 163, 184, 0.22) !important;
+    background: linear-gradient(
+        180deg,
+        rgba(99, 102, 241, 0.16) 0%,
+        rgba(15, 23, 42, 0) 100%
+    ) !important;
+}
+
+body.dark-theme .field-label,
+body.dark-theme .field-value,
+body.dark-theme .choice-item,
+body.dark-theme .choice-text,
+body.dark-theme .end-message,
+body.dark-theme .no-choices,
+body[data-theme="dark"] .field-label,
+body[data-theme="dark"] .field-value,
+body[data-theme="dark"] .choice-item,
+body[data-theme="dark"] .choice-text,
+body[data-theme="dark"] .end-message,
+body[data-theme="dark"] .no-choices {
+    color: #e2e8f0 !important;
+}
+
+body.dark-theme .choice-bullet,
+body[data-theme="dark"] .choice-bullet {
+    color: #f8fafc !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Node selected halo in dark */
+body.dark-theme .dialogue-node.selected,
+body.dark-theme .choice-node.selected,
+body.dark-theme .jump-node.selected,
+body.dark-theme .setvariable-node.selected,
+body.dark-theme .emitevent-node.selected,
+body.dark-theme .end-node.selected,
+body[data-theme="dark"] .dialogue-node.selected,
+body[data-theme="dark"] .choice-node.selected,
+body[data-theme="dark"] .jump-node.selected,
+body[data-theme="dark"] .setvariable-node.selected,
+body[data-theme="dark"] .emitevent-node.selected,
+body[data-theme="dark"] .end-node.selected {
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.55),
+        0 0 0 2px rgba(15, 23, 42, 1),
+        0 0 0 6px rgba(129, 140, 248, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }

@@ -13,6 +13,7 @@
 
         <Toolbar
             :focus-mode-enabled="focusModeEnabled"
+            :is-dark-mode="darkModeEnabled"
             :edge-style="edgeRenderMode"
             @new="handleNew"
             @import="handleImport"
@@ -23,6 +24,7 @@
             @auto-layout="handleAutoLayout"
             @toggle-edge-style="handleToggleEdgeRenderMode"
             @toggle-focus-mode="handleToggleFocusMode"
+            @toggle-dark-mode="handleToggleDarkMode"
             @help="handleHelp"
         />
 
@@ -269,7 +271,9 @@ const edges = ref([
 const selectedNode = ref(null);
 const selectedEdge = ref(null);
 const focusModeEnabled = ref(false);
+const darkModeEnabled = ref(false);
 const edgeRenderMode = ref("straight");
+const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
 
 const undoStack = ref([]);
 const redoStack = ref([]);
@@ -634,6 +638,33 @@ function setupAutoSave() {
             variables: variables.value,
             presetSpeakers: presetSpeakers.value,
         }),
+    );
+}
+
+function applyThemeMode() {
+    const theme = darkModeEnabled.value ? "dark" : "light";
+    const body = document.body;
+    if (!body) return;
+
+    body.setAttribute("data-theme", theme);
+    body.classList.toggle("dark-theme", theme === "dark");
+    body.classList.toggle("light-theme", theme === "light");
+}
+
+function loadDarkModePreference() {
+    const saved = localStorage.getItem(DARK_MODE_STORAGE_KEY);
+    if (saved === "dark") {
+        darkModeEnabled.value = true;
+    } else if (saved === "light") {
+        darkModeEnabled.value = false;
+    }
+    applyThemeMode();
+}
+
+function persistDarkModePreference() {
+    localStorage.setItem(
+        DARK_MODE_STORAGE_KEY,
+        darkModeEnabled.value ? "dark" : "light",
     );
 }
 
@@ -1033,6 +1064,12 @@ function handleToggleFocusMode() {
     applyEdgeVisualStyles();
 }
 
+function handleToggleDarkMode() {
+    darkModeEnabled.value = !darkModeEnabled.value;
+    applyThemeMode();
+    persistDarkModePreference();
+}
+
 function handleToggleEdgeRenderMode() {
     edgeRenderMode.value =
         edgeRenderMode.value === "straight" ? "bezier" : "straight";
@@ -1087,6 +1124,8 @@ function handleGlobalKeyDown(event) {
 }
 
 onMounted(() => {
+    loadDarkModePreference();
+
     window.addEventListener("node-click", handleNodeClick);
     window.addEventListener("edge-click", handleEdgeClick);
     window.addEventListener("nodes-change", handleNodesChange);
@@ -1134,6 +1173,14 @@ watch(
         edgeRenderMode.value,
     ],
     () => applyEdgeVisualStyles(),
+);
+
+watch(
+    () => darkModeEnabled.value,
+    () => {
+        applyThemeMode();
+        persistDarkModePreference();
+    },
 );
 
 function handleNew() {
