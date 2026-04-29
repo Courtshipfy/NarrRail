@@ -237,48 +237,21 @@
         </section>
 
         <main class="grid">
-            <article class="script-card pinned glass-morphism">
-                <div class="card-head">
-                    <h3 :title="globalConfigFileName">
-                        {{ globalConfigFileName }}
-                    </h3>
-                    <span class="ext">.yaml</span>
-                </div>
-
-                <p class="path">Repository/Config/{{ globalConfigFileName }}</p>
-
-                <div class="meta">
-                    <span>Global Config</span>
-                    <span>variables: {{ variables.length }}</span>
-                    <span>speakers: {{ presetSpeakers.length }}</span>
-                </div>
-
-                <div class="tags">
-                    <span class="tag">Pinned</span>
-                    <span class="tag">YAML</span>
-                    <span class="tag">Shared</span>
-                </div>
-
-                <div class="actions">
-                    <button
-                        class="btn secondary"
-                        @click="importGlobalConfigYaml"
-                    >
-                        导入 YAML
-                    </button>
-                    <button class="btn primary" @click="exportGlobalConfigYaml">
-                        导出 YAML
-                    </button>
-                </div>
-            </article>
-
             <article
                 v-for="script in filteredScripts"
                 :key="script.id"
                 class="script-card glass-morphism"
             >
                 <div class="card-head">
-                    <h3 :title="script.fileName">{{ script.fileName }}</h3>
+                    <h3 :title="script.fileName">
+                        <button
+                            class="file-open-link"
+                            @click="openScript(script)"
+                            :title="`打开 ${script.fileName}`"
+                        >
+                            {{ script.fileName }}
+                        </button>
+                    </h3>
                     <span class="ext">{{ script.extension }}</span>
                 </div>
 
@@ -298,12 +271,6 @@
                     >
                         {{ tag }}
                     </span>
-                </div>
-
-                <div class="actions">
-                    <button class="btn primary" @click="openScript(script)">
-                        打开并进入编辑器
-                    </button>
                 </div>
             </article>
 
@@ -944,18 +911,29 @@ function formatDate(iso) {
     padding: 2px 8px;
 }
 
-.actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
 .btn {
     border: none;
     border-radius: 10px;
     padding: 9px 12px;
     cursor: pointer;
     font-weight: 600;
+}
+
+.file-open-link {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.file-open-link:hover {
+    color: #2563eb;
+    text-decoration: underline;
 }
 
 .btn.primary {
@@ -967,12 +945,6 @@ function formatDate(iso) {
     color: var(--nr-text);
     background: color-mix(in srgb, var(--nr-bg) 68%, #ffffff 32%);
     border: 1px solid color-mix(in srgb, var(--nr-text) 20%, transparent);
-}
-
-.script-card.pinned {
-    border-style: dashed;
-    border-width: 1.5px;
-    border-color: color-mix(in srgb, #60a5fa 45%, transparent);
 }
 
 .empty {
