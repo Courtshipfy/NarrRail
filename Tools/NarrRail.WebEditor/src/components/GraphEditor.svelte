@@ -376,7 +376,12 @@
 
 </script>
 
-<div class="graph-editor">
+<div
+  class="graph-editor"
+  role="region"
+  aria-label="NarrRail Graph Editor Canvas"
+  on:contextmenu={handlePaneContextMenu}
+>
   <SvelteFlow
     nodes={nodesStore}
     edges={edgesStore}
