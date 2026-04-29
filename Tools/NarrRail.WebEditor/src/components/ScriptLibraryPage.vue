@@ -108,7 +108,6 @@
             <div class="global-config-header">
                 <div class="header-main">
                     <h2>全局配置</h2>
-                    <p>这里设置的变量与预设说话人将对所有脚本编辑器生效</p>
                 </div>
                 <div class="header-actions">
                     <span class="config-file-chip">{{
@@ -300,6 +299,14 @@
                             {{ script.fileName }}
                         </button>
                     </h3>
+                    <button
+                        class="delete-script-btn"
+                        @click="deleteScript(script)"
+                        title="删除脚本"
+                        aria-label="删除脚本"
+                    >
+                        ×
+                    </button>
                 </div>
 
                 <p class="path">{{ script.path }}</p>
@@ -611,6 +618,62 @@ async function syncGlobalConfigToRepo(overrideConfig = null) {
     } finally {
         isSyncingGlobalConfig.value = false;
     }
+}
+
+async function deleteScript(script) {
+    const path = String(script?.path || "");
+    if (!path) return;
+
+    const ok = confirm(`确认删除脚本？\n${path}`);
+    if (!ok) return;
+
+    if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
+        try {
+            const readUrl = new URL(
+                window.location.origin + "/api/github/file-content",
+            );
+            readUrl.searchParams.set("mode", "content");
+            readUrl.searchParams.set("owner", selectedOwner.value);
+            readUrl.searchParams.set("repo", selectedRepoName.value);
+            readUrl.searchParams.set("branch", selectedRepoBranch.value);
+            readUrl.searchParams.set("path", path);
+
+            const readRes = await fetch(readUrl.toString(), {
+                method: "GET",
+                credentials: "include",
+            });
+            const readData = await readRes.json();
+            if (!readRes.ok) {
+                throw new Error(readData?.error || "读取脚本信息失败");
+            }
+
+            const delRes = await fetch("/api/github/delete-file", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    owner: selectedOwner.value,
+                    repo: selectedRepoName.value,
+                    branch: selectedRepoBranch.value,
+                    path,
+                    sha: readData?.sha,
+                    message: `chore(script): delete ${path}`,
+                }),
+            });
+            const delData = await delRes.json();
+            if (!delRes.ok) {
+                throw new Error(delData?.error || "删除仓库脚本失败");
+            }
+
+            await reloadScriptsFromRepo();
+            return;
+        } catch (error) {
+            alert(`删除脚本失败: ${error.message}`);
+            return;
+        }
+    }
+
+    mockScripts.value = mockScripts.value.filter((s) => s.path !== path);
 }
 
 function openScript(script) {
@@ -1268,6 +1331,36 @@ watch(
 
 .script-card {
     padding: 12px;
+}
+
+.delete-script-btn {
+    opacity: 0;
+    pointer-events: none;
+    border: 1px solid color-mix(in srgb, #ef4444 46%, transparent);
+    background: color-mix(in srgb, #ef4444 14%, transparent);
+    color: #b91c1c;
+    border-radius: 8px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.script-card:hover .delete-script-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.delete-script-btn:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, #ef4444 20%, transparent);
 }
 
 .card-head {
