@@ -75,25 +75,44 @@ export function importFromYAML(yamlString) {
   });
 
   // 处理 Choice 节点的选项边（兼容新旧格式）
+  // 若 edges 中已存在 source-target 对应边，则优先复用该边并补 sourceHandle，避免重复边
   data.nodes.forEach((node) => {
     const choiceArray = getChoiceArray(node);
     if (choiceArray.length > 0) {
       choiceArray.forEach((choice, index) => {
-        if (choice.targetNodeId) {
-          edges.push({
-            id: `e${edgeIndex++}`,
-            source: node.nodeId,
-            target: choice.targetNodeId,
-            sourceHandle: `choice-${index}`,
-            type: "default",
-            animated: false,
-            style: "stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;",
-            data: {
+        if (!choice.targetNodeId) return;
+
+        const existing = edges.find(
+          (e) =>
+            e.source === node.nodeId &&
+            e.target === choice.targetNodeId &&
+            (e.sourceHandle == null || e.sourceHandle === ""),
+        );
+
+        if (existing) {
+          existing.sourceHandle = `choice-${index}`;
+          if (!existing.data) {
+            existing.data = {
               priority: 0,
               condition: { logic: "All", terms: [] },
-            },
-          });
+            };
+          }
+          return;
         }
+
+        edges.push({
+          id: `e${edgeIndex++}`,
+          source: node.nodeId,
+          target: choice.targetNodeId,
+          sourceHandle: `choice-${index}`,
+          type: "default",
+          animated: false,
+          style: "stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;",
+          data: {
+            priority: 0,
+            condition: { logic: "All", terms: [] },
+          },
+        });
       });
     }
   });

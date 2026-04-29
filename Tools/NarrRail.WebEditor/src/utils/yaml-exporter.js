@@ -56,20 +56,13 @@ export function buildYAMLString(nodes, edges, variables, meta) {
     return base;
   });
 
-  // 转换边 - 过滤掉 Choice 节点的边（已经包含在节点的 choices 中）
-  const yamlEdges = edges
-    .filter((edge) => {
-      // 检查源节点是否是 Choice 类型
-      const sourceNode = nodes.find((n) => n.id === edge.source);
-      // 如果是 Choice 节点且有 sourceHandle，说明是选项连接，不需要单独导出
-      return !(sourceNode && sourceNode.type === "choice" && edge.sourceHandle);
-    })
-    .map((edge) => ({
-      sourceNodeId: edge.source,
-      targetNodeId: edge.target,
-      priority: edge.data?.priority || 0,
-      condition: edge.data?.condition || { logic: "All", terms: [] },
-    }));
+  // 转换边 - 导出全部边（包括 Choice 分支边）
+  const yamlEdges = edges.map((edge) => ({
+    sourceNodeId: edge.source,
+    targetNodeId: edge.target,
+    priority: edge.data?.priority || 0,
+    condition: edge.data?.condition || { logic: "All", terms: [] },
+  }));
 
   // 构建完整结构
   const yamlData = {
