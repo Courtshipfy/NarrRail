@@ -224,6 +224,7 @@ import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
 import { buildYAMLString, exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
 import { validateStory } from "./utils/validation.js";
+import { serializeGlobalConfigToYAML } from "./utils/global-config-yaml.js";
 import storage from "./utils/storage.js";
 
 const nodes = ref([
@@ -302,6 +303,8 @@ const currentView = ref("library");
 const selectedScriptEntry = ref(null);
 const selectedGithubFileContext = ref(null);
 const isSavingToGithub = ref(false);
+const isSyncingGlobalConfigFromEditor = ref(false);
+const GLOBAL_CONFIG_REPO_PATH = "global-config.narrrail.yaml";
 
 const undoStack = ref([]);
 const redoStack = ref([]);
@@ -337,6 +340,7 @@ const conditionVariableScopes = ["Session", "Global"];
 const VALID_LOGICS = new Set(["All", "Any", "Not"]);
 
 let autoSaveTimer = null;
+let globalConfigSyncTimer = null;
 
 function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -1309,6 +1313,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     if (autoSaveTimer) clearInterval(autoSaveTimer);
+    if (globalConfigSyncTimer) {
+        clearTimeout(globalConfigSyncTimer);
+        globalConfigSyncTimer = null;
+    }
     if (validationDebounceTimer.value) {
         clearTimeout(validationDebounceTimer.value);
         validationDebounceTimer.value = null;
@@ -1682,11 +1690,100 @@ function handleSetEntryNode(nodeId) {
     storyMeta.value.entryNodeId = nodeId;
 }
 
+function scheduleGlobalConfigSyncFromEditor() {
+    if (globalConfigSyncTimer) {
+        clearTimeout(globalConfigSyncTimer);
+        globalConfigSyncTimer = null;
+    }
+
+    globalConfigSyncTimer = setTimeout(async () => {
+        globalConfigSyncTimer = null;
+        await syncGlobalConfigToRepoFromEditor();
+    }, 500);
+}
+
+async function syncGlobalConfigToRepoFromEditor() {
+    if (currentView.value !== "editor") return;
+    if (isSyncingGlobalConfigFromEditor.value) return;
+
+    const owner = selectedGithubFileContext.value?.owner;
+    const repo = selectedGithubFileContext.value?.repo;
+    const branch = selectedGithubFileContext.value?.branch || "main";
+
+    if (!owner || !repo) return;
+
+    isSyncingGlobalConfigFromEditor.value = true;
+    try {
+        let sha;
+
+        const readUrl = new URL(
+            window.location.origin + "/api/github/file-content",
+        );
+        readUrl.searchParams.set("mode", "content");
+        readUrl.searchParams.set("owner", owner);
+        readUrl.searchParams.set("repo", repo);
+        readUrl.searchParams.set("branch", branch);
+        readUrl.searchParams.set("path", GLOBAL_CONFIG_REPO_PATH);
+
+        const readResponse = await fetch(readUrl.toString(), {
+            method: "GET",
+            credentials: "include",
+        });
+        const readData = await readResponse.json();
+
+        if (readResponse.ok) {
+            sha = readData?.sha || undefined;
+        } else {
+            const isNotFound =
+                readResponse.status === 404 ||
+                String(readData?.error || "")
+                    .toLowerCase()
+                    .includes("not found");
+            if (!isNotFound) {
+                throw new Error(readData?.error || "读取全局配置失败");
+            }
+        }
+
+        const content = serializeGlobalConfigToYAML({
+            variables: variables.value,
+            presetSpeakers: presetSpeakers.value,
+        });
+
+        const payload = {
+            owner,
+            repo,
+            branch,
+            path: GLOBAL_CONFIG_REPO_PATH,
+            content,
+            message: `chore(config): sync ${GLOBAL_CONFIG_REPO_PATH}`,
+        };
+
+        if (sha) payload.sha = sha;
+
+        const commitResponse = await fetch("/api/github/commit-file", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const commitData = await commitResponse.json();
+
+        if (!commitResponse.ok) {
+            throw new Error(commitData?.error || "同步全局配置失败");
+        }
+    } catch (error) {
+        alert(`同步全局配置失败: ${error.message}`);
+    } finally {
+        isSyncingGlobalConfigFromEditor.value = false;
+    }
+}
+
 function handleVariablesUpdate(updatedVariables) {
     const nextVariables = safeClone(updatedVariables || []);
     if (isDeepEqual(nextVariables, variables.value)) return;
     pushHistorySnapshot();
     variables.value = nextVariables;
+    scheduleGlobalConfigSyncFromEditor();
 }
 
 function handlePresetSpeakersUpdate(updatedSpeakers) {
@@ -1694,6 +1791,7 @@ function handlePresetSpeakersUpdate(updatedSpeakers) {
     if (isDeepEqual(nextSpeakers, presetSpeakers.value)) return;
     pushHistorySnapshot();
     presetSpeakers.value = safeClone(nextSpeakers);
+    scheduleGlobalConfigSyncFromEditor();
 }
 </script>
 

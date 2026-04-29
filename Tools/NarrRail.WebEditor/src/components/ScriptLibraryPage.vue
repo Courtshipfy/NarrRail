@@ -352,6 +352,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import {
     downloadGlobalConfigYAML,
     parseGlobalConfigFromYAML,
+    serializeGlobalConfigToYAML,
 } from "../utils/global-config-yaml.js";
 
 const props = defineProps({
@@ -391,6 +392,9 @@ const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
 const globalConfigFileInput = ref(null);
 const globalConfigFileName = "global-config.narrrail.yaml";
+const REPO_GLOBAL_CONFIG_PATH = globalConfigFileName;
+const globalConfigRepoSha = ref("");
+const isSyncingGlobalConfig = ref(false);
 
 const newVariable = reactive({
     name: "",
@@ -461,7 +465,7 @@ const filteredScripts = computed(() => {
     return result;
 });
 
-function addVariable() {
+async function addVariable() {
     const name = String(newVariable.name || "").trim();
     if (!name) {
         alert("请输入变量名");
@@ -489,14 +493,23 @@ function addVariable() {
         variable.floatValue = Number(newVariable.floatValue || 0);
     else variable.stringValue = String(newVariable.stringValue || "");
 
-    emit("update-variables", [...props.variables, variable]);
+    const nextVariables = [...props.variables, variable];
+    emit("update-variables", nextVariables);
     resetVariableForm();
+    await syncGlobalConfigToRepo({
+        variables: nextVariables,
+        presetSpeakers: props.presetSpeakers,
+    });
 }
 
-function removeVariable(index) {
+async function removeVariable(index) {
     const updated = [...props.variables];
     updated.splice(index, 1);
     emit("update-variables", updated);
+    await syncGlobalConfigToRepo({
+        variables: updated,
+        presetSpeakers: props.presetSpeakers,
+    });
 }
 
 function resetVariableForm() {
@@ -509,7 +522,7 @@ function resetVariableForm() {
     showAddVariableForm.value = false;
 }
 
-function addSpeaker() {
+async function addSpeaker() {
     const id = String(newSpeaker.id || "").trim();
     const displayName = String(newSpeaker.displayName || "").trim();
 
@@ -530,14 +543,23 @@ function addSpeaker() {
     }
 
     const payload = displayName ? { id, displayName } : { id };
-    emit("update-speakers", [...props.presetSpeakers, payload]);
+    const nextSpeakers = [...props.presetSpeakers, payload];
+    emit("update-speakers", nextSpeakers);
     resetSpeakerForm();
+    await syncGlobalConfigToRepo({
+        variables: props.variables,
+        presetSpeakers: nextSpeakers,
+    });
 }
 
-function removeSpeaker(index) {
+async function removeSpeaker(index) {
     const updated = [...props.presetSpeakers];
     updated.splice(index, 1);
     emit("update-speakers", updated);
+    await syncGlobalConfigToRepo({
+        variables: props.variables,
+        presetSpeakers: updated,
+    });
 }
 
 function resetSpeakerForm() {
@@ -572,11 +594,65 @@ function exportGlobalConfigYaml() {
     );
 }
 
+function hasSelectedGithubRepo() {
+    return (
+        !usingMockData.value &&
+        !!selectedOwner.value &&
+        !!selectedRepoName.value
+    );
+}
+
+async function syncGlobalConfigToRepo(overrideConfig = null) {
+    if (!hasSelectedGithubRepo()) return;
+    if (isSyncingGlobalConfig.value) return;
+
+    isSyncingGlobalConfig.value = true;
+    try {
+        const sourceConfig = overrideConfig || {
+            variables: props.variables,
+            presetSpeakers: props.presetSpeakers,
+        };
+
+        const content = serializeGlobalConfigToYAML(sourceConfig);
+
+        const payload = {
+            owner: selectedOwner.value,
+            repo: selectedRepoName.value,
+            branch: selectedRepoBranch.value,
+            path: REPO_GLOBAL_CONFIG_PATH,
+            content,
+            message: `chore(config): sync ${REPO_GLOBAL_CONFIG_PATH}`,
+        };
+
+        if (globalConfigRepoSha.value) {
+            payload.sha = globalConfigRepoSha.value;
+        }
+
+        const response = await fetch("/api/github/commit-file", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data?.error || "同步全局配置到仓库失败");
+        }
+
+        globalConfigRepoSha.value =
+            data?.content?.sha || globalConfigRepoSha.value || "";
+    } catch (error) {
+        alert(`同步全局配置失败: ${error.message}`);
+    } finally {
+        isSyncingGlobalConfig.value = false;
+    }
+}
+
 function importGlobalConfigYaml() {
     globalConfigFileInput.value?.click();
 }
 
-function handleGlobalConfigFileChange(event) {
+async function handleGlobalConfigFileChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -586,8 +662,14 @@ function handleGlobalConfigFileChange(event) {
             const parsed = parseGlobalConfigFromYAML(
                 String(e.target?.result || ""),
             );
-            emit("update-variables", parsed.variables || []);
-            emit("update-speakers", parsed.presetSpeakers || []);
+            const nextVariables = parsed.variables || [];
+            const nextSpeakers = parsed.presetSpeakers || [];
+            emit("update-variables", nextVariables);
+            emit("update-speakers", nextSpeakers);
+            syncGlobalConfigToRepo({
+                variables: nextVariables,
+                presetSpeakers: nextSpeakers,
+            });
             alert("全局配置导入成功");
         } catch (error) {
             alert(`全局配置导入失败: ${error.message}`);
@@ -653,6 +735,51 @@ async function loadRepos() {
     }
 }
 
+async function loadGlobalConfigFromRepo() {
+    if (!selectedOwner.value || !selectedRepoName.value) return;
+
+    try {
+        const url = new URL(
+            window.location.origin + "/api/github/file-content",
+        );
+        url.searchParams.set("mode", "content");
+        url.searchParams.set("owner", selectedOwner.value);
+        url.searchParams.set("repo", selectedRepoName.value);
+        url.searchParams.set("branch", selectedRepoBranch.value);
+        url.searchParams.set("path", REPO_GLOBAL_CONFIG_PATH);
+
+        const res = await fetch(url.toString(), {
+            method: "GET",
+            credentials: "include",
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            const notFound =
+                res.status === 404 ||
+                String(data?.error || "")
+                    .toLowerCase()
+                    .includes("not found");
+            if (notFound) {
+                globalConfigRepoSha.value = "";
+                await syncGlobalConfigToRepo({
+                    variables: props.variables,
+                    presetSpeakers: props.presetSpeakers,
+                });
+                return;
+            }
+            throw new Error(data?.error || "读取全局配置失败");
+        }
+
+        const parsed = parseGlobalConfigFromYAML(String(data?.content || ""));
+        emit("update-variables", parsed.variables || []);
+        emit("update-speakers", parsed.presetSpeakers || []);
+        globalConfigRepoSha.value = data?.sha || "";
+    } catch (error) {
+        alert(`读取全局配置失败: ${error.message}`);
+    }
+}
+
 async function reloadScriptsFromRepo() {
     if (!selectedOwner.value || !selectedRepoName.value) return;
     loadingScripts.value = true;
@@ -673,8 +800,12 @@ async function reloadScriptsFromRepo() {
         if (!res.ok) throw new Error(data?.error || "读取脚本列表失败");
 
         const files = Array.isArray(data?.files) ? data.files : [];
-        mockScripts.value = files;
+        mockScripts.value = files.filter((file) =>
+            String(file?.path || "").startsWith("Stories/"),
+        );
         usingMockData.value = false;
+
+        await loadGlobalConfigFromRepo();
     } catch (error) {
         alert(`读取仓库脚本失败: ${error.message}`);
     } finally {
@@ -744,7 +875,7 @@ async function createNewScript() {
         return;
     }
 
-    const createdPath = `Stories/Sandbox/${fileName}`;
+    const createdPath = `Stories/${fileName}`;
 
     if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
         try {
