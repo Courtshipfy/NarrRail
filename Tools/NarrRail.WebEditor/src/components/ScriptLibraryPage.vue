@@ -55,14 +55,6 @@
                 <div class="repo-row">
                     <div class="summary inline-summary">
                         共 <strong>{{ filteredScripts.length }}</strong> 个脚本
-                        <button
-                            v-if="authState?.authenticated"
-                            class="btn secondary tiny"
-                            @click="reloadScriptsFromRepo"
-                            :disabled="loadingScripts || !selectedRepoFullName"
-                        >
-                            {{ loadingScripts ? "读取中..." : "刷新仓库" }}
-                        </button>
                     </div>
                     <select
                         v-model="selectedRepoFullName"
