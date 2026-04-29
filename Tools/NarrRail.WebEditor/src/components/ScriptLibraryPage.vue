@@ -46,28 +46,38 @@
                 <button class="btn secondary" @click="createNewScript">
                     新建脚本
                 </button>
-                <button class="btn secondary" @click="emit('open-empty')">
-                    空白进入编辑器
-                </button>
             </div>
         </header>
 
         <section class="filters glass-morphism">
-            <div class="field">
+            <div class="field repo-field">
                 <label>仓库</label>
-                <select
-                    v-model="selectedRepoFullName"
-                    :disabled="!authState?.authenticated || loadingRepos"
-                >
-                    <option value="">请选择仓库</option>
-                    <option
-                        v-for="repo in repoOptions"
-                        :key="repo.fullName"
-                        :value="repo.fullName"
+                <div class="repo-row">
+                    <div class="summary inline-summary">
+                        共 <strong>{{ filteredScripts.length }}</strong> 个脚本
+                        <button
+                            v-if="authState?.authenticated"
+                            class="btn secondary tiny"
+                            @click="reloadScriptsFromRepo"
+                            :disabled="loadingScripts || !selectedRepoFullName"
+                        >
+                            {{ loadingScripts ? "读取中..." : "刷新仓库" }}
+                        </button>
+                    </div>
+                    <select
+                        v-model="selectedRepoFullName"
+                        :disabled="!authState?.authenticated || loadingRepos"
                     >
-                        {{ repo.fullName }}
-                    </option>
-                </select>
+                        <option value="">请选择仓库</option>
+                        <option
+                            v-for="repo in repoOptions"
+                            :key="repo.fullName"
+                            :value="repo.fullName"
+                        >
+                            {{ repo.fullName }}
+                        </option>
+                    </select>
+                </div>
             </div>
 
             <div class="field">
@@ -91,27 +101,6 @@
                         {{ folder }}
                     </option>
                 </select>
-            </div>
-
-            <div class="field">
-                <label>排序</label>
-                <select v-model="sortBy">
-                    <option value="updatedDesc">最近更新优先</option>
-                    <option value="nameAsc">文件名 A-Z</option>
-                    <option value="sizeDesc">文件大小（大到小）</option>
-                </select>
-            </div>
-
-            <div class="summary">
-                共 <strong>{{ filteredScripts.length }}</strong> 个脚本
-                <button
-                    v-if="authState?.authenticated"
-                    class="btn secondary tiny"
-                    @click="reloadScriptsFromRepo"
-                    :disabled="loadingScripts || !selectedRepoFullName"
-                >
-                    {{ loadingScripts ? "读取中..." : "刷新仓库" }}
-                </button>
             </div>
         </section>
 
@@ -368,7 +357,6 @@ const props = defineProps({
 
 const emit = defineEmits([
     "open-script",
-    "open-empty",
     "toggle-theme",
     "update-variables",
     "update-speakers",
@@ -378,7 +366,6 @@ const emit = defineEmits([
 
 const keyword = ref("");
 const selectedFolder = ref("all");
-const sortBy = ref("updatedDesc");
 
 const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
@@ -434,24 +421,10 @@ const filteredScripts = computed(() => {
         return inFolder && inKeyword;
     });
 
-    switch (sortBy.value) {
-        case "nameAsc":
-            result = result.sort((a, b) =>
-                a.fileName.localeCompare(b.fileName),
-            );
-            break;
-        case "sizeDesc":
-            result = result.sort((a, b) => b.size - a.size);
-            break;
-        case "updatedDesc":
-        default:
-            result = result.sort(
-                (a, b) =>
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime(),
-            );
-            break;
-    }
+    result = result.sort(
+        (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
 
     return result;
 });
@@ -1002,10 +975,14 @@ watch(
 
 .filters {
     display: grid;
-    grid-template-columns: 1.8fr 1fr 1fr auto;
+    grid-template-columns: minmax(540px, 2.4fr) minmax(220px, 1.2fr) minmax(
+            180px,
+            0.8fr
+        );
     gap: 10px;
     padding: 12px;
     margin-bottom: 14px;
+    align-items: end;
 }
 
 .field {
@@ -1029,13 +1006,28 @@ watch(
     outline: none;
 }
 
+.repo-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.repo-row > select {
+    flex: 1;
+    min-width: 240px;
+}
+
 .summary {
     display: flex;
-    align-items: end;
-    justify-content: end;
+    align-items: center;
+    gap: 8px;
     color: color-mix(in srgb, var(--nr-text) 78%, transparent);
     font-size: 13px;
-    padding-bottom: 8px;
+    white-space: nowrap;
+}
+
+.inline-summary {
+    margin-right: 2px;
 }
 
 .global-config {
