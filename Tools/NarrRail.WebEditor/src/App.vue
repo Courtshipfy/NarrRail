@@ -221,7 +221,7 @@ import PropertyPanel from "./components/PropertyPanel.vue";
 import VariablePanel from "./components/VariablePanel.vue";
 import StatusBar from "./components/StatusBar.vue";
 import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
-import { exportToYAML } from "./utils/yaml-exporter.js";
+import { buildYAMLString, exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
 import { validateStory } from "./utils/validation.js";
 import storage from "./utils/storage.js";
@@ -301,6 +301,7 @@ const authState = ref({
 const currentView = ref("library");
 const selectedScriptEntry = ref(null);
 const selectedGithubFileContext = ref(null);
+const isSavingToGithub = ref(false);
 
 const undoStack = ref([]);
 const redoStack = ref([]);
@@ -1459,7 +1460,7 @@ function handleFileChange(event) {
     event.target.value = "";
 }
 
-function handleExport() {
+async function handleExport() {
     if (nodes.value.length === 0) {
         alert("没有可导出的内容");
         return;
@@ -1487,6 +1488,54 @@ function handleExport() {
     }
 
     try {
+        const yamlString = buildYAMLString(
+            nodes.value,
+            edges.value,
+            variables.value,
+            storyMeta.value,
+        );
+
+        if (
+            selectedGithubFileContext.value?.owner &&
+            selectedGithubFileContext.value?.repo &&
+            selectedGithubFileContext.value?.path
+        ) {
+            if (isSavingToGithub.value) return;
+            isSavingToGithub.value = true;
+
+            const payload = {
+                owner: selectedGithubFileContext.value.owner,
+                repo: selectedGithubFileContext.value.repo,
+                branch: selectedGithubFileContext.value.branch || "main",
+                path: selectedGithubFileContext.value.path,
+                sha: selectedGithubFileContext.value.sha || undefined,
+                content: yamlString,
+                message: `feat(script): update ${selectedGithubFileContext.value.path}`,
+            };
+
+            const response = await fetch("/api/github/commit-file", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || "提交到 GitHub 失败");
+            }
+
+            selectedGithubFileContext.value = {
+                ...selectedGithubFileContext.value,
+                sha: data?.content?.sha || selectedGithubFileContext.value.sha,
+            };
+
+            alert(
+                `已提交到 GitHub！\ncommit: ${data?.commit?.sha || "(unknown)"}`,
+            );
+            return;
+        }
+
         exportToYAML(
             nodes.value,
             edges.value,
@@ -1498,6 +1547,8 @@ function handleExport() {
         );
     } catch (error) {
         alert(`导出失败: ${error.message}`);
+    } finally {
+        isSavingToGithub.value = false;
     }
 }
 

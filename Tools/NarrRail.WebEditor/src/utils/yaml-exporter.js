@@ -9,13 +9,7 @@ const nodeTypeMap = {
   end: "End",
 };
 
-export function exportToYAML(nodes, edges, variables, meta) {
-  console.log("yaml-exporter 接收到的数据:");
-  console.log("nodes:", nodes);
-  console.log("edges:", edges);
-  console.log("variables:", variables);
-  console.log("meta:", meta);
-
+export function buildYAMLString(nodes, edges, variables, meta) {
   // 转换节点
   const yamlNodes = nodes.map((node) => {
     const base = {
@@ -77,8 +71,6 @@ export function exportToYAML(nodes, edges, variables, meta) {
       condition: edge.data?.condition || { logic: "All", terms: [] },
     }));
 
-  console.log("转换后的边:", yamlEdges);
-
   // 构建完整结构
   const yamlData = {
     meta: {
@@ -91,8 +83,11 @@ export function exportToYAML(nodes, edges, variables, meta) {
     edges: yamlEdges,
   };
 
-  // 生成 YAML 字符串
-  const yamlString = YAML.stringify(yamlData);
+  return YAML.stringify(yamlData);
+}
+
+export function exportToYAML(nodes, edges, variables, meta) {
+  const yamlString = buildYAMLString(nodes, edges, variables, meta);
 
   // 触发下载
   const blob = new Blob([yamlString], { type: "text/yaml" });
