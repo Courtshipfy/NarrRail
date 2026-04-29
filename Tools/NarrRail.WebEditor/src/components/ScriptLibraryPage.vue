@@ -28,6 +28,10 @@
                 </span>
                 <span v-else class="status-badge auth-off">未登录</span>
 
+                <span v-if="createScriptStatus" class="status-badge auth-ok">
+                    {{ createScriptStatus }}
+                </span>
+
                 <button
                     v-if="!authState?.authenticated"
                     class="btn secondary"
@@ -43,8 +47,12 @@
                 <button class="btn secondary" @click="emit('toggle-theme')">
                     {{ isDarkMode ? "切换浅色" : "切换深色" }}
                 </button>
-                <button class="btn secondary" @click="createNewScript">
-                    新建脚本
+                <button
+                    class="btn secondary"
+                    @click="createNewScript"
+                    :disabled="isCreatingScript"
+                >
+                    {{ isCreatingScript ? "创建中..." : "新建脚本" }}
                 </button>
             </div>
         </header>
@@ -400,6 +408,8 @@ const selectedRepoFullName = ref("");
 const loadingRepos = ref(false);
 const loadingScripts = ref(false);
 const usingMockData = ref(true);
+const isCreatingScript = ref(false);
+const createScriptStatus = ref("");
 
 const folders = computed(() => {
     const set = new Set(
@@ -791,6 +801,10 @@ function buildNewStoryYaml(storyId) {
     return `meta:\n  schemaVersion: 1\n  storyId: ${storyId}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
 }
 
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function createNewScript() {
     const baseName = prompt("请输入新脚本名称（不含扩展名）", "new_story");
     if (!baseName) return;
@@ -816,6 +830,8 @@ async function createNewScript() {
     const createdPath = `Stories/${fileName}`;
 
     if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
+        isCreatingScript.value = true;
+        createScriptStatus.value = "正在提交到仓库...";
         try {
             const response = await fetch("/api/github/commit-file", {
                 method: "POST",
@@ -834,11 +850,32 @@ async function createNewScript() {
             if (!response.ok) {
                 throw new Error(data?.error || "创建仓库脚本失败");
             }
-            await reloadScriptsFromRepo();
+
+            selectedFolder.value = "all";
+            keyword.value = "";
+
+            let found = false;
+            for (let i = 0; i < 6; i++) {
+                createScriptStatus.value = `仓库同步中... (${i + 1}/6)`;
+                await reloadScriptsFromRepo();
+                found = mockScripts.value.some((s) => s.path === createdPath);
+                if (found) break;
+                await sleep(800);
+            }
+
+            createScriptStatus.value = found
+                ? "新脚本已创建"
+                : "已提交，仓库列表可能稍后刷新";
+            setTimeout(() => {
+                createScriptStatus.value = "";
+            }, 2200);
             return;
         } catch (error) {
+            createScriptStatus.value = "";
             alert(`创建仓库脚本失败: ${error.message}`);
             return;
+        } finally {
+            isCreatingScript.value = false;
         }
     }
 
