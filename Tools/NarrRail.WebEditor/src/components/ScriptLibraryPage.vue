@@ -409,58 +409,7 @@ const newSpeaker = reactive({
 const SCRIPT_LIST_STORAGE_KEY = "narrrail_mock_script_list";
 const REPO_SELECTION_STORAGE_KEY = "narrrail_selected_repo";
 
-const DEFAULT_MOCK_SCRIPTS = [
-    {
-        id: "s1",
-        fileName: "chapter_01_intro.narrrail.yaml",
-        extension: ".yaml",
-        path: "Stories/Chapter01/chapter_01_intro.narrrail.yaml",
-        storyId: "chapter_01_intro",
-        size: 8421,
-        updatedAt: "2026-04-10T10:24:00Z",
-        tags: ["Main", "Dialogue"],
-    },
-    {
-        id: "s2",
-        fileName: "chapter_01_choice.narrrail.yaml",
-        extension: ".yaml",
-        path: "Stories/Chapter01/chapter_01_choice.narrrail.yaml",
-        storyId: "chapter_01_choice",
-        size: 12544,
-        updatedAt: "2026-04-11T03:17:00Z",
-        tags: ["Choice", "Branch"],
-    },
-    {
-        id: "s3",
-        fileName: "affinity_demo.narrrail.yaml",
-        extension: ".yaml",
-        path: "Stories/Demo/affinity_demo.narrrail.yaml",
-        storyId: "affinity_demo",
-        size: 23310,
-        updatedAt: "2026-04-12T14:40:00Z",
-        tags: ["Demo", "Variable"],
-    },
-    {
-        id: "s4",
-        fileName: "new_story_temp.narrrail.yml",
-        extension: ".yml",
-        path: "Stories/Sandbox/new_story_temp.narrrail.yml",
-        storyId: "new_story_temp",
-        size: 5112,
-        updatedAt: "2026-04-09T21:55:00Z",
-        tags: ["Sandbox"],
-    },
-    {
-        id: "s5",
-        fileName: "ending_route_a.narrrail.yaml",
-        extension: ".yaml",
-        path: "Stories/Ending/ending_route_a.narrrail.yaml",
-        storyId: "ending_route_a",
-        size: 9688,
-        updatedAt: "2026-04-12T01:03:00Z",
-        tags: ["Ending", "RouteA"],
-    },
-];
+const DEFAULT_MOCK_SCRIPTS = [];
 
 const mockScripts = ref([...DEFAULT_MOCK_SCRIPTS]);
 const repoOptions = ref([]);
@@ -738,9 +687,21 @@ function loadScriptListFromStorage() {
         const raw = localStorage.getItem(SCRIPT_LIST_STORAGE_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-            mockScripts.value = parsed;
-        }
+        if (!Array.isArray(parsed)) return;
+
+        const legacyPresetNames = new Set([
+            "chapter_01_intro.narrrail.yaml",
+            "chapter_01_choice.narrrail.yaml",
+            "affinity_demo.narrrail.yaml",
+            "new_story_temp.narrrail.yml",
+            "ending_route_a.narrrail.yaml",
+        ]);
+
+        const filtered = parsed.filter(
+            (item) => !legacyPresetNames.has(String(item?.fileName || "")),
+        );
+
+        mockScripts.value = filtered;
     } catch {
         // ignore invalid local data
     }

@@ -1,7 +1,9 @@
 import { githubFetchJson, requireGithubToken } from "../auth/_github.js";
 
 function normalizePath(path) {
-  return String(path || "").trim().replace(/^\/+/, "");
+  return String(path || "")
+    .trim()
+    .replace(/^\/+/, "");
 }
 
 export default async function handler(req, res) {
@@ -29,8 +31,17 @@ export default async function handler(req, res) {
       const url = new URL(
         `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
       );
-      const treeData = await githubFetchJson(url.toString(), accessToken);
-      const tree = Array.isArray(treeData?.tree) ? treeData.tree : [];
+      let tree = [];
+      try {
+        const treeData = await githubFetchJson(url.toString(), accessToken);
+        tree = Array.isArray(treeData?.tree) ? treeData.tree : [];
+      } catch (error) {
+        if (error?.status === 409) {
+          res.status(200).json({ files: [] });
+          return;
+        }
+        throw error;
+      }
 
       const files = tree
         .filter((item) => item?.type === "blob")
@@ -52,8 +63,13 @@ export default async function handler(req, res) {
           id: item.path,
           path: item.path,
           fileName: item.path.split("/").pop(),
-          extension: item.path.toLowerCase().endsWith(".yml") ? ".yml" : ".yaml",
-          storyId: (item.path.split("/").pop() || "").replace(/\.narrrail\.ya?ml$/i, ""),
+          extension: item.path.toLowerCase().endsWith(".yml")
+            ? ".yml"
+            : ".yaml",
+          storyId: (item.path.split("/").pop() || "").replace(
+            /\.narrrail\.ya?ml$/i,
+            "",
+          ),
           size: item.size,
           updatedAt: null,
           tags: ["GitHub"],
