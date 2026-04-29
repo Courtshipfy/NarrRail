@@ -125,18 +125,6 @@
                     <span class="config-file-chip">{{
                         globalConfigFileName
                     }}</span>
-                    <button
-                        class="btn secondary small"
-                        @click="importGlobalConfigYaml"
-                    >
-                        导入 YAML
-                    </button>
-                    <button
-                        class="btn primary small"
-                        @click="exportGlobalConfigYaml"
-                    >
-                        导出 YAML
-                    </button>
                 </div>
             </div>
 
@@ -145,10 +133,16 @@
                     <div class="config-card-head">
                         <h3>全局变量</h3>
                         <button
-                            class="btn secondary small"
+                            class="icon-btn add"
                             @click="showAddVariableForm = !showAddVariableForm"
+                            :title="showAddVariableForm ? '收起' : '添加变量'"
+                            :aria-label="
+                                showAddVariableForm
+                                    ? '收起添加变量表单'
+                                    : '添加变量'
+                            "
                         >
-                            {{ showAddVariableForm ? "收起" : "添加变量" }}
+                            +
                         </button>
                     </div>
 
@@ -164,10 +158,12 @@
                                 <span>{{ formatVariableValue(variable) }}</span>
                             </div>
                             <button
-                                class="btn danger tiny"
+                                class="icon-btn danger"
                                 @click="removeVariable(index)"
+                                title="删除变量"
+                                aria-label="删除变量"
                             >
-                                删除
+                                ×
                             </button>
                         </div>
                     </div>
@@ -233,10 +229,16 @@
                     <div class="config-card-head">
                         <h3>预设说话人</h3>
                         <button
-                            class="btn secondary small"
+                            class="icon-btn add"
                             @click="showAddSpeakerForm = !showAddSpeakerForm"
+                            :title="showAddSpeakerForm ? '收起' : '添加说话人'"
+                            :aria-label="
+                                showAddSpeakerForm
+                                    ? '收起添加说话人表单'
+                                    : '添加说话人'
+                            "
                         >
-                            {{ showAddSpeakerForm ? "收起" : "添加说话人" }}
+                            +
                         </button>
                     </div>
 
@@ -252,10 +254,12 @@
                                 }}</strong>
                             </div>
                             <button
-                                class="btn danger tiny"
+                                class="icon-btn danger"
                                 @click="removeSpeaker(index)"
+                                title="删除说话人"
+                                aria-label="删除说话人"
                             >
-                                删除
+                                ×
                             </button>
                         </div>
                     </div>
@@ -336,24 +340,12 @@
                 <p>请调整搜索条件后重试。</p>
             </div>
         </main>
-
-        <input
-            ref="globalConfigFileInput"
-            type="file"
-            accept=".yaml,.yml"
-            style="display: none"
-            @change="handleGlobalConfigFileChange"
-        />
     </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import {
-    downloadGlobalConfigYAML,
-    parseGlobalConfigFromYAML,
-    serializeGlobalConfigToYAML,
-} from "../utils/global-config-yaml.js";
+import { serializeGlobalConfigToYAML } from "../utils/global-config-yaml.js";
 
 const props = defineProps({
     isDarkMode: {
@@ -390,7 +382,6 @@ const sortBy = ref("updatedDesc");
 
 const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
-const globalConfigFileInput = ref(null);
 const globalConfigFileName = "global-config.narrrail.yaml";
 const REPO_GLOBAL_CONFIG_PATH = globalConfigFileName;
 const globalConfigRepoSha = ref("");
@@ -584,16 +575,6 @@ function formatVariableValue(variable) {
     return `"${variable.stringValue ?? ""}"`;
 }
 
-function exportGlobalConfigYaml() {
-    downloadGlobalConfigYAML(
-        {
-            variables: props.variables,
-            presetSpeakers: props.presetSpeakers,
-        },
-        globalConfigFileName,
-    );
-}
-
 function hasSelectedGithubRepo() {
     return (
         !usingMockData.value &&
@@ -646,38 +627,6 @@ async function syncGlobalConfigToRepo(overrideConfig = null) {
     } finally {
         isSyncingGlobalConfig.value = false;
     }
-}
-
-function importGlobalConfigYaml() {
-    globalConfigFileInput.value?.click();
-}
-
-async function handleGlobalConfigFileChange(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const parsed = parseGlobalConfigFromYAML(
-                String(e.target?.result || ""),
-            );
-            const nextVariables = parsed.variables || [];
-            const nextSpeakers = parsed.presetSpeakers || [];
-            emit("update-variables", nextVariables);
-            emit("update-speakers", nextSpeakers);
-            syncGlobalConfigToRepo({
-                variables: nextVariables,
-                presetSpeakers: nextSpeakers,
-            });
-            alert("全局配置导入成功");
-        } catch (error) {
-            alert(`全局配置导入失败: ${error.message}`);
-        }
-    };
-
-    reader.readAsText(file);
-    event.target.value = "";
 }
 
 function openScript(script) {
@@ -1159,6 +1108,39 @@ watch(
 .config-card-head h3 {
     margin: 0;
     font-size: 14px;
+}
+
+.icon-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
+    background: color-mix(in srgb, var(--nr-bg) 72%, #ffffff 28%);
+    color: var(--nr-text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.icon-btn:hover {
+    transform: translateY(-1px);
+}
+
+.icon-btn.add {
+    color: #4f46e5;
+    border-color: color-mix(in srgb, #6366f1 42%, transparent);
+    background: color-mix(in srgb, #6366f1 16%, transparent);
+}
+
+.icon-btn.danger {
+    color: #dc2626;
+    border-color: color-mix(in srgb, #ef4444 46%, transparent);
+    background: color-mix(in srgb, #ef4444 16%, transparent);
 }
 
 .config-list {
