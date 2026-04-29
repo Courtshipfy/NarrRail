@@ -803,13 +803,26 @@ function handleEdgeClick(event) {
     applyEdgeVisualStyles();
 }
 
-function handleNodesChange(event) {
-    const nextNodes = Array.isArray(event.detail) ? event.detail : [];
-    if (!isDeepEqual(nextNodes, nodes.value)) {
+function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
+    const nextNodes = Array.isArray(nextNodesInput) ? nextNodesInput : [];
+    const nextEdgesRaw = Array.isArray(nextEdgesInput) ? nextEdgesInput : [];
+    const sanitizedEdges = sanitizeEdges(nextEdgesRaw, nextNodes);
+
+    const shouldUpdateNodes = !isDeepEqual(nextNodes, nodes.value);
+    const shouldUpdateEdges = !isDeepEqual(sanitizedEdges, edges.value);
+
+    if (shouldUpdateNodes || shouldUpdateEdges) {
         if (!isNodeDragInProgress.value) {
             pushHistorySnapshot();
         }
-        nodes.value = safeClone(nextNodes);
+
+        if (shouldUpdateNodes) {
+            nodes.value = safeClone(nextNodes);
+        }
+
+        if (shouldUpdateEdges) {
+            edges.value = safeClone(sanitizedEdges);
+        }
     }
 
     if (selectedNode.value) {
@@ -832,25 +845,19 @@ function handleNodesChange(event) {
     applyEdgeVisualStyles();
 }
 
+function handleNodesChange(event) {
+    const nextNodes = Array.isArray(event.detail) ? event.detail : [];
+    applyGraphStateSnapshot(nextNodes, edges.value);
+}
+
 function handleEdgesChange(event) {
     const incomingEdges = Array.isArray(event.detail) ? event.detail : [];
-    const sanitized = sanitizeEdges(incomingEdges);
-    if (!isDeepEqual(sanitized, edges.value)) {
-        pushHistorySnapshot();
-        edges.value = safeClone(sanitized);
-    }
+    applyGraphStateSnapshot(nodes.value, incomingEdges);
+}
 
-    if (selectedEdge.value) {
-        const latestEdge = edges.value.find(
-            (e) => e.id === selectedEdge.value.id,
-        );
-        selectedEdge.value = latestEdge
-            ? normalizeEdge(safeClone(latestEdge))
-            : null;
-        syncEdgeDraftFromSelection();
-    }
-
-    applyEdgeVisualStyles();
+function handleGraphStateChange(event) {
+    const detail = event?.detail || {};
+    applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
 }
 
 function buildLayers(nodesInput, edgesInput, entryNodeId) {
@@ -1290,6 +1297,7 @@ onMounted(() => {
     window.addEventListener("edge-click", handleEdgeClick);
     window.addEventListener("nodes-change", handleNodesChange);
     window.addEventListener("edges-change", handleEdgesChange);
+    window.addEventListener("graph-state-change", handleGraphStateChange);
     window.addEventListener("node-drag-start", handleNodeDragStart);
     window.addEventListener("node-drag-stop", handleNodeDragStop);
     window.addEventListener("keydown", handleGlobalKeyDown);
@@ -1309,6 +1317,7 @@ onUnmounted(() => {
     window.removeEventListener("edge-click", handleEdgeClick);
     window.removeEventListener("nodes-change", handleNodesChange);
     window.removeEventListener("edges-change", handleEdgesChange);
+    window.removeEventListener("graph-state-change", handleGraphStateChange);
     window.removeEventListener("node-drag-start", handleNodeDragStart);
     window.removeEventListener("node-drag-stop", handleNodeDragStop);
     window.removeEventListener("keydown", handleGlobalKeyDown);

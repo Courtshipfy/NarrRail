@@ -1,5 +1,5 @@
 <script>
-  import { writable } from 'svelte/store';
+  import { get, writable } from 'svelte/store';
   import { onMount } from 'svelte';
   import { SvelteFlow, Controls, Background } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
@@ -23,7 +23,7 @@
   let selectedEdges = [];
   let currentEdgeType = 'straight';
   let isNodeDragging = false;
-  let suppressNodeClickUntil = 0;
+  let ignoreNextNodeClickAfterDrag = false;
   let pendingNodesDispatch = null;
   let pendingEdgesDispatch = null;
   let dispatchTimer = null;
@@ -38,6 +38,9 @@
     if (dispatchTimer) return;
 
     dispatchTimer = setTimeout(() => {
+      const nextNodes = pendingNodesDispatch || get(nodesStore);
+      const nextEdges = pendingEdgesDispatch || get(edgesStore);
+
       if (pendingNodesDispatch) {
         const nodeEvent = new CustomEvent('nodes-change', { detail: pendingNodesDispatch });
         window.dispatchEvent(nodeEvent);
@@ -47,6 +50,14 @@
         const edgeEvent = new CustomEvent('edges-change', { detail: pendingEdgesDispatch });
         window.dispatchEvent(edgeEvent);
       }
+
+      const graphEvent = new CustomEvent('graph-state-change', {
+        detail: {
+          nodes: nextNodes,
+          edges: nextEdges
+        }
+      });
+      window.dispatchEvent(graphEvent);
 
       pendingNodesDispatch = null;
       pendingEdgesDispatch = null;
@@ -213,16 +224,8 @@
       changes.forEach(change => {
         if (change.type === 'remove') {
           updated = updated.filter(e => e.id !== change.id);
-        } else if (change.type === 'add') {
-          // 新增边 - 确保样式正确
-          const newEdge = {
-            ...change.item,
-            type: currentEdgeType,
-            animated: false,
-            style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;'
-          };
-          updated.push(newEdge);
         }
+        // add 类型由 handleConnect 统一处理，避免重复新增导致边信息不同步
       });
 
       scheduleDispatch('edges-change', updated);
@@ -231,11 +234,19 @@
   }
 
   // 处理连接
-  function handleConnect(connection) {
+  function handleConnect(connectionOrEvent) {
+    const payload = connectionOrEvent?.detail || connectionOrEvent || {};
+
+    if (!payload.source || !payload.target) {
+      return;
+    }
+
     const newEdge = {
       id: `e${Date.now()}`,
-      source: connection.source,
-      target: connection.target,
+      source: payload.source,
+      sourceHandle: payload.sourceHandle || undefined,
+      target: payload.target,
+      targetHandle: payload.targetHandle || undefined,
       type: currentEdgeType,
       animated: false,
       style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
@@ -256,7 +267,7 @@
   function handleNodeDragStop(event) {
     if (isNodeDragging) {
       isNodeDragging = false;
-      suppressNodeClickUntil = Date.now() + 180;
+      ignoreNextNodeClickAfterDrag = true;
       const dragStopEvent = new CustomEvent('node-drag-stop');
       window.dispatchEvent(dragStopEvent);
     }
@@ -274,7 +285,8 @@
 
   // 处理节点点击
   function handleNodeClick(event) {
-    if (Date.now() < suppressNodeClickUntil) {
+    if (ignoreNextNodeClickAfterDrag) {
+      ignoreNextNodeClickAfterDrag = false;
       return;
     }
 
