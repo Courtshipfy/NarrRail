@@ -252,7 +252,6 @@
                             {{ script.fileName }}
                         </button>
                     </h3>
-                    <span class="ext">{{ script.extension }}</span>
                 </div>
 
                 <p class="path">{{ script.path }}</p>
@@ -867,16 +866,6 @@ function formatDate(iso) {
     font-size: 15px;
     line-height: 1.3;
     word-break: break-all;
-}
-
-.ext {
-    font-size: 11px;
-    color: #93c5fd;
-    background: rgba(37, 99, 235, 0.2);
-    border: 1px solid rgba(37, 99, 235, 0.5);
-    border-radius: 999px;
-    padding: 2px 8px;
-    white-space: nowrap;
 }
 
 .path {
