@@ -61,6 +61,12 @@
 
     // 添加键盘删除功能
     const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && contextMenu.show) {
+        closeContextMenu();
+        event.preventDefault();
+        return;
+      }
+
       if (event.key === 'Delete' || event.key === 'Backspace') {
         // 检查焦点是否在输入框、文本域或可编辑元素上
         const activeElement = document.activeElement;
@@ -290,6 +296,7 @@
 
   // 处理画布点击（空白处）
   function handlePaneClick(event) {
+    closeContextMenu();
     selectedNodes = [];
     selectedEdges = [];
     // 点击空白处，取消选中
@@ -302,14 +309,19 @@
   // 处理画布右键
   function handlePaneContextMenu(event) {
     event.preventDefault();
-    const bounds = event.target.getBoundingClientRect();
+    const pane = document.querySelector('.svelte-flow__pane');
+    const bounds = pane?.getBoundingClientRect();
+
+    const x = event.clientX;
+    const y = event.clientY;
+
     contextMenu = {
       show: true,
-      x: event.clientX,
-      y: event.clientY,
+      x,
+      y,
       position: {
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top
+        x: bounds ? x - bounds.left : x,
+        y: bounds ? y - bounds.top : y
       }
     };
   }
@@ -361,9 +373,10 @@
   function closeContextMenu() {
     contextMenu.show = false;
   }
+
 </script>
 
-<div class="graph-editor" on:contextmenu={handlePaneContextMenu} on:click={closeContextMenu}>
+<div class="graph-editor">
   <SvelteFlow
     nodes={nodesStore}
     edges={edgesStore}
@@ -374,6 +387,7 @@
     on:nodeclick={handleNodeClick}
     on:edgeclick={handleEdgeClick}
     on:paneclick={handlePaneClick}
+    on:panecontextmenu={handlePaneContextMenu}
     on:nodedragstop={handleNodeDragStop}
     on:edgeupdate={handleEdgeUpdate}
     on:edgeupdatestart={handleEdgeUpdateStart}
