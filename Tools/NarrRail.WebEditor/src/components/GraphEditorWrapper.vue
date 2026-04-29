@@ -29,11 +29,6 @@ const container = ref(null);
 let svelteInstance = null;
 
 onMounted(() => {
-    console.log("GraphEditorWrapper mounted");
-    console.log("Container:", container.value);
-    console.log("Props nodes:", props.nodes);
-    console.log("Props edges:", props.edges);
-
     if (container.value) {
         try {
             svelteInstance = new GraphEditorComponent({
@@ -45,7 +40,6 @@ onMounted(() => {
                     presetSpeakers: props.presetSpeakers,
                 },
             });
-            console.log("Svelte instance created:", svelteInstance);
         } catch (error) {
             console.error("Error creating Svelte instance:", error);
         }

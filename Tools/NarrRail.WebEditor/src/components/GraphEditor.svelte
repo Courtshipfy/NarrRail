@@ -19,11 +19,26 @@
   const nodesStore = writable([]);
   const edgesStore = writable([]);
   let contextMenu = { show: false, x: 0, y: 0, position: { x: 0, y: 0 } };
+  let contextMenuRef = null;
   let selectedNodes = [];
   let selectedEdges = [];
   let currentEdgeType = 'straight';
   let isNodeDragging = false;
-  let ignoreNextNodeClickAfterDrag = false;
+  let suppressNodeClickUntil = 0;
+  let pointerDownPos = null;
+  let didMoveDuringPointerGesture = false;
+  let dragGestureResetTimer = null;
+  const DRAG_GESTURE_THRESHOLD_PX = 4;
+
+  function clearSelectionFromFallback() {
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+    selectedNodes = [];
+    selectedEdges = [];
+    const nodeEvent = new CustomEvent('node-click', { detail: null });
+    window.dispatchEvent(nodeEvent);
+    const edgeEvent = new CustomEvent('edge-click', { detail: null });
+    window.dispatchEvent(edgeEvent);
+  }
   let pendingNodesDispatch = null;
   let pendingEdgesDispatch = null;
   let dispatchTimer = null;
@@ -131,10 +146,85 @@
       }
     };
 
+    const handlePointerDown = (event) => {
+      if (event.button === 0) {
+        pointerDownPos = { x: event.clientX, y: event.clientY };
+        didMoveDuringPointerGesture = false;
+      }
+
+
+      const target = event.target;
+      const isElementTarget = target instanceof Element;
+      const isInsideNode = isElementTarget && !!target.closest('.svelte-flow__node');
+      const isInsideEdge = isElementTarget && !!target.closest('.svelte-flow__edge');
+      const isInsideHandle = isElementTarget && !!target.closest('.svelte-flow__handle');
+      const isInsideContextMenu =
+        isElementTarget && contextMenuRef && typeof contextMenuRef.contains === 'function'
+          ? contextMenuRef.contains(target)
+          : false;
+
+      if (
+        event.button === 0 &&
+        !isInsideNode &&
+        !isInsideEdge &&
+        !isInsideHandle &&
+        !isInsideContextMenu
+      ) {
+        clearSelectionFromFallback();
+      }
+
+      if (!contextMenu.show) return;
+      if (event.button === 2) return;
+
+      if (isInsideContextMenu) {
+        return;
+      }
+
+      closeContextMenu();
+    };
+
+    const handlePointerMove = (event) => {
+      if (!pointerDownPos || didMoveDuringPointerGesture) return;
+      const dx = Math.abs(event.clientX - pointerDownPos.x);
+      const dy = Math.abs(event.clientY - pointerDownPos.y);
+      if (dx >= DRAG_GESTURE_THRESHOLD_PX || dy >= DRAG_GESTURE_THRESHOLD_PX) {
+        didMoveDuringPointerGesture = true;
+
+      }
+    };
+
+    const handlePointerUp = (event) => {
+
+      pointerDownPos = null;
+
+      if (dragGestureResetTimer) {
+        clearTimeout(dragGestureResetTimer);
+        dragGestureResetTimer = null;
+      }
+
+      if (didMoveDuringPointerGesture) {
+        dragGestureResetTimer = setTimeout(() => {
+          didMoveDuringPointerGesture = false;
+          dragGestureResetTimer = null;
+
+        }, 450);
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    window.addEventListener('pointermove', handlePointerMove, true);
+    window.addEventListener('pointerup', handlePointerUp, true);
 
     return () => {
+      if (dragGestureResetTimer) {
+        clearTimeout(dragGestureResetTimer);
+        dragGestureResetTimer = null;
+      }
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+      window.removeEventListener('pointermove', handlePointerMove, true);
+      window.removeEventListener('pointerup', handlePointerUp, true);
     };
   });
 
@@ -177,6 +267,7 @@
     );
     if (hasDraggingPositionChange && !isNodeDragging) {
       isNodeDragging = true;
+
       const dragStartEvent = new CustomEvent('node-drag-start');
       window.dispatchEvent(dragStartEvent);
     }
@@ -267,7 +358,8 @@
   function handleNodeDragStop(event) {
     if (isNodeDragging) {
       isNodeDragging = false;
-      ignoreNextNodeClickAfterDrag = true;
+      suppressNodeClickUntil = Date.now() + 220;
+
       const dragStopEvent = new CustomEvent('node-drag-stop');
       window.dispatchEvent(dragStopEvent);
     }
@@ -285,12 +377,20 @@
 
   // 处理节点点击
   function handleNodeClick(event) {
-    if (ignoreNextNodeClickAfterDrag) {
-      ignoreNextNodeClickAfterDrag = false;
+    const node = event?.detail?.node;
+
+    if (didMoveDuringPointerGesture) {
+      didMoveDuringPointerGesture = false;
+      if (dragGestureResetTimer) {
+        clearTimeout(dragGestureResetTimer);
+        dragGestureResetTimer = null;
+      }
       return;
     }
 
-    const node = event.detail.node;
+    if (Date.now() < suppressNodeClickUntil) {
+      return;
+    }
     selectedNodes = [node];
     selectedEdges = [];
     const customEvent = new CustomEvent('node-click', { detail: node });
@@ -429,7 +529,7 @@
   </SvelteFlow>
 
   {#if contextMenu.show}
-    <div class="context-menu" style="left: {contextMenu.x}px; top: {contextMenu.y}px;">
+    <div bind:this={contextMenuRef} class="context-menu" style="left: {contextMenu.x}px; top: {contextMenu.y}px;">
       <div class="context-menu-header">添加节点</div>
       <button class="context-menu-item" on:click={() => createNode('dialogue')}>
         <span class="material-symbols-outlined">chat</span>
