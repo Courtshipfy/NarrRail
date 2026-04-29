@@ -13,6 +13,28 @@
 
             <div class="top-actions">
                 <span class="status-badge mock">Mock Repository</span>
+
+                <span
+                    v-if="authState?.authenticated"
+                    class="status-badge auth-ok"
+                    :title="authState.user?.login || ''"
+                >
+                    {{ authState.user?.login || "GitHub 已登录" }}
+                </span>
+                <span v-else class="status-badge auth-off">未登录</span>
+
+                <button
+                    v-if="!authState?.authenticated"
+                    class="btn secondary"
+                    @click="emit('login-github')"
+                    :disabled="authState?.loading"
+                >
+                    {{ authState?.loading ? "检查登录中..." : "GitHub 登录" }}
+                </button>
+                <button v-else class="btn secondary" @click="emit('logout')">
+                    退出登录
+                </button>
+
                 <button class="btn secondary" @click="emit('toggle-theme')">
                     {{ isDarkMode ? "切换浅色" : "切换深色" }}
                 </button>
@@ -312,6 +334,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    authState: {
+        type: Object,
+        default: () => ({ loading: false, authenticated: false, user: null }),
+    },
 });
 
 const emit = defineEmits([
@@ -320,6 +346,8 @@ const emit = defineEmits([
     "toggle-theme",
     "update-variables",
     "update-speakers",
+    "login-github",
+    "logout",
 ]);
 
 const keyword = ref("");
@@ -660,6 +688,18 @@ function formatDate(iso) {
     color: #92400e;
     background: rgba(217, 119, 6, 0.16);
     border-color: rgba(217, 119, 6, 0.35);
+}
+
+.status-badge.auth-ok {
+    color: #166534;
+    background: rgba(34, 197, 94, 0.16);
+    border-color: rgba(34, 197, 94, 0.38);
+}
+
+.status-badge.auth-off {
+    color: #9f1239;
+    background: rgba(244, 63, 94, 0.16);
+    border-color: rgba(244, 63, 94, 0.36);
 }
 
 .filters {

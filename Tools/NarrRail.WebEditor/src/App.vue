@@ -4,11 +4,14 @@
         :is-dark-mode="darkModeEnabled"
         :variables="variables"
         :preset-speakers="presetSpeakers"
+        :auth-state="authState"
         @toggle-theme="handleToggleDarkMode"
         @open-script="handleOpenScriptFromLibrary"
         @open-empty="handleOpenEmptyEditor"
         @update-variables="handleVariablesUpdate"
         @update-speakers="handlePresetSpeakersUpdate"
+        @login-github="handleLoginGithub"
+        @logout="handleLogout"
     />
 
     <div v-else class="editor-container">
@@ -288,6 +291,12 @@ const focusModeEnabled = ref(false);
 const darkModeEnabled = ref(false);
 const edgeRenderMode = ref("straight");
 const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
+
+const authState = ref({
+    loading: false,
+    authenticated: false,
+    user: null,
+});
 
 const currentView = ref("library");
 const selectedScriptEntry = ref(null);
@@ -1087,6 +1096,46 @@ function handleToggleDarkMode() {
     persistDarkModePreference();
 }
 
+function handleLoginGithub() {
+    window.location.href = "/api/auth/github-start";
+}
+
+async function fetchAuthState() {
+    authState.value.loading = true;
+    try {
+        const response = await fetch("/api/auth/me", {
+            method: "GET",
+            credentials: "include",
+        });
+
+        const data = await response.json();
+        authState.value = {
+            loading: false,
+            authenticated: !!data?.authenticated,
+            user: data?.user || null,
+        };
+    } catch {
+        authState.value = {
+            loading: false,
+            authenticated: false,
+            user: null,
+        };
+    }
+}
+
+async function handleLogout() {
+    try {
+        await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+        });
+    } catch {
+        // ignore and refresh auth state anyway
+    }
+
+    await fetchAuthState();
+}
+
 function handleToggleEdgeRenderMode() {
     edgeRenderMode.value =
         edgeRenderMode.value === "straight" ? "bezier" : "straight";
@@ -1169,6 +1218,7 @@ function handleGlobalKeyDown(event) {
 
 onMounted(() => {
     loadDarkModePreference();
+    fetchAuthState();
 
     window.addEventListener("node-click", handleNodeClick);
     window.addEventListener("edge-click", handleEdgeClick);
