@@ -5,12 +5,14 @@ import {
   getRequiredEnv,
   parseStateFromCookie,
 } from "./_oauth.js";
-import {
-  buildSetSessionCookie,
-  createSessionCookieValue,
-} from "./_session.js";
+import { buildSetSessionCookie, createSessionCookieValue } from "./_session.js";
 
-async function exchangeCodeForToken({ code, redirectUri, clientId, clientSecret }) {
+async function exchangeCodeForToken({
+  code,
+  redirectUri,
+  clientId,
+  clientSecret,
+}) {
   const response = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: {
@@ -27,7 +29,9 @@ async function exchangeCodeForToken({ code, redirectUri, clientId, clientSecret 
 
   const data = await response.json();
   if (!response.ok || !data.access_token) {
-    throw new Error(data.error_description || "Failed to exchange code for token");
+    throw new Error(
+      data.error_description || "Failed to exchange code for token",
+    );
   }
 
   return data.access_token;
@@ -70,7 +74,9 @@ export default async function handler(req, res) {
     const clientSecret = getRequiredEnv("GITHUB_CLIENT_SECRET");
 
     const appBaseUrl = getAppBaseUrl(req);
-    const redirectUri = process.env.GITHUB_REDIRECT_URI || `${appBaseUrl}/api/auth/github-callback`;
+    const redirectUri =
+      process.env.GITHUB_REDIRECT_URI ||
+      `${appBaseUrl}/api/auth/github-callback`;
 
     const accessToken = await exchangeCodeForToken({
       code,
@@ -84,10 +90,13 @@ export default async function handler(req, res) {
     const session = {
       user,
       provider: "github",
+      accessToken,
       issuedAt: new Date().toISOString(),
     };
 
-    const sessionCookie = buildSetSessionCookie(createSessionCookieValue(session));
+    const sessionCookie = buildSetSessionCookie(
+      createSessionCookieValue(session),
+    );
     const clearStateCookie = buildClearStateCookie();
 
     const redirectTo = new URL(getFrontendRedirectUrl(req));

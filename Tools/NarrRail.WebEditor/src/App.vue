@@ -300,6 +300,7 @@ const authState = ref({
 
 const currentView = ref("library");
 const selectedScriptEntry = ref(null);
+const selectedGithubFileContext = ref(null);
 
 const undoStack = ref([]);
 const redoStack = ref([]);
@@ -1151,8 +1152,72 @@ function handleOpenEmptyEditor() {
     currentView.value = "editor";
 }
 
-function handleOpenScriptFromLibrary(scriptEntry) {
+async function handleOpenScriptFromLibrary(scriptEntry) {
     selectedScriptEntry.value = safeClone(scriptEntry || null);
+
+    if (
+        scriptEntry?.source === "github" &&
+        scriptEntry?.owner &&
+        scriptEntry?.repo &&
+        scriptEntry?.path
+    ) {
+        try {
+            const url = new URL(
+                window.location.origin + "/api/github/file-content",
+            );
+            url.searchParams.set("owner", scriptEntry.owner);
+            url.searchParams.set("repo", scriptEntry.repo);
+            url.searchParams.set("branch", scriptEntry.branch || "main");
+            url.searchParams.set("path", scriptEntry.path);
+
+            const response = await fetch(url.toString(), {
+                method: "GET",
+                credentials: "include",
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || "读取脚本内容失败");
+            }
+
+            const imported = importFromYAML(String(data?.content || ""));
+            const importedNodes = safeClone(imported.nodes || []);
+            const importedEdges = safeClone(
+                sanitizeEdges(imported.edges || [], importedNodes),
+            );
+
+            pushHistorySnapshot();
+            nodes.value = importedNodes;
+            edges.value = importedEdges;
+            storyMeta.value = {
+                schemaVersion: imported.meta?.schemaVersion ?? 1,
+                storyId:
+                    imported.meta?.storyId ||
+                    scriptEntry.storyId ||
+                    "ImportedStory",
+                entryNodeId: imported.meta?.entryNodeId || "",
+            };
+            variables.value = safeClone(imported.variables || []);
+            selectedNode.value = null;
+            selectedEdge.value = null;
+
+            selectedGithubFileContext.value = {
+                owner: scriptEntry.owner,
+                repo: scriptEntry.repo,
+                branch: scriptEntry.branch || "main",
+                path: scriptEntry.path,
+                sha: data?.sha || "",
+            };
+
+            handleAutoLayout();
+            scheduleRealtimeValidation();
+            applyEdgeVisualStyles();
+            currentView.value = "editor";
+            return;
+        } catch (error) {
+            alert(`打开 GitHub 脚本失败: ${error.message}`);
+            return;
+        }
+    }
 
     if (scriptEntry?.storyId) {
         storyMeta.value = {

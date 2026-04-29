@@ -5,14 +5,19 @@
                 <div class="logo">NR</div>
                 <div class="title-wrap">
                     <h1>NarrRail Script Library</h1>
-                    <p class="subtitle">
-                        从仓库脚本列表中选择并进入编辑器（当前为 Mock 数据）
-                    </p>
+                    <p class="subtitle">从 GitHub 仓库读取脚本并进入编辑器</p>
                 </div>
             </div>
 
             <div class="top-actions">
-                <span class="status-badge mock">Mock Repository</span>
+                <span
+                    class="status-badge"
+                    :class="usingMockData ? 'mock' : 'auth-ok'"
+                >
+                    {{
+                        usingMockData ? "Mock Repository" : "GitHub Repository"
+                    }}
+                </span>
 
                 <span
                     v-if="authState?.authenticated"
@@ -38,6 +43,9 @@
                 <button class="btn secondary" @click="emit('toggle-theme')">
                     {{ isDarkMode ? "切换浅色" : "切换深色" }}
                 </button>
+                <button class="btn secondary" @click="createNewScript">
+                    新建脚本
+                </button>
                 <button class="btn secondary" @click="emit('open-empty')">
                     空白进入编辑器
                 </button>
@@ -45,6 +53,23 @@
         </header>
 
         <section class="filters glass-morphism">
+            <div class="field">
+                <label>仓库</label>
+                <select
+                    v-model="selectedRepoFullName"
+                    :disabled="!authState?.authenticated || loadingRepos"
+                >
+                    <option value="">请选择仓库</option>
+                    <option
+                        v-for="repo in repoOptions"
+                        :key="repo.fullName"
+                        :value="repo.fullName"
+                    >
+                        {{ repo.fullName }}
+                    </option>
+                </select>
+            </div>
+
             <div class="field">
                 <label>搜索脚本</label>
                 <input
@@ -79,6 +104,14 @@
 
             <div class="summary">
                 共 <strong>{{ filteredScripts.length }}</strong> 个脚本
+                <button
+                    v-if="authState?.authenticated"
+                    class="btn secondary tiny"
+                    @click="reloadScriptsFromRepo"
+                    :disabled="loadingScripts || !selectedRepoFullName"
+                >
+                    {{ loadingScripts ? "读取中..." : "刷新仓库" }}
+                </button>
             </div>
         </section>
 
@@ -315,7 +348,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import {
     downloadGlobalConfigYAML,
     parseGlobalConfigFromYAML,
@@ -373,7 +406,10 @@ const newSpeaker = reactive({
     displayName: "",
 });
 
-const mockScripts = ref([
+const SCRIPT_LIST_STORAGE_KEY = "narrrail_mock_script_list";
+const REPO_SELECTION_STORAGE_KEY = "narrrail_selected_repo";
+
+const DEFAULT_MOCK_SCRIPTS = [
     {
         id: "s1",
         fileName: "chapter_01_intro.narrrail.yaml",
@@ -424,7 +460,14 @@ const mockScripts = ref([
         updatedAt: "2026-04-12T01:03:00Z",
         tags: ["Ending", "RouteA"],
     },
-]);
+];
+
+const mockScripts = ref([...DEFAULT_MOCK_SCRIPTS]);
+const repoOptions = ref([]);
+const selectedRepoFullName = ref("");
+const loadingRepos = ref(false);
+const loadingScripts = ref(false);
+const usingMockData = ref(true);
 
 const folders = computed(() => {
     const set = new Set(
@@ -612,8 +655,176 @@ function openScript(script) {
         storyId: script.storyId,
         fileName: script.fileName,
         path: script.path,
-        source: "mock-repository",
+        source:
+            script.source ||
+            (usingMockData.value ? "mock-repository" : "github"),
+        owner: script.owner || selectedOwner.value,
+        repo: script.repo || selectedRepoName.value,
+        branch: script.branch || selectedRepoBranch.value,
     });
+}
+
+const selectedRepo = computed(
+    () =>
+        repoOptions.value.find(
+            (r) => r.fullName === selectedRepoFullName.value,
+        ) || null,
+);
+
+const selectedOwner = computed(() => selectedRepo.value?.owner || "");
+const selectedRepoName = computed(() => selectedRepo.value?.name || "");
+const selectedRepoBranch = computed(
+    () => selectedRepo.value?.defaultBranch || "main",
+);
+
+async function loadRepos() {
+    if (!props.authState?.authenticated) return;
+    loadingRepos.value = true;
+    try {
+        const res = await fetch("/api/github/repos", {
+            method: "GET",
+            credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "加载仓库失败");
+
+        repoOptions.value = Array.isArray(data?.repos) ? data.repos : [];
+
+        const cached = localStorage.getItem(REPO_SELECTION_STORAGE_KEY) || "";
+        const matched = repoOptions.value.some((r) => r.fullName === cached);
+        if (matched) {
+            selectedRepoFullName.value = cached;
+        } else if (repoOptions.value.length > 0) {
+            selectedRepoFullName.value = repoOptions.value[0].fullName;
+        }
+    } catch (error) {
+        alert(`读取仓库列表失败: ${error.message}`);
+    } finally {
+        loadingRepos.value = false;
+    }
+}
+
+async function reloadScriptsFromRepo() {
+    if (!selectedOwner.value || !selectedRepoName.value) return;
+    loadingScripts.value = true;
+    try {
+        const url = new URL(
+            window.location.origin + "/api/github/file-content",
+        );
+        url.searchParams.set("mode", "list");
+        url.searchParams.set("owner", selectedOwner.value);
+        url.searchParams.set("repo", selectedRepoName.value);
+        url.searchParams.set("branch", selectedRepoBranch.value);
+
+        const res = await fetch(url.toString(), {
+            method: "GET",
+            credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "读取脚本列表失败");
+
+        const files = Array.isArray(data?.files) ? data.files : [];
+        mockScripts.value = files;
+        usingMockData.value = false;
+    } catch (error) {
+        alert(`读取仓库脚本失败: ${error.message}`);
+    } finally {
+        loadingScripts.value = false;
+    }
+}
+
+function loadScriptListFromStorage() {
+    try {
+        const raw = localStorage.getItem(SCRIPT_LIST_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            mockScripts.value = parsed;
+        }
+    } catch {
+        // ignore invalid local data
+    }
+}
+
+function saveScriptListToStorage() {
+    try {
+        localStorage.setItem(
+            SCRIPT_LIST_STORAGE_KEY,
+            JSON.stringify(mockScripts.value || []),
+        );
+    } catch {
+        // ignore storage failures
+    }
+}
+
+function buildNewStoryYaml(storyId) {
+    return `meta:\n  schemaVersion: 1\n  storyId: ${storyId}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
+}
+
+async function createNewScript() {
+    const baseName = prompt("请输入新脚本名称（不含扩展名）", "new_story");
+    if (!baseName) return;
+
+    const normalized = String(baseName)
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/[^a-zA-Z0-9_\-]/g, "_")
+        .toLowerCase();
+
+    if (!normalized) {
+        alert("脚本名称不能为空");
+        return;
+    }
+
+    const fileName = `${normalized}.narrrail.yaml`;
+    const existing = mockScripts.value.some((s) => s.fileName === fileName);
+    if (existing) {
+        alert("同名脚本已存在，请换一个名称");
+        return;
+    }
+
+    const createdPath = `Stories/Sandbox/${fileName}`;
+
+    if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
+        try {
+            const response = await fetch("/api/github/commit-file", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    owner: selectedOwner.value,
+                    repo: selectedRepoName.value,
+                    branch: selectedRepoBranch.value,
+                    path: createdPath,
+                    content: buildNewStoryYaml(normalized),
+                    message: `feat(script): create ${createdPath}`,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || "创建仓库脚本失败");
+            }
+            await reloadScriptsFromRepo();
+            return;
+        } catch (error) {
+            alert(`创建仓库脚本失败: ${error.message}`);
+            return;
+        }
+    }
+
+    const created = {
+        id: `s-${Date.now()}`,
+        fileName,
+        extension: ".yaml",
+        path: createdPath,
+        storyId: normalized,
+        size: 0,
+        updatedAt: new Date().toISOString(),
+        tags: ["New", "Sandbox"],
+        source: "mock-repository",
+    };
+
+    mockScripts.value = [created, ...mockScripts.value];
 }
 
 function formatSize(bytes) {
@@ -625,6 +836,52 @@ function formatSize(bytes) {
 function formatDate(iso) {
     return new Date(iso).toLocaleString();
 }
+
+onMounted(async () => {
+    loadScriptListFromStorage();
+    if (props.authState?.authenticated) {
+        await loadRepos();
+        if (selectedRepoFullName.value) {
+            await reloadScriptsFromRepo();
+        }
+    }
+});
+
+watch(
+    () => mockScripts.value,
+    () => {
+        if (usingMockData.value) saveScriptListToStorage();
+    },
+    { deep: true },
+);
+
+watch(
+    () => props.authState?.authenticated,
+    async (authed) => {
+        if (authed) {
+            await loadRepos();
+            if (selectedRepoFullName.value) {
+                await reloadScriptsFromRepo();
+            }
+        } else {
+            usingMockData.value = true;
+            repoOptions.value = [];
+            selectedRepoFullName.value = "";
+            loadScriptListFromStorage();
+        }
+    },
+);
+
+watch(
+    () => selectedRepoFullName.value,
+    async (fullName) => {
+        if (!fullName) return;
+        localStorage.setItem(REPO_SELECTION_STORAGE_KEY, fullName);
+        if (props.authState?.authenticated) {
+            await reloadScriptsFromRepo();
+        }
+    },
+);
 </script>
 
 <style scoped>
