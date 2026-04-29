@@ -155,6 +155,7 @@
 
       const target = event.target;
       const isElementTarget = target instanceof Element;
+      const isInsideGraphEditor = isElementTarget && !!target.closest('.graph-editor');
       const isInsideNode = isElementTarget && !!target.closest('.svelte-flow__node');
       const isInsideEdge = isElementTarget && !!target.closest('.svelte-flow__edge');
       const isInsideHandle = isElementTarget && !!target.closest('.svelte-flow__handle');
@@ -165,6 +166,7 @@
 
       if (
         event.button === 0 &&
+        isInsideGraphEditor &&
         !isInsideNode &&
         !isInsideEdge &&
         !isInsideHandle &&
