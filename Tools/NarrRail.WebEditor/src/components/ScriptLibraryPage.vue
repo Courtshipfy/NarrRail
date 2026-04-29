@@ -334,7 +334,10 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { serializeGlobalConfigToYAML } from "../utils/global-config-yaml.js";
+import {
+    parseGlobalConfigFromYAML,
+    serializeGlobalConfigToYAML,
+} from "../utils/global-config-yaml.js";
 
 const props = defineProps({
     isDarkMode: {
@@ -369,8 +372,14 @@ const selectedFolder = ref("all");
 
 const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
-const globalConfigFileName = "global-config.narrrail.yaml";
-const REPO_GLOBAL_CONFIG_PATH = globalConfigFileName;
+const GLOBAL_CONFIG_CANDIDATE_PATHS = [
+    "globalconfig.narrrail.yaml",
+    "global-config.narrrail.yaml",
+    "globalconfig.narrrail.yml",
+    "global-config.narrrail.yml",
+];
+const globalConfigRepoPath = ref(GLOBAL_CONFIG_CANDIDATE_PATHS[0]);
+const globalConfigFileName = computed(() => globalConfigRepoPath.value);
 const globalConfigRepoSha = ref("");
 const isSyncingGlobalConfig = ref(false);
 
@@ -573,9 +582,9 @@ async function syncGlobalConfigToRepo(overrideConfig = null) {
             owner: selectedOwner.value,
             repo: selectedRepoName.value,
             branch: selectedRepoBranch.value,
-            path: REPO_GLOBAL_CONFIG_PATH,
+            path: globalConfigRepoPath.value,
             content,
-            message: `chore(config): sync ${REPO_GLOBAL_CONFIG_PATH}`,
+            message: `chore(config): sync ${globalConfigRepoPath.value}`,
         };
 
         if (globalConfigRepoSha.value) {
@@ -668,35 +677,50 @@ async function loadGlobalConfigFromRepo() {
         url.searchParams.set("owner", selectedOwner.value);
         url.searchParams.set("repo", selectedRepoName.value);
         url.searchParams.set("branch", selectedRepoBranch.value);
-        url.searchParams.set("path", REPO_GLOBAL_CONFIG_PATH);
+        let loadedData = null;
+        let foundPath = "";
 
-        const res = await fetch(url.toString(), {
-            method: "GET",
-            credentials: "include",
-        });
-        const data = await res.json();
+        for (const candidatePath of GLOBAL_CONFIG_CANDIDATE_PATHS) {
+            url.searchParams.set("path", candidatePath);
+            const res = await fetch(url.toString(), {
+                method: "GET",
+                credentials: "include",
+            });
+            const data = await res.json();
 
-        if (!res.ok) {
+            if (res.ok) {
+                loadedData = data;
+                foundPath = candidatePath;
+                break;
+            }
+
             const notFound =
                 res.status === 404 ||
                 String(data?.error || "")
                     .toLowerCase()
                     .includes("not found");
-            if (notFound) {
-                globalConfigRepoSha.value = "";
-                await syncGlobalConfigToRepo({
-                    variables: props.variables,
-                    presetSpeakers: props.presetSpeakers,
-                });
-                return;
+            if (!notFound) {
+                throw new Error(data?.error || "读取全局配置失败");
             }
-            throw new Error(data?.error || "读取全局配置失败");
         }
 
-        const parsed = parseGlobalConfigFromYAML(String(data?.content || ""));
+        if (!loadedData) {
+            globalConfigRepoPath.value = GLOBAL_CONFIG_CANDIDATE_PATHS[0];
+            globalConfigRepoSha.value = "";
+            await syncGlobalConfigToRepo({
+                variables: props.variables,
+                presetSpeakers: props.presetSpeakers,
+            });
+            return;
+        }
+
+        const parsed = parseGlobalConfigFromYAML(
+            String(loadedData?.content || ""),
+        );
         emit("update-variables", parsed.variables || []);
         emit("update-speakers", parsed.presetSpeakers || []);
-        globalConfigRepoSha.value = data?.sha || "";
+        globalConfigRepoPath.value = foundPath;
+        globalConfigRepoSha.value = loadedData?.sha || "";
     } catch (error) {
         alert(`读取全局配置失败: ${error.message}`);
     }

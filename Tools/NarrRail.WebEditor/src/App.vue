@@ -304,7 +304,13 @@ const selectedScriptEntry = ref(null);
 const selectedGithubFileContext = ref(null);
 const isSavingToGithub = ref(false);
 const isSyncingGlobalConfigFromEditor = ref(false);
-const GLOBAL_CONFIG_REPO_PATH = "global-config.narrrail.yaml";
+const GLOBAL_CONFIG_CANDIDATE_PATHS = [
+    "globalconfig.narrrail.yaml",
+    "global-config.narrrail.yaml",
+    "globalconfig.narrrail.yml",
+    "global-config.narrrail.yml",
+];
+const globalConfigRepoPathFromEditor = ref(GLOBAL_CONFIG_CANDIDATE_PATHS[0]);
 
 const undoStack = ref([]);
 const redoStack = ref([]);
@@ -1723,17 +1729,21 @@ async function syncGlobalConfigToRepoFromEditor() {
         readUrl.searchParams.set("owner", owner);
         readUrl.searchParams.set("repo", repo);
         readUrl.searchParams.set("branch", branch);
-        readUrl.searchParams.set("path", GLOBAL_CONFIG_REPO_PATH);
+        let detectedPath = "";
+        for (const candidatePath of GLOBAL_CONFIG_CANDIDATE_PATHS) {
+            readUrl.searchParams.set("path", candidatePath);
+            const readResponse = await fetch(readUrl.toString(), {
+                method: "GET",
+                credentials: "include",
+            });
+            const readData = await readResponse.json();
 
-        const readResponse = await fetch(readUrl.toString(), {
-            method: "GET",
-            credentials: "include",
-        });
-        const readData = await readResponse.json();
+            if (readResponse.ok) {
+                detectedPath = candidatePath;
+                sha = readData?.sha || undefined;
+                break;
+            }
 
-        if (readResponse.ok) {
-            sha = readData?.sha || undefined;
-        } else {
             const isNotFound =
                 readResponse.status === 404 ||
                 String(readData?.error || "")
@@ -1744,6 +1754,9 @@ async function syncGlobalConfigToRepoFromEditor() {
             }
         }
 
+        globalConfigRepoPathFromEditor.value =
+            detectedPath || GLOBAL_CONFIG_CANDIDATE_PATHS[0];
+
         const content = serializeGlobalConfigToYAML({
             variables: variables.value,
             presetSpeakers: presetSpeakers.value,
@@ -1753,9 +1766,9 @@ async function syncGlobalConfigToRepoFromEditor() {
             owner,
             repo,
             branch,
-            path: GLOBAL_CONFIG_REPO_PATH,
+            path: globalConfigRepoPathFromEditor.value,
             content,
-            message: `chore(config): sync ${GLOBAL_CONFIG_REPO_PATH}`,
+            message: `chore(config): sync ${globalConfigRepoPathFromEditor.value}`,
         };
 
         if (sha) payload.sha = sha;
