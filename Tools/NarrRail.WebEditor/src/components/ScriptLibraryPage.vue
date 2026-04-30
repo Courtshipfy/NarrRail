@@ -2,10 +2,8 @@
     <div class="script-library-page">
         <header class="top-bar glass-morphism">
             <div class="brand">
-                <div class="logo">NR</div>
                 <div class="title-wrap">
                     <h1>NarrRail Script Library</h1>
-                    <p class="subtitle">从 GitHub 仓库读取脚本并进入编辑器</p>
                 </div>
             </div>
 
@@ -34,25 +32,50 @@
 
                 <button
                     v-if="!authState?.authenticated"
-                    class="btn secondary"
+                    class="btn secondary top-icon-btn"
                     @click="emit('login-github')"
                     :disabled="authState?.loading"
+                    :title="
+                        authState?.loading ? '检查登录中...' : 'GitHub 登录'
+                    "
+                    :aria-label="
+                        authState?.loading ? '检查登录中...' : 'GitHub 登录'
+                    "
                 >
-                    {{ authState?.loading ? "检查登录中..." : "GitHub 登录" }}
-                </button>
-                <button v-else class="btn secondary" @click="emit('logout')">
-                    退出登录
-                </button>
-
-                <button class="btn secondary" @click="emit('toggle-theme')">
-                    {{ isDarkMode ? "切换浅色" : "切换深色" }}
+                    <span class="material-symbols-outlined">
+                        {{ authState?.loading ? "hourglass_top" : "login" }}
+                    </span>
                 </button>
                 <button
-                    class="btn secondary"
+                    v-else
+                    class="btn secondary top-icon-btn"
+                    @click="emit('logout')"
+                    title="退出登录"
+                    aria-label="退出登录"
+                >
+                    <span class="material-symbols-outlined">logout</span>
+                </button>
+
+                <button
+                    class="btn secondary top-icon-btn"
+                    @click="emit('toggle-theme')"
+                    :title="isDarkMode ? '切换浅色' : '切换深色'"
+                    :aria-label="isDarkMode ? '切换浅色' : '切换深色'"
+                >
+                    <span class="material-symbols-outlined">{{
+                        isDarkMode ? "light_mode" : "dark_mode"
+                    }}</span>
+                </button>
+                <button
+                    class="btn secondary top-icon-btn"
                     @click="createNewScript"
                     :disabled="isCreatingScript"
+                    :title="isCreatingScript ? '创建中...' : '新建脚本'"
+                    :aria-label="isCreatingScript ? '创建中...' : '新建脚本'"
                 >
-                    {{ isCreatingScript ? "创建中..." : "新建脚本" }}
+                    <span class="material-symbols-outlined">{{
+                        isCreatingScript ? "progress_activity" : "add_circle"
+                    }}</span>
                 </button>
             </div>
         </header>
@@ -62,7 +85,8 @@
                 <label>仓库</label>
                 <div class="repo-row">
                     <div class="summary inline-summary">
-                        共 <strong>{{ filteredScripts.length }}</strong> 个脚本
+                        共
+                        <strong>{{ filteredScripts.length }}</strong> 个脚本
                     </div>
                     <select
                         v-model="selectedRepoFullName"
@@ -1028,7 +1052,10 @@ watch(
     gap: 12px;
     align-items: center;
     padding: 16px 18px;
-    margin-bottom: 14px;
+    margin-bottom: 0;
+    border-bottom: none;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .brand {
@@ -1049,7 +1076,8 @@ watch(
 
 .title-wrap h1 {
     margin: 0;
-    font-size: 18px;
+    font-size: 24px;
+    font-weight: 700;
 }
 
 .subtitle {
@@ -1062,6 +1090,41 @@ watch(
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.top-actions .top-icon-btn,
+.top-actions .top-icon-btn.btn,
+.top-actions .top-icon-btn.btn.secondary {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: color-mix(in srgb, var(--nr-text) 72%, transparent);
+}
+
+.top-icon-btn .material-symbols-outlined {
+    font-size: 20px;
+    opacity: 0.9;
+}
+
+.top-actions .top-icon-btn:hover,
+.top-actions .top-icon-btn.btn:hover,
+.top-actions .top-icon-btn.btn.secondary:hover {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: color-mix(in srgb, var(--nr-text) 94%, transparent);
+}
+
+.top-icon-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .status-badge {
@@ -1099,6 +1162,9 @@ watch(
     padding: 12px;
     margin-bottom: 14px;
     align-items: end;
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
 }
 
 .field {

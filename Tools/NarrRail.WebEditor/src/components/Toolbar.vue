@@ -101,32 +101,33 @@
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             :class="{ active: isDarkMode }"
             @click="$emit('toggle-dark-mode')"
             :title="isDarkMode ? '切换为浅色模式' : '切换为深色模式'"
+            :aria-label="isDarkMode ? '切换为浅色模式' : '切换为深色模式'"
         >
             <span class="material-symbols-outlined">
                 {{ isDarkMode ? "light_mode" : "dark_mode" }}
             </span>
-            <span>{{ isDarkMode ? "主题: 深色" : "主题: 浅色" }}</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('go-library')"
             title="返回脚本库页面"
+            aria-label="返回脚本库页面"
         >
             <span class="material-symbols-outlined">library_books</span>
-            <span>脚本库</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('help')"
+            title="帮助"
+            aria-label="帮助"
         >
             <span class="material-symbols-outlined">help</span>
-            <span>帮助</span>
         </button>
     </div>
 </template>
@@ -247,5 +248,30 @@ defineEmits([
 .toolbar-button .material-symbols-outlined {
     font-size: 19px;
     opacity: 0.85;
+}
+
+.toolbar-button.compact-icon {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--nr-bg) 72%, #ffffff 28%);
+    border-color: color-mix(in srgb, var(--nr-text) 16%, transparent);
+    box-shadow:
+        0 1px 6px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.toolbar-button.compact-icon:hover {
+    background: color-mix(in srgb, var(--nr-bg) 66%, #ffffff 34%);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.toolbar-button.compact-icon .material-symbols-outlined {
+    font-size: 20px;
 }
 </style>
