@@ -525,7 +525,7 @@ onUnmounted(() => {
 }
 
 .panel-title {
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 24px;
     font-weight: 700;
     color: #af52de;
@@ -571,7 +571,7 @@ onUnmounted(() => {
     color: #7e22ce;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
 }
 
 .section-divider {
@@ -606,7 +606,7 @@ onUnmounted(() => {
 
 .speaker-name,
 .variable-name {
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 14px;
     font-weight: 700;
     color: #1e293b;
@@ -691,7 +691,7 @@ onUnmounted(() => {
     cursor: pointer;
     font-size: 14px;
     font-weight: 700;
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     transition: all 0.2s ease;
 }
 
@@ -728,7 +728,7 @@ onUnmounted(() => {
     color: #af52de;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
 }
 
 .form-input {
@@ -740,7 +740,7 @@ onUnmounted(() => {
     font-size: 13px;
     font-weight: 600;
     color: #1e293b;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: "Noto Sans SC", "Outfit", sans-serif;
     transition: all 0.2s ease;
 }
 

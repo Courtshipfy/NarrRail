@@ -60,7 +60,7 @@
   }
 
   .node-type {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 13px;
     font-weight: 700;
     color: #ff3b30;

@@ -678,7 +678,7 @@
   }
 
   .context-menu-header {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 11px;
     font-weight: 700;
     color: #86868b;
@@ -697,7 +697,7 @@
     background: transparent;
     border-radius: 8px;
     cursor: pointer;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Outfit', sans-serif;
     font-size: 13px;
     font-weight: 600;
     color: #1d1d1f;

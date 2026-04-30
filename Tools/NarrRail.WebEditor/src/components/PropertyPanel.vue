@@ -482,7 +482,7 @@ onUnmounted(() => {
 }
 
 .panel-title {
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 24px;
     font-weight: 700;
     color: #3b82f6;
@@ -545,7 +545,7 @@ onUnmounted(() => {
     color: #3b82f6;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
 }
 
 .form-input,
@@ -558,7 +558,7 @@ onUnmounted(() => {
     font-size: 14px;
     font-weight: 600;
     color: #1e293b;
-    font-family: "Be Vietnam Pro", sans-serif;
+    font-family: "Noto Sans SC", "Outfit", sans-serif;
     transition: all 0.3s ease;
 }
 
@@ -592,7 +592,7 @@ onUnmounted(() => {
     cursor: pointer;
     font-size: 14px;
     font-weight: 800;
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     box-shadow:
         0 12px 32px rgba(59, 130, 246, 0.3),
         inset 0 1px 2px rgba(255, 255, 255, 0.5);
@@ -621,7 +621,7 @@ onUnmounted(() => {
     cursor: pointer;
     font-size: 14px;
     font-weight: 700;
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     transition: all 0.3s ease;
 }
 

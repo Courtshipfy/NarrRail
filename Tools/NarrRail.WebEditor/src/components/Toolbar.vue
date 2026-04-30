@@ -181,7 +181,7 @@ defineEmits([
 }
 
 .toolbar-title {
-    font-family: "Plus Jakarta Sans", sans-serif;
+    font-family: "Outfit", sans-serif;
     font-size: 22px;
     font-weight: 800;
     margin-right: 20px;
