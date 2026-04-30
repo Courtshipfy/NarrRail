@@ -440,12 +440,55 @@
     };
   }
 
+  function getFlowPositionFromScreen(screenX, screenY) {
+    const pane = document.querySelector('.svelte-flow__pane');
+    const viewport = document.querySelector('.svelte-flow__viewport');
+
+    const paneBounds = pane?.getBoundingClientRect();
+    if (!paneBounds || !viewport) {
+      return { x: screenX, y: screenY };
+    }
+
+    const viewportStyle = window.getComputedStyle(viewport);
+    const transform = viewportStyle?.transform || '';
+
+    if (!transform || transform === 'none') {
+      return {
+        x: screenX - paneBounds.left,
+        y: screenY - paneBounds.top
+      };
+    }
+
+    const matrixMatch = transform.match(/matrix\(([^)]+)\)/);
+    if (!matrixMatch) {
+      return {
+        x: screenX - paneBounds.left,
+        y: screenY - paneBounds.top
+      };
+    }
+
+    const values = matrixMatch[1].split(',').map(v => Number(v.trim()));
+    const scale = Number.isFinite(values[0]) && values[0] !== 0 ? values[0] : 1;
+    const translateX = Number.isFinite(values[4]) ? values[4] : 0;
+    const translateY = Number.isFinite(values[5]) ? values[5] : 0;
+
+    const localX = screenX - paneBounds.left;
+    const localY = screenY - paneBounds.top;
+
+    return {
+      x: (localX - translateX) / scale,
+      y: (localY - translateY) / scale
+    };
+  }
+
   // 创建节点
   function createNode(type) {
+    const flowPos = getFlowPositionFromScreen(contextMenu.x, contextMenu.y);
+
     const newNode = {
       id: `node-${Date.now()}`,
       type: type,
-      position: contextMenu.position,
+      position: flowPos,
       data: getDefaultNodeData(type)
     };
 

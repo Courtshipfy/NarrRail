@@ -1287,6 +1287,13 @@ watch(
     gap: 6px;
     font-size: 12px;
     white-space: nowrap;
+    line-height: 1.2;
+}
+
+.config-item-main > * {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1.2;
 }
 
 .config-item .icon-btn.danger {
