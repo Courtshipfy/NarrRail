@@ -1269,6 +1269,16 @@ watch(
     border-radius: 999px;
     padding: 6px 8px;
     background: color-mix(in srgb, var(--nr-bg) 74%, #ffffff 26%);
+    transition:
+        padding-right 0.16s ease,
+        border-color 0.16s ease,
+        background 0.16s ease;
+}
+
+.config-item:hover {
+    padding-right: 10px;
+    border-color: color-mix(in srgb, var(--nr-text) 24%, transparent);
+    background: color-mix(in srgb, var(--nr-bg) 68%, #ffffff 32%);
 }
 
 .config-item-main {
@@ -1280,10 +1290,34 @@ watch(
 }
 
 .config-item .icon-btn.danger {
-    width: 20px;
+    width: 0;
     height: 20px;
+    min-width: 0;
+    padding: 0;
+    border-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
     font-size: 13px;
     border-radius: 999px;
+    margin-left: 0;
+    transform: scale(0.85);
+    transition:
+        width 0.16s ease,
+        opacity 0.12s ease,
+        margin-left 0.16s ease,
+        border-width 0.16s ease,
+        transform 0.16s ease;
+}
+
+.config-item:hover .icon-btn.danger {
+    width: 20px;
+    min-width: 20px;
+    border-width: 1px;
+    opacity: 1;
+    pointer-events: auto;
+    margin-left: 2px;
+    transform: scale(1);
 }
 
 .config-empty {
