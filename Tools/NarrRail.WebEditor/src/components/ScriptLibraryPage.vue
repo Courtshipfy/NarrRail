@@ -1253,27 +1253,37 @@ watch(
 
 .config-list {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 8px;
 }
 
 .config-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
+    width: auto;
+    max-width: 100%;
     border: 1px solid color-mix(in srgb, var(--nr-text) 14%, transparent);
-    border-radius: 10px;
-    padding: 8px;
+    border-radius: 999px;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--nr-bg) 74%, #ffffff 26%);
 }
 
 .config-item-main {
-    display: flex;
-    flex-wrap: wrap;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 12px;
+    white-space: nowrap;
+}
+
+.config-item .icon-btn.danger {
+    width: 20px;
+    height: 20px;
+    font-size: 13px;
+    border-radius: 999px;
 }
 
 .config-empty {
