@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Runtime/NarrRailStoryAsset.h"
 #include "Runtime/NarrRailVariableContainer.h"
+#include "Runtime/NarrRailDialoguePresenterInterface.h"
 #include "NarrRailStorySession.generated.h"
 
 UENUM(BlueprintType)
@@ -180,6 +181,31 @@ public:
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
     FNarrRailVariableResult SetVariableString(FName VariableName, const FString& Value);
 
+    // === UI 显示器管理 ===
+
+    /**
+     * 注册对话显示器（UI 组件）
+     * @param Presenter 实现了 INarrRailDialoguePresenterInterface 的 UI 组件
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|UI")
+    void RegisterDialoguePresenter(TScriptInterface<INarrRailDialoguePresenterInterface> Presenter);
+
+    /**
+     * 取消注册对话显示器
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|UI")
+    void UnregisterDialoguePresenter();
+
+    /**
+     * 获取当前注册的对话显示器
+     * @return 当前的对话显示器，如果未注册则返回 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|UI")
+    TScriptInterface<INarrRailDialoguePresenterInterface> GetDialoguePresenter() const
+    {
+        return DialoguePresenter;
+    }
+
     // === 运行时事件委托 ===
 
     // 会话启动事件
@@ -260,6 +286,10 @@ private:
 
     UPROPERTY(Transient)
     FString DebugName;
+
+    // 注册的对话显示器
+    UPROPERTY(Transient)
+    TScriptInterface<INarrRailDialoguePresenterInterface> DialoguePresenter;
 
     // 全局活跃会话列表
     static TArray<UNarrRailStorySession*> ActiveSessions;

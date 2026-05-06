@@ -383,6 +383,16 @@ FNarrRailVariableResult UNarrRailStorySession::SetVariableString(FName VariableN
     return VariableContainer->SetString(VariableName, Value);
 }
 
+void UNarrRailStorySession::RegisterDialoguePresenter(TScriptInterface<INarrRailDialoguePresenterInterface> Presenter)
+{
+    DialoguePresenter = Presenter;
+}
+
+void UNarrRailStorySession::UnregisterDialoguePresenter()
+{
+    DialoguePresenter = nullptr;
+}
+
 void UNarrRailStorySession::ResetSessionContextFromAsset()
 {
     Context = FNarrRailSessionContext{};
@@ -420,6 +430,36 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
 
     // 触发节点进入事件
     OnNodeEntered.Broadcast(Context.CurrentNodeId, *Node);
+
+    // 通知 UI 显示器
+    if (DialoguePresenter.GetInterface() != nullptr)
+    {
+        if (Node->NodeType == ENarrRailNodeType::Dialogue)
+        {
+            // 构建对话显示请求
+            FNarrRailDialogueRequest Request;
+            Request.NodeId = TargetNodeId;
+            Request.SpeakerId = Node->Dialogue.SpeakerId;
+            Request.TextContent = Node->Dialogue.TextKey;
+            Request.SpeechRate = Node->Dialogue.SpeechRate;
+            Request.VoiceAsset = Node->Dialogue.VoiceAsset;
+            Request.bAutoAdvance = false;
+
+            // 调用 UI 显示对话
+            INarrRailDialoguePresenterInterface::Execute_ShowDialogue(DialoguePresenter.GetObject(), Request);
+        }
+        else if (Node->NodeType == ENarrRailNodeType::Choice)
+        {
+            // 构建选项显示请求
+            FNarrRailChoiceRequest Request;
+            Request.NodeId = TargetNodeId;
+            Request.Choices = Node->Choices;
+            Request.Session = this;  // 传入 Session 对象，UI 可以直接调用 Choose
+
+            // 调用 UI 显示选项
+            INarrRailDialoguePresenterInterface::Execute_ShowChoices(DialoguePresenter.GetObject(), Request);
+        }
+    }
 
     if (Node->NodeType == ENarrRailNodeType::End)
     {
