@@ -34,3 +34,4 @@ HostProject/Build-HostProject.cmd
 
 # Zed editor local files
 .zed/
+HostProject/NarrRailHost.sln
