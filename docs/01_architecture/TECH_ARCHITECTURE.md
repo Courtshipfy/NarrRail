@@ -246,4 +246,4 @@ docs/
 - 下周计划：完成 `NR-RUN-001` 余项并开始 `NR-RUN-002` 执行器
 - 进展补充：`UNarrRailStoryAsset` 新增版本迁移入口（`PostLoad`），数据契约新增变量与动作结构。
 - 进展补充：Runtime 新增 `UNarrRailStorySession`，对外提供最小流程推进接口（Start/Next/Choose/Stop）。
-- 进展补充：Runtime 会话执行器新增条件求值、动作执行、Pause/Resume；M2.1 脚本规范文档已建立（`docs/SCRIPT_FORMAT.md`）。
+- 进展补充：Runtime 会话执行器新增条件求值、动作执行、Pause/Resume；M2.1 脚本规范文档已建立（`docs/02_runtime/SCRIPT_FORMAT.md`）。

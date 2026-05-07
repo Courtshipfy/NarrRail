@@ -41,11 +41,11 @@ See `Tools/NarrRail.Tooling/README.md` for CLI usage.
 
 ### 3. Blueprint Usage
 
-See `docs/BLUEPRINT_QUICKSTART.md` for creating dialogues in Blueprint.
+See `docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md` for creating dialogues in Blueprint.
 
 ### 4. Debugging
 
-See `docs/DEBUGGER_GUIDE.md` for runtime debugging.
+See `docs/02_runtime/DEBUGGER_GUIDE.md` for runtime debugging.
 
 ## Example Scripts
 
@@ -54,11 +54,11 @@ See `docs/DEBUGGER_GUIDE.md` for runtime debugging.
 
 ## Documentation
 
-- `docs/SCRIPT_FORMAT.md` - YAML script format specification
-- `docs/BLUEPRINT_QUICKSTART.md` - Blueprint quick start guide
-- `docs/DEBUGGER_GUIDE.md` - Debugger usage guide
-- `docs/TECH_ARCHITECTURE.md` - Technical architecture
-- `docs/TASK_PLAN.md` - WBS task checklist
+- `docs/02_runtime/SCRIPT_FORMAT.md` - YAML script format specification
+- `docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md` - Blueprint quick start guide
+- `docs/02_runtime/DEBUGGER_GUIDE.md` - Debugger usage guide
+- `docs/01_architecture/TECH_ARCHITECTURE.md` - Technical architecture
+- `docs/06_planning/TASK_PLAN.md` - WBS task checklist
 
 ## Install (Project Plugin)
 

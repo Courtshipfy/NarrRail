@@ -277,7 +277,7 @@
 - 进展补充：`NR-RUN-002-01` 已完成，会话上下文统一为 `FNarrRailSessionContext`（当前节点、变量快照、历史），并在 Initialize/Start 进行会话级重置。
 
 - 进展补充：已完成 `NR-RUN-001-06/07`（条件执行与动作定义落地）与 `NR-RUN-002-07/09`（动作管线、Pause/Resume）。
-- 进展补充：已完成 `NR-IO-001-01~05`，新增脚本规范文档 `docs/SCRIPT_FORMAT.md`（YAML 格式）。
+- 进展补充：已完成 `NR-IO-001-01~05`，新增脚本规范文档 `docs/02_runtime/SCRIPT_FORMAT.md`（YAML 格式）。
 
 ### 2026-04-14
 
@@ -327,7 +327,7 @@
     - `Choose()` 触发 `OnChoiceSelected`
     - `Stop()` 和结束节点触发 `OnSessionEnded`
 - 测试结果：完成编译验证，UBT 编译通过
-- 文档：新增 `docs/BLUEPRINT_QUICKSTART.md` 蓝图快速开始指南
+- 文档：新增 `docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md` 蓝图快速开始指南
 - 风险与遗留：
   - 需要在 PIE 中实际测试事件触发和蓝图调用
   - 需要创建示例 UI Widget 验证完整流程

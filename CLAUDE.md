@@ -113,7 +113,7 @@ C# CLI tools for:
 
 **Script Format:**
 - YAML-based (`.narrrail.yaml` or `.narrrail.yml`)
-- Schema version 1 (see `docs/SCRIPT_FORMAT.md`)
+- Schema version 1 (see `docs/02_runtime/SCRIPT_FORMAT.md`)
 - Supports nodes (Dialogue/Choice/Jump/SetVariable/EmitEvent/End), edges with conditions, variables (Bool/Int/Float/String)
 
 ## Development Workflow
@@ -146,7 +146,7 @@ C# CLI tools for:
 
 ## Task Tracking
 
-All tasks are tracked in `docs/TASK_PLAN.md` with unique IDs (e.g., `NR-RUN-001-01`).
+All tasks are tracked in `docs/06_planning/TASK_PLAN.md` with unique IDs (e.g., `NR-RUN-001-01`).
 
 **Task completion criteria:**
 - DoD (Definition of Done) met
@@ -172,9 +172,9 @@ All tasks are tracked in `docs/TASK_PLAN.md` with unique IDs (e.g., `NR-RUN-001-
 ## Documentation
 
 - `README.md`: Quick start and structure overview
-- `docs/TECH_ARCHITECTURE.md`: Detailed architecture, module design, interface contracts
-- `docs/TASK_PLAN.md`: WBS with completion tracking and DoD
-- `docs/SCRIPT_FORMAT.md`: YAML script format specification v1
+- `docs/01_architecture/TECH_ARCHITECTURE.md`: Detailed architecture, module design, interface contracts
+- `docs/06_planning/TASK_PLAN.md`: WBS with completion tracking and DoD
+- `docs/02_runtime/SCRIPT_FORMAT.md`: YAML script format specification v1
 - This file: Development guidance for Claude Code
 
 ## Version Information
