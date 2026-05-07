@@ -386,6 +386,16 @@ FNarrRailVariableResult UNarrRailStorySession::SetVariableString(FName VariableN
 void UNarrRailStorySession::RegisterDialoguePresenter(TScriptInterface<INarrRailDialoguePresenterInterface> Presenter)
 {
     DialoguePresenter = Presenter;
+
+    UObject* PresenterObject = DialoguePresenter.GetObject();
+    const bool bImplementsInterface =
+        PresenterObject != nullptr &&
+        PresenterObject->GetClass()->ImplementsInterface(UNarrRailDialoguePresenterInterface::StaticClass());
+
+    UE_LOG(LogTemp, Log, TEXT("[NarrRail] RegisterDialoguePresenter: Object=%s, InterfacePtrValid=%s, ImplementsInterface=%s"),
+        PresenterObject ? *PresenterObject->GetName() : TEXT("None"),
+        DialoguePresenter.GetInterface() ? TEXT("true") : TEXT("false"),
+        bImplementsInterface ? TEXT("true") : TEXT("false"));
 }
 
 void UNarrRailStorySession::UnregisterDialoguePresenter()
@@ -432,7 +442,12 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
     OnNodeEntered.Broadcast(Context.CurrentNodeId, *Node);
 
     // 通知 UI 显示器
-    if (DialoguePresenter.GetInterface() != nullptr)
+    UObject* PresenterObject = DialoguePresenter.GetObject();
+    const bool bPresenterValid =
+        PresenterObject != nullptr &&
+        PresenterObject->GetClass()->ImplementsInterface(UNarrRailDialoguePresenterInterface::StaticClass());
+
+    if (bPresenterValid)
     {
         if (Node->NodeType == ENarrRailNodeType::Dialogue)
         {
@@ -446,7 +461,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
             Request.bAutoAdvance = false;
 
             // 调用 UI 显示对话
-            INarrRailDialoguePresenterInterface::Execute_ShowDialogue(DialoguePresenter.GetObject(), Request);
+            INarrRailDialoguePresenterInterface::Execute_ShowDialogue(PresenterObject, Request);
         }
         else if (Node->NodeType == ENarrRailNodeType::Choice)
         {
@@ -457,8 +472,14 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
             Request.Session = this;  // 传入 Session 对象，UI 可以直接调用 Choose
 
             // 调用 UI 显示选项
-            INarrRailDialoguePresenterInterface::Execute_ShowChoices(DialoguePresenter.GetObject(), Request);
+            INarrRailDialoguePresenterInterface::Execute_ShowChoices(PresenterObject, Request);
         }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[NarrRail] DialoguePresenter is invalid for interface call. Object=%s, InterfacePtrValid=%s"),
+            PresenterObject ? *PresenterObject->GetName() : TEXT("None"),
+            DialoguePresenter.GetInterface() ? TEXT("true") : TEXT("false"));
     }
 
     if (Node->NodeType == ENarrRailNodeType::End)
