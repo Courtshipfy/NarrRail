@@ -1,43 +1,49 @@
-﻿# NarrRail Host Project Guide
+﻿# NarrRail 宿主项目指南
 
-## Goal
+## 目标
 
-Provide a UE5.7 host project in the same repository so you can run, debug, and validate the plugin in editor while keeping a single source of truth for plugin code.
+在同一仓库中提供 UE5.7 宿主项目，便于你在编辑器中运行、调试和验证插件，同时保持插件代码单一事实来源。
 
-## Layout
+## 目录结构
 
-- `NarrRail/`: plugin source code (single source of truth)
-- `HostProject/`: sample host project for in-editor testing
-- `HostProject/Build-HostProject.cmd`: double-click build entry (CMD only)
+- `NarrRail/`：插件源码（单一事实来源）
+- `HostProject/`：用于编辑器内测试的宿主项目
+- `HostProject/Build-HostProject.cmd`：双击即可执行的构建入口（仅 CMD）
 
-## One-Time Setup
+## 一次性设置
 
-No separate setup script is required.
+无需额外的独立初始化脚本。
 
-`Build-HostProject.cmd` will auto-check and create:
+`Build-HostProject.cmd` 会自动检查并创建：
 
-- `HostProject/Plugins/NarrRail` -> `NarrRail` (Junction)
+- `HostProject/Plugins/NarrRail` -> `NarrRail`（Junction）
 
-## Daily Workflow
+推荐先设置一次 UE5.7 引擎路径环境变量：
 
-1. Open `HostProject/NarrRailHost.uproject`.
-2. Edit code in `NarrRail/Source/...`.
-3. Double-click `HostProject/Build-HostProject.cmd` to compile.
-4. Use PIE or test maps to validate behavior in editor.
+- `setx UE57_ROOT "I:\UE_5.7"`
 
-## Build Entry
+说明：脚本会优先读取 `UE57_ROOT`；若未设置，则回退使用 `I:\UE_5.7`。
+
+## 日常工作流
+
+1. 打开 `HostProject/NarrRailHost.uproject`。
+2. 在 `NarrRail/Source/...` 中修改代码。
+3. 双击 `HostProject/Build-HostProject.cmd` 编译。
+4. 在编辑器中使用 PIE 或测试地图验证功能。
+
+## 构建入口
 
 - `HostProject/Build-HostProject.cmd`
 
-Default behavior:
+默认行为：
 
-- Uses engine root: `I:\UE_5.7`
-- Builds: `UnrealEditor Win64 Development`
-- Project: `HostProject/NarrRailHost.uproject`
-- Auto-creates plugin junction if missing
+- 引擎根路径：优先 `UE57_ROOT`，否则 `I:\UE_5.7`
+- 构建目标：`UnrealEditor Win64 Development`
+- 工程路径：`HostProject/NarrRailHost.uproject`
+- 若插件链接缺失：自动创建 Junction
 
-## FAQ
+## 常见问题
 
-### Why CMD only
+### 为什么只提供 CMD 入口
 
-To avoid any dependency on missing `.ps1` files and keep build flow directly runnable from Explorer.
+为了避免依赖缺失的 `.ps1` 文件，并保证从资源管理器可直接运行构建流程。

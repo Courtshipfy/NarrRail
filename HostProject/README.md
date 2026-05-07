@@ -8,10 +8,11 @@
    ```bash
    # 复制模板文件
    copy Build-HostProject.cmd.template Build-HostProject.cmd
-   
-   # 编辑 Build-HostProject.cmd，修改引擎路径
-   # 将 YOUR_ENGINE_PATH_HERE 改为你的 UE5.7 安装路径
-   # 例如: D:\Engine\UE_5.7
+
+   # 推荐：设置环境变量（仅需一次）
+   setx UE57_ROOT "I:\UE_5.7"
+
+   # 如果不设置 UE57_ROOT，脚本会默认使用 I:\UE_5.7
    ```
 
 2. **构建项目**
@@ -26,7 +27,8 @@
 ## 注意事项
 
 - `Build-HostProject.cmd` 是本地配置文件，不会提交到 Git
-- 每台开发机器需要根据自己的引擎安装路径配置
+- 脚本优先读取 `UE57_ROOT`，未设置时回退到 `I:\UE_5.7`
+- 可用 `setx UE57_ROOT "你的UE5.7路径"` 配置本机引擎路径
 - 插件源码通过 Junction 链接到 `Plugins/NarrRail`（自动创建）
 
 ## 目录结构
