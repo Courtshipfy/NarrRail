@@ -3,83 +3,87 @@
         <div class="toolbar-title gradient-text">NarrRail Story Editor</div>
 
         <button
-            class="toolbar-button bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('new')"
+            title="新建"
+            aria-label="新建"
         >
             <span class="material-symbols-outlined">add_circle</span>
-            <span>新建</span>
         </button>
 
         <button
-            class="toolbar-button bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('import')"
+            title="导入"
+            aria-label="导入"
         >
             <span class="material-symbols-outlined">upload_file</span>
-            <span>导入</span>
         </button>
 
         <button
-            class="toolbar-button bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('export')"
+            title="导出"
+            aria-label="导出"
         >
             <span class="material-symbols-outlined">download</span>
-            <span>导出</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('undo')"
             title="撤销 (Ctrl+Z)"
+            aria-label="撤销"
         >
             <span class="material-symbols-outlined">undo</span>
-            <span>撤销</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('redo')"
             title="重做 (Ctrl+Y)"
+            aria-label="重做"
         >
             <span class="material-symbols-outlined">redo</span>
-            <span>重做</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('validate')"
+            title="验证"
+            aria-label="验证"
         >
             <span class="material-symbols-outlined">verified</span>
-            <span>验证</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('auto-layout')"
             title="自动排布节点（从左到右）"
+            aria-label="自动排布"
         >
             <span class="material-symbols-outlined">account_tree</span>
-            <span>自动排布</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('toggle-edge-style')"
             :title="
                 edgeStyle === 'straight'
                     ? '当前为直线，点击切换为曲线'
                     : '当前为曲线，点击切换为直线'
             "
+            :aria-label="
+                edgeStyle === 'straight' ? '连线直线模式' : '连线曲线模式'
+            "
         >
             <span class="material-symbols-outlined">
                 {{ edgeStyle === "straight" ? "timeline" : "device_hub" }}
             </span>
-            <span>{{
-                edgeStyle === "straight" ? "连线: 直线" : "连线: 曲线"
-            }}</span>
         </button>
 
         <button
-            class="toolbar-button secondary bouncy-feedback spring-animation"
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             :class="{ active: focusModeEnabled }"
             @click="$emit('toggle-focus-mode')"
             :title="
@@ -87,6 +91,7 @@
                     ? '关闭焦点模式'
                     : '开启焦点模式（弱化非相关连线）'
             "
+            :aria-label="focusModeEnabled ? '焦点模式已开启' : '焦点模式已关闭'"
         >
             <span class="material-symbols-outlined">
                 {{
@@ -95,9 +100,6 @@
                         : "center_focus_weak"
                 }}
             </span>
-            <span>{{
-                focusModeEnabled ? "焦点模式: 开" : "焦点模式: 关"
-            }}</span>
         </button>
 
         <button
@@ -185,7 +187,7 @@ defineEmits([
     font-family: "Outfit", sans-serif;
     font-size: 22px;
     font-weight: 800;
-    margin-right: 20px;
+    margin-right: auto;
     letter-spacing: -0.02em;
     white-space: nowrap;
 }
