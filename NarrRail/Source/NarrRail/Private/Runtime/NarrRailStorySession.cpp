@@ -82,6 +82,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::Start(const FName OverrideEntryNod
     const FName EntryNodeId = (OverrideEntryNodeId != NAME_None) ? OverrideEntryNodeId : StoryAsset->EntryNodeId;
     StateBeforePause = ENarrRailSessionState::Idle;
     ResetSessionContextFromAsset();
+    CurrentMultiDialogueLineIndex = INDEX_NONE;
 
     // 重置最后选择信息
     LastChoiceInfo = FNarrRailLastChoiceInfo();
@@ -131,6 +132,39 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
     {
         SessionState = ENarrRailSessionState::WaitingForChoice;
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node requires Choose()."), Context.CurrentNodeId);
+    }
+
+    if (Node->NodeType == ENarrRailNodeType::MultiDialogue)
+    {
+        const int32 TotalLines = Node->MultiDialogue.Lines.Num();
+        if (TotalLines > 0 && CurrentMultiDialogueLineIndex + 1 < TotalLines)
+        {
+            CurrentMultiDialogueLineIndex += 1;
+
+            UObject* PresenterObject = DialoguePresenter.GetObject();
+            const bool bPresenterValid =
+                PresenterObject != nullptr &&
+                PresenterObject->GetClass()->ImplementsInterface(UNarrRailDialoguePresenterInterface::StaticClass());
+
+            FNarrRailDialogueRequest Request;
+            if (BuildMultiDialogueDisplay(*Node, Request))
+            {
+                if (bPresenterValid)
+                {
+                    INarrRailDialoguePresenterInterface::Execute_ShowDialogue(PresenterObject, Request);
+                }
+
+                FNarrRailNode DisplayNode = *Node;
+                DisplayNode.NodeType = ENarrRailNodeType::Dialogue;
+                DisplayNode.Dialogue.SpeakerId = Request.SpeakerId;
+                DisplayNode.Dialogue.TextKey = Request.TextContent;
+                DisplayNode.Dialogue.SpeechRate = Request.SpeechRate;
+                OnNodeEntered.Broadcast(Context.CurrentNodeId, DisplayNode);
+
+                SessionState = ENarrRailSessionState::Running;
+                return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Advanced to next multi-dialogue line."), Context.CurrentNodeId);
+            }
+        }
     }
 
     FString ActionError;
@@ -406,6 +440,7 @@ void UNarrRailStorySession::UnregisterDialoguePresenter()
 void UNarrRailStorySession::ResetSessionContextFromAsset()
 {
     Context = FNarrRailSessionContext{};
+    CurrentMultiDialogueLineIndex = INDEX_NONE;
 
     if (StoryAsset == nullptr || VariableContainer == nullptr)
     {
@@ -417,6 +452,23 @@ void UNarrRailStorySession::ResetSessionContextFromAsset()
 
     // 同步变量快照到 Context（用于存档兼容）
     Context.VariableSnapshot = VariableContainer->GetSnapshot();
+}
+
+bool UNarrRailStorySession::BuildMultiDialogueDisplay(const FNarrRailNode& Node, FNarrRailDialogueRequest& OutRequest) const
+{
+    const int32 TotalLines = Node.MultiDialogue.Lines.Num();
+    if (TotalLines <= 0) return false;
+    if (CurrentMultiDialogueLineIndex < 0 || CurrentMultiDialogueLineIndex >= TotalLines) return false;
+
+    const FNarrRailDialogueLine& Line = Node.MultiDialogue.Lines[CurrentMultiDialogueLineIndex];
+
+    OutRequest.NodeId = Node.NodeId;
+    OutRequest.SpeakerId = Node.MultiDialogue.SpeakerId;
+    OutRequest.TextContent = Line.TextKey;
+    OutRequest.SpeechRate = 1.0f;
+    OutRequest.VoiceAsset = nullptr;
+    OutRequest.bAutoAdvance = false;
+    return true;
 }
 
 FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNodeId)
@@ -438,14 +490,22 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *ActionError, Context.CurrentNodeId);
     }
 
-    // 触发节点进入事件
-    OnNodeEntered.Broadcast(Context.CurrentNodeId, *Node);
+    if (Node->NodeType == ENarrRailNodeType::MultiDialogue)
+    {
+        CurrentMultiDialogueLineIndex = 0;
+    }
+    else
+    {
+        CurrentMultiDialogueLineIndex = INDEX_NONE;
+    }
 
     // 通知 UI 显示器
     UObject* PresenterObject = DialoguePresenter.GetObject();
     const bool bPresenterValid =
         PresenterObject != nullptr &&
         PresenterObject->GetClass()->ImplementsInterface(UNarrRailDialoguePresenterInterface::StaticClass());
+
+    FNarrRailNode EnteredNodeForEvent = *Node;
 
     if (bPresenterValid)
     {
@@ -462,6 +522,19 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
 
             // 调用 UI 显示对话
             INarrRailDialoguePresenterInterface::Execute_ShowDialogue(PresenterObject, Request);
+        }
+        else if (Node->NodeType == ENarrRailNodeType::MultiDialogue)
+        {
+            FNarrRailDialogueRequest Request;
+            if (BuildMultiDialogueDisplay(*Node, Request))
+            {
+                INarrRailDialoguePresenterInterface::Execute_ShowDialogue(PresenterObject, Request);
+
+                EnteredNodeForEvent.NodeType = ENarrRailNodeType::Dialogue;
+                EnteredNodeForEvent.Dialogue.SpeakerId = Request.SpeakerId;
+                EnteredNodeForEvent.Dialogue.TextKey = Request.TextContent;
+                EnteredNodeForEvent.Dialogue.SpeechRate = Request.SpeechRate;
+            }
         }
         else if (Node->NodeType == ENarrRailNodeType::Choice)
         {
@@ -481,6 +554,9 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
             PresenterObject ? *PresenterObject->GetName() : TEXT("None"),
             DialoguePresenter.GetInterface() ? TEXT("true") : TEXT("false"));
     }
+
+    // 触发节点进入事件
+    OnNodeEntered.Broadcast(Context.CurrentNodeId, EnteredNodeForEvent);
 
     if (Node->NodeType == ENarrRailNodeType::End)
     {

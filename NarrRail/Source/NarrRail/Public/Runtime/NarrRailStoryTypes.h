@@ -7,6 +7,7 @@ UENUM(BlueprintType)
 enum class ENarrRailNodeType : uint8
 {
     Dialogue UMETA(DisplayName = "Dialogue"),
+    MultiDialogue UMETA(DisplayName = "Multi Dialogue"),
     Choice UMETA(DisplayName = "Choice"),
     Jump UMETA(DisplayName = "Jump"),
     SetVariable UMETA(DisplayName = "Set Variable"),
@@ -66,6 +67,27 @@ struct NARRRAIL_API FNarrRailDialoguePayload
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     TSoftObjectPtr<class USoundBase> VoiceAsset;
+};
+
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailDialogueLine
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FString TextKey;
+};
+
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailMultiDialoguePayload
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FName SpeakerId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    TArray<FNarrRailDialogueLine> Lines;
 };
 
 // 变量引用定义：明确变量名、类型、作用域，用于静态校验和运行时绑定。
@@ -158,6 +180,9 @@ struct NARRRAIL_API FNarrRailNode
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     FNarrRailDialoguePayload Dialogue;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FNarrRailMultiDialoguePayload MultiDialogue;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     TArray<FNarrRailChoiceOption> Choices;

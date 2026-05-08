@@ -256,6 +256,7 @@ public:
 
 private:
     void ResetSessionContextFromAsset();
+    bool BuildMultiDialogueDisplay(const FNarrRailNode& Node, FNarrRailDialogueRequest& OutRequest) const;
     FString MakeDefaultVariableValue(ENarrRailVariableType VariableType) const;
     FNarrRailRuntimeResult AdvanceToNode(FName TargetNodeId);
     FNarrRailRuntimeResult ResolveNextByEdge(const FNarrRailNode& FromNode, FName& OutNextNodeId) const;
@@ -283,6 +284,9 @@ private:
 
     UPROPERTY(Transient)
     FNarrRailLastChoiceInfo LastChoiceInfo;
+
+    UPROPERTY(Transient)
+    int32 CurrentMultiDialogueLineIndex = INDEX_NONE;
 
     UPROPERTY(Transient)
     FString DebugName;

@@ -22,6 +22,7 @@ static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData
 static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData, FString& OutError);
 
 static bool ParseDialogue(const YAML::Node& DialogueNode, FNarrRailDialoguePayload& OutDialogue);
+static bool ParseMultiDialogue(const YAML::Node& MultiDialogueNode, FNarrRailMultiDialoguePayload& OutMultiDialogue);
 static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOption>& OutChoices);
 static bool ParseActions(const YAML::Node& ActionsNode, TArray<FNarrRailNodeAction>& OutActions);
 static bool ParseCondition(const YAML::Node& ConditionNode, FNarrRailConditionExpression& OutCondition);
@@ -100,6 +101,7 @@ bool FNarrRailYamlParser::ParseFile(const FString& FilePath, FNarrRailScriptData
 static ENarrRailNodeType ParseNodeType(const FString& TypeStr)
 {
 	if (TypeStr == TEXT("Dialogue")) return ENarrRailNodeType::Dialogue;
+	if (TypeStr == TEXT("MultiDialogue")) return ENarrRailNodeType::MultiDialogue;
 	if (TypeStr == TEXT("Choice")) return ENarrRailNodeType::Choice;
 	if (TypeStr == TEXT("Jump")) return ENarrRailNodeType::Jump;
 	if (TypeStr == TEXT("SetVariable")) return ENarrRailNodeType::SetVariable;
@@ -252,6 +254,12 @@ static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData
 			ParseDialogue(NodeYaml["dialogue"], Node.Dialogue);
 		}
 
+		// Parse multi dialogue (if present)
+		if (NodeYaml["multiDialogue"] && !NodeYaml["multiDialogue"].IsNull())
+		{
+			ParseMultiDialogue(NodeYaml["multiDialogue"], Node.MultiDialogue);
+		}
+
 		// Parse choices (if present)
 		if (NodeYaml["choices"] && NodeYaml["choices"].IsSequence())
 		{
@@ -347,6 +355,35 @@ static bool ParseDialogue(const YAML::Node& DialogueNode, FNarrRailDialoguePaylo
 
 	// VoiceAsset is optional and handled as soft object ptr
 	// We don't parse it here as it requires asset path resolution
+
+	return true;
+}
+
+// Parse multi dialogue payload
+static bool ParseMultiDialogue(const YAML::Node& MultiDialogueNode, FNarrRailMultiDialoguePayload& OutMultiDialogue)
+{
+	if (MultiDialogueNode["speakerId"])
+	{
+		OutMultiDialogue.SpeakerId = FName(UTF8_TO_TCHAR(MultiDialogueNode["speakerId"].as<std::string>().c_str()));
+	}
+
+	OutMultiDialogue.Lines.Empty();
+	if (MultiDialogueNode["lines"] && MultiDialogueNode["lines"].IsSequence())
+	{
+		for (const auto& LineYaml : MultiDialogueNode["lines"])
+		{
+			FNarrRailDialogueLine Line;
+			if (LineYaml.IsScalar())
+			{
+				Line.TextKey = UTF8_TO_TCHAR(LineYaml.as<std::string>().c_str());
+			}
+			else if (LineYaml["textKey"])
+			{
+				Line.TextKey = UTF8_TO_TCHAR(LineYaml["textKey"].as<std::string>().c_str());
+			}
+			OutMultiDialogue.Lines.Add(Line);
+		}
+	}
 
 	return true;
 }

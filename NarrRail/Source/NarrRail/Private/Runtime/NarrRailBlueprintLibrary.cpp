@@ -233,7 +233,8 @@ FNarrRailDialoguePayload UNarrRailBlueprintLibrary::GetDialogueFromNode(const FN
 
 bool UNarrRailBlueprintLibrary::IsDialogueNode(const FNarrRailNode& Node)
 {
-    return Node.NodeType == ENarrRailNodeType::Dialogue;
+    return Node.NodeType == ENarrRailNodeType::Dialogue ||
+        Node.NodeType == ENarrRailNodeType::MultiDialogue;
 }
 
 bool UNarrRailBlueprintLibrary::IsChoiceNode(const FNarrRailNode& Node)

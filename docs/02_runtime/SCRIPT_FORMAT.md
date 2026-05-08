@@ -71,8 +71,9 @@ edges: []
 | 字段 | 类型 | 必需 | 说明 |
 |---|---|---|---|
 | `nodeId` | string | 是 | 唯一的节点 ID |
-| `nodeType` | 枚举 | 是 | `Dialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `End` |
+| `nodeType` | 枚举 | 是 | `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `End` |
 | `dialogue` | 对象 | 否 | 用于 `Dialogue` 类型 |
+| `multiDialogue` | 对象 | 否 | 用于 `MultiDialogue` 类型 |
 | `choices` | 数组 | 否 | 用于 `Choice` 类型 |
 | `jumpTargetNodeId` | string | 否 | 用于 `Jump` 类型 |
 | `enterActions` | 数组 | 否 | 节点主体执行前的动作 |
@@ -87,7 +88,22 @@ speechRate: 1.0
 voiceAsset: ""
 ```
 
-### 5.2 选项（Choice Option）
+### 5.2 多行对话载荷（MultiDialogue Payload）
+
+```yaml
+speakerId: Narrator
+lines:
+  - textKey: line_001
+  - textKey: line_002
+  - textKey: line_003
+```
+
+说明：
+- `speakerId` 可空，空值表示旁白。
+- `lines` 至少 1 行，运行时每次 `Next` 推进一行。
+- 当最后一行播放完成后，下一次 `Next` 才会沿边离开该节点。
+
+### 5.3 选项（Choice Option）
 
 ```yaml
 - textKey: option_yes
@@ -204,6 +220,19 @@ nodes:
     enterActions: []
     exitActions: []
   
+  - nodeId: N_Block
+    nodeType: MultiDialogue
+    multiDialogue:
+      speakerId: Hero
+      lines:
+        - textKey: line_block_1
+        - textKey: line_block_2
+    dialogue: {}
+    choices: []
+    jumpTargetNodeId: ""
+    enterActions: []
+    exitActions: []
+
   - nodeId: N_End
     nodeType: End
     dialogue: {}
@@ -214,6 +243,13 @@ nodes:
 
 edges:
   - sourceNodeId: N_Start
+    targetNodeId: N_Block
+    priority: 0
+    condition:
+      logic: All
+      terms: []
+
+  - sourceNodeId: N_Block
     targetNodeId: N_End
     priority: 0
     condition:
