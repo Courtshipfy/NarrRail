@@ -948,6 +948,37 @@ function getChoiceHandleIndex(sourceHandle) {
     return Number(match[1]);
 }
 
+function estimateNodeHeight(node) {
+    if (!node) return 140;
+
+    if (node.type === "multidialogue") {
+        const lines = Array.isArray(node.data?.lines)
+            ? node.data.lines.filter((line) =>
+                  String(
+                      typeof line === "string" ? line : line?.textKey || "",
+                  ).trim(),
+              )
+            : [];
+
+        const baseHeight = 110;
+        const perLineHeight = 22;
+        return baseHeight + lines.length * perLineHeight;
+    }
+
+    if (node.type === "choice") {
+        const choices = Array.isArray(node.data?.choices)
+            ? node.data.choices.length
+            : 0;
+        return 130 + choices * 18;
+    }
+
+    return 140;
+}
+
+function getNodeCenterY(node, topY) {
+    return topY + estimateNodeHeight(node) * 0.5;
+}
+
 function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
     if (!incomingEdges || incomingEdges.length === 0) return null;
 
@@ -956,10 +987,11 @@ function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
     let count = 0;
 
     incomingEdges.forEach((edge) => {
-        const sourceY = assignedYById.get(edge.source);
-        if (sourceY == null) return;
+        const sourceTopY = assignedYById.get(edge.source);
+        if (sourceTopY == null) return;
 
         const sourceNode = nodeMap.get(edge.source);
+        const sourceCenterY = getNodeCenterY(sourceNode, sourceTopY);
         const handleIndex = getChoiceHandleIndex(edge.sourceHandle);
 
         if (handleIndex != null && sourceNode?.type === "choice") {
@@ -968,16 +1000,19 @@ function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
                 : 0;
             const center = (Math.max(choiceCount, 1) - 1) / 2;
             const offset = (handleIndex - center) * fanOutSpread;
-            total += sourceY + offset;
+            total += sourceCenterY + offset;
         } else {
-            total += sourceY;
+            total += sourceCenterY;
         }
 
         count += 1;
     });
 
     if (count === 0) return null;
-    return total / count;
+
+    const targetHeight = estimateNodeHeight(node);
+    const desiredCenterY = total / count;
+    return desiredCenterY - targetHeight * 0.5;
 }
 
 function resolveLayerYCollisions(orderedNodes, desiredYById, startY, minGap) {
@@ -989,7 +1024,9 @@ function resolveLayerYCollisions(orderedNodes, desiredYById, startY, minGap) {
         const desiredY = desiredYById.get(node.id) ?? cursor;
         const y = Math.max(desiredY, cursor);
         result.set(node.id, y);
-        cursor = y + minGap;
+
+        const nodeHeight = estimateNodeHeight(node);
+        cursor = y + Math.max(minGap, nodeHeight + 26);
     });
 
     const assignedValues = orderedNodes.map((n) => result.get(n.id));
