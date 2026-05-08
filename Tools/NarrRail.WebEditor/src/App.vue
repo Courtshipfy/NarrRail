@@ -975,6 +975,42 @@ function estimateNodeHeight(node) {
     return 140;
 }
 
+function estimateNodeWidth(node) {
+    if (!node) return 230;
+
+    if (node.type === "multidialogue") {
+        const lines = Array.isArray(node.data?.lines)
+            ? node.data.lines
+                  .map((line) =>
+                      String(
+                          typeof line === "string" ? line : line?.textKey || "",
+                      ).trim(),
+                  )
+                  .filter((text) => text.length > 0)
+            : [];
+
+        const maxLineLen = lines.reduce(
+            (max, text) => Math.max(max, text.length),
+            0,
+        );
+        return Math.min(620, Math.max(250, 220 + maxLineLen * 7));
+    }
+
+    if (node.type === "dialogue") {
+        const textLen = String(node.data?.textKey || "").trim().length;
+        return Math.min(520, Math.max(220, 200 + textLen * 6));
+    }
+
+    if (node.type === "choice") {
+        const choiceCount = Array.isArray(node.data?.choices)
+            ? node.data.choices.length
+            : 0;
+        return Math.min(520, Math.max(240, 230 + choiceCount * 18));
+    }
+
+    return 230;
+}
+
 function getNodeCenterY(node, topY) {
     return topY + estimateNodeHeight(node) * 0.5;
 }
@@ -1055,7 +1091,7 @@ function resolveLayerYCollisions(orderedNodes, desiredYById, startY, minGap) {
 function handleAutoLayout() {
     if (nodes.value.length === 0) return;
 
-    const rankSep = 360;
+    const rankSep = 140;
     const nodeSep = 185;
     const startX = 140;
     const startY = 110;
@@ -1083,6 +1119,30 @@ function handleAutoLayout() {
 
     const layers = [...grouped.keys()].sort((a, b) => a - b);
     const assignedYById = new Map();
+
+    const layerMaxWidth = new Map();
+    layers.forEach((layer) => {
+        const layerNodes = grouped.get(layer) || [];
+        const maxWidth = layerNodes.reduce(
+            (max, node) => Math.max(max, estimateNodeWidth(node)),
+            230,
+        );
+        layerMaxWidth.set(layer, maxWidth);
+    });
+
+    const layerX = new Map();
+    let cursorX = startX;
+    layers.forEach((layer, index) => {
+        if (index === 0) {
+            layerX.set(layer, cursorX);
+            return;
+        }
+
+        const prevLayer = layers[index - 1];
+        const prevWidth = layerMaxWidth.get(prevLayer) ?? 230;
+        cursorX += prevWidth + rankSep;
+        layerX.set(layer, cursorX);
+    });
 
     layers.forEach((layer) => {
         const layerNodes = grouped.get(layer) || [];
@@ -1129,9 +1189,10 @@ function handleAutoLayout() {
     const nextNodes = nodes.value.map((node) => {
         const l = layerMap.get(node.id) ?? 0;
         const y = assignedYById.get(node.id) ?? startY;
+        const x = layerX.get(l) ?? startX;
         return {
             ...node,
-            position: { x: startX + l * rankSep, y },
+            position: { x, y },
         };
     });
 
