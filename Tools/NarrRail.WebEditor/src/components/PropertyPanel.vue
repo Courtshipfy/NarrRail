@@ -101,6 +101,103 @@
                         </div>
                     </template>
 
+                    <template v-else-if="localNode.type === 'multidialogue'">
+                        <div class="form-group glass-input">
+                            <label class="form-label">说话人 ID</label>
+                            <select
+                                class="form-input"
+                                v-model="localNode.data.speakerId"
+                                @change="handleUpdate"
+                            >
+                                <option value="">（旁白）</option>
+                                <option
+                                    v-for="(speaker, index) in presetSpeakers"
+                                    :key="`preset-speaker-${index}`"
+                                    :value="getSpeakerId(speaker)"
+                                >
+                                    {{ formatPresetSpeakerLabel(speaker) }}
+                                </option>
+                            </select>
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="localNode.data.speakerId"
+                                placeholder="可手动输入自定义说话人（留空为旁白）"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            />
+                        </div>
+
+                        <div class="form-group glass-input">
+                            <label class="form-label"
+                                >多行台词（Enter 新增下一行）</label
+                            >
+                            <div class="multi-lines-editor">
+                                <div
+                                    v-for="(line, index) in localNode.data
+                                        .lines"
+                                    :key="`line-${index}`"
+                                    class="line-edit-row"
+                                    :class="{
+                                        'is-editing':
+                                            activeMultiDialogueLineIndex ===
+                                            index,
+                                    }"
+                                >
+                                    <span class="line-index">{{
+                                        index + 1
+                                    }}</span>
+                                    <input
+                                        :ref="
+                                            (el) =>
+                                                setMultiDialogueLineRef(
+                                                    el,
+                                                    index,
+                                                )
+                                        "
+                                        type="text"
+                                        class="form-input"
+                                        v-model="line.textKey"
+                                        placeholder="输入台词..."
+                                        @keydown.enter.prevent="
+                                            insertLineAfter(index)
+                                        "
+                                        @keydown.backspace="
+                                            handleLineBackspace(index, $event)
+                                        "
+                                        @focus="setActiveDialogueLine(index)"
+                                        @compositionstart="
+                                            handleCompositionStart
+                                        "
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleDialogueLineBlur(index)"
+                                    />
+                                    <button
+                                        class="remove-choice-btn line-remove-btn"
+                                        :class="{
+                                            'is-filled':
+                                                String(
+                                                    line?.textKey || '',
+                                                ).trim().length > 0,
+                                        }"
+                                        @click="removeDialogueLine(index)"
+                                        title="删除该行"
+                                        aria-label="删除该行"
+                                    >
+                                        <span class="material-symbols-outlined"
+                                            >close</span
+                                        >
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="choice-hint">
+                                按 Enter
+                                新增下一行；留空说话人时将作为“旁白”显示
+                            </p>
+                        </div>
+                    </template>
+
                     <template v-else-if="localNode.type === 'choice'">
                         <div class="form-group glass-input">
                             <label class="form-label">选项列表</label>
@@ -272,7 +369,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from "vue";
+import { ref, watch, computed, onMounted, onUnmounted, nextTick } from "vue";
 
 const props = defineProps({
     selectedNode: {
@@ -296,15 +393,30 @@ const isExpanded = ref(false);
 const localNode = ref(null);
 const isComposing = ref(false);
 const isPanelInputFocused = ref(false);
+const multiDialogueLineRefs = ref([]);
+const activeMultiDialogueLineIndex = ref(-1);
 
 // 监听 selectedNode 变化，同步到本地副本
 watch(
     () => props.selectedNode,
     (newNode) => {
         if (newNode) {
+            multiDialogueLineRefs.value = [];
+            activeMultiDialogueLineIndex.value = -1;
             localNode.value = JSON.parse(JSON.stringify(newNode));
+            if (localNode.value.type === "multidialogue") {
+                localNode.value.data = localNode.value.data || {};
+                if (!Array.isArray(localNode.value.data.lines)) {
+                    localNode.value.data.lines = [{ textKey: "" }];
+                }
+                if (localNode.value.data.lines.length === 0) {
+                    localNode.value.data.lines.push({ textKey: "" });
+                }
+            }
             isExpanded.value = true; // 选中节点时自动展开
         } else {
+            multiDialogueLineRefs.value = [];
+            activeMultiDialogueLineIndex.value = -1;
             localNode.value = null;
             isExpanded.value = false; // 取消选中时自动收起
         }
@@ -409,6 +521,78 @@ function updateChoice(index, key, value) {
     const choices = [...(localNode.value.data.choices || [])];
     choices[index] = { ...choices[index], [key]: value };
     localNode.value.data.choices = choices;
+}
+
+function setMultiDialogueLineRef(el, index) {
+    if (!el) return;
+    multiDialogueLineRefs.value[index] = el;
+}
+
+function setActiveDialogueLine(index) {
+    activeMultiDialogueLineIndex.value = index;
+}
+
+function handleDialogueLineBlur(index) {
+    if (activeMultiDialogueLineIndex.value === index) {
+        activeMultiDialogueLineIndex.value = -1;
+    }
+    handleInputChange();
+}
+
+async function focusDialogueLine(index) {
+    await nextTick();
+    const input = multiDialogueLineRefs.value[index];
+    if (input && typeof input.focus === "function") {
+        input.focus();
+        if (typeof input.setSelectionRange === "function") {
+            const len = String(input.value || "").length;
+            input.setSelectionRange(len, len);
+        }
+    }
+}
+
+function insertLineAfter(index) {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    const lines = Array.isArray(localNode.value.data.lines)
+        ? [...localNode.value.data.lines]
+        : [];
+    const insertAt = index + 1;
+    lines.splice(insertAt, 0, { textKey: "" });
+    localNode.value.data.lines = lines;
+    handleUpdate();
+    focusDialogueLine(insertAt);
+}
+
+function handleLineBackspace(index, event) {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    const lines = Array.isArray(localNode.value.data.lines)
+        ? [...localNode.value.data.lines]
+        : [];
+    if (lines.length <= 1) return;
+
+    const current = lines[index];
+    const text = typeof current === "string" ? current : current?.textKey || "";
+    if (String(text).length > 0) return;
+
+    event.preventDefault();
+    lines.splice(index, 1);
+    localNode.value.data.lines = lines;
+    handleUpdate();
+    focusDialogueLine(Math.max(0, index - 1));
+}
+
+function removeDialogueLine(index) {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    const lines = Array.isArray(localNode.value.data.lines)
+        ? [...localNode.value.data.lines]
+        : [];
+    if (lines.length <= 1) {
+        lines[0] = { textKey: "" };
+    } else {
+        lines.splice(index, 1);
+    }
+    localNode.value.data.lines = lines;
+    handleUpdate();
 }
 
 function updateParameters(jsonString) {
@@ -728,5 +912,42 @@ onUnmounted(() => {
     color: #86868b;
     font-style: italic;
     text-align: center;
+}
+
+.multi-lines-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.line-edit-row {
+    display: grid;
+    grid-template-columns: 26px 1fr 26px;
+    gap: 8px;
+    align-items: center;
+}
+
+.line-index {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-align: center;
+}
+
+.line-edit-row .remove-choice-btn {
+    position: static;
+}
+
+.line-remove-btn {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(6px) scale(0.92);
+    transition: all 0.16s ease;
+}
+
+.line-edit-row:not(.is-editing):hover .line-remove-btn.is-filled {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0) scale(1);
 }
 </style>

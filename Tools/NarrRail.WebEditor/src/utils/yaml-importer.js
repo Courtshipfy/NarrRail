@@ -2,6 +2,7 @@ import YAML from "yaml";
 
 const reverseNodeTypeMap = {
   Dialogue: "dialogue",
+  MultiDialogue: "multidialogue",
   Choice: "choice",
   Jump: "jump",
   SetVariable: "setVariable",
@@ -40,6 +41,18 @@ export function importFromYAML(yamlString) {
         choices: choiceArray.map((c) => ({
           textKey: c.textKey,
         })),
+      };
+    } else if (node.nodeType === "MultiDialogue" || node.multiDialogue) {
+      const md = node.multiDialogue || {};
+      const lines = Array.isArray(md.lines)
+        ? md.lines.map((line) => {
+            if (typeof line === "string") return { textKey: line };
+            return { textKey: line?.textKey || "" };
+          })
+        : [];
+      base.data = {
+        speakerId: md.speakerId || "",
+        lines: lines.length > 0 ? lines : [{ textKey: "" }],
       };
     } else if (node.dialogue) {
       base.data = { ...node.dialogue };

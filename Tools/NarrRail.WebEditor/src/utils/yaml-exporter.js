@@ -2,6 +2,7 @@ import YAML from "yaml";
 
 const nodeTypeMap = {
   dialogue: "Dialogue",
+  multidialogue: "MultiDialogue",
   choice: "Choice",
   jump: "Jump",
   setVariable: "SetVariable",
@@ -24,6 +25,19 @@ export function buildYAMLString(nodes, edges, variables, meta) {
         textKey: node.data.textKey || "",
         speechRate: node.data.speechRate || 1.0,
         voiceAsset: node.data.voiceAsset || "",
+      };
+    } else if (node.type === "multidialogue") {
+      const normalizedLines = Array.isArray(node.data?.lines)
+        ? node.data.lines.map((line) => {
+            if (typeof line === "string") {
+              return { textKey: line };
+            }
+            return { textKey: line?.textKey || "" };
+          })
+        : [];
+      base.multiDialogue = {
+        speakerId: node.data?.speakerId || "",
+        lines: normalizedLines,
       };
     } else if (node.type === "choice") {
       // 从边中找到每个选项对应的目标节点

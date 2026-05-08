@@ -87,6 +87,23 @@ export function validateStory(nodes, edges, meta) {
       }
     }
 
+    if (nodeType === "multidialogue") {
+      if (!Array.isArray(data.lines) || data.lines.length === 0) {
+        addError(`节点 ${node.id}: 多行对话至少需要一行文本`, {
+          nodeId: node.id,
+        });
+      } else {
+        data.lines.forEach((line, index) => {
+          const text = typeof line === "string" ? line : line?.textKey;
+          if (!String(text || "").trim()) {
+            addWarning(`节点 ${node.id}: 第 ${index + 1} 行文本为空`, {
+              nodeId: node.id,
+            });
+          }
+        });
+      }
+    }
+
     if (nodeType === "jump") {
       if (!data.targetNodeId) {
         addError(`节点 ${node.id}: 缺少跳转目标`, { nodeId: node.id });

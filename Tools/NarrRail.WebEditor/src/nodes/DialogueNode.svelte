@@ -13,7 +13,7 @@
     <span class="node-type">对话</span>
   </div>
   <div class="node-content">
-    <div class="node-field">
+    <div class="node-field speaker-inline-field">
       <span class="field-label">说话人:</span>
       <span class="field-value">{data.speakerId || '未设置'}</span>
     </div>
@@ -114,5 +114,11 @@
     -webkit-box-orient: vertical;
     line-height: 1.4;
     word-break: break-word;
+  }
+
+  .speaker-inline-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
   }
 </style>

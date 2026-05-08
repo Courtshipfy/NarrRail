@@ -5,6 +5,7 @@
   import '@xyflow/svelte/dist/style.css';
 
   import DialogueNode from '../nodes/DialogueNode.svelte';
+  import MultiDialogueNode from '../nodes/MultiDialogueNode.svelte';
   import ChoiceNode from '../nodes/ChoiceNode.svelte';
   import EndNode from '../nodes/EndNode.svelte';
   import JumpNode from '../nodes/JumpNode.svelte';
@@ -255,6 +256,7 @@
   // 定义节点类型
   const nodeTypes = {
     dialogue: DialogueNode,
+    multidialogue: MultiDialogueNode,
     choice: ChoiceNode,
     end: EndNode,
     jump: JumpNode,
@@ -511,6 +513,16 @@
           : (firstSpeaker?.id || '');
         return { speakerId: defaultSpeakerId, textKey: '' };
       }
+      case 'multidialogue': {
+        const firstSpeaker = Array.isArray(presetSpeakers) ? presetSpeakers[0] : null;
+        const defaultSpeakerId = typeof firstSpeaker === 'string'
+          ? firstSpeaker
+          : (firstSpeaker?.id || '');
+        return {
+          speakerId: defaultSpeakerId,
+          lines: [{ textKey: '' }]
+        };
+      }
       case 'choice':
         return { choices: [] };
       case 'jump':
@@ -579,6 +591,10 @@
       <button class="context-menu-item" on:click={() => createNode('dialogue')}>
         <span class="material-symbols-outlined">chat</span>
         <span>对话节点</span>
+      </button>
+      <button class="context-menu-item" on:click={() => createNode('multidialogue')}>
+        <span class="material-symbols-outlined">speaker_notes</span>
+        <span>多行对话</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('choice')}>
         <span class="material-symbols-outlined">fork_right</span>
