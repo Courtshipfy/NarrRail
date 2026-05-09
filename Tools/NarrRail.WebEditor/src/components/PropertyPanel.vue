@@ -130,10 +130,28 @@
                         </div>
 
                         <div class="form-group glass-input">
-                            <label class="form-label"
-                                >多行台词（Enter 新增下一行）</label
+                            <div class="multi-lines-header">
+                                <label class="form-label"
+                                    >多行台词（Enter 新增下一行）</label
+                                >
+                                <button
+                                    class="open-dialogue-modal-btn"
+                                    @click="openMultiDialogueModal"
+                                    title="全屏编辑多行对话"
+                                    aria-label="全屏编辑多行对话"
+                                >
+                                    <span class="material-symbols-outlined"
+                                        >open_in_full</span
+                                    >
+                                </button>
+                            </div>
+                            <div
+                                class="multi-lines-editor"
+                                @dragover.prevent="
+                                    onDialogueContainerDragOver($event)
+                                "
+                                @drop.prevent="onDialogueContainerDrop($event)"
                             >
-                            <div class="multi-lines-editor">
                                 <div
                                     v-for="(line, index) in localNode.data
                                         .lines"
@@ -143,9 +161,18 @@
                                         'is-editing':
                                             activeMultiDialogueLineIndex ===
                                             index,
+                                        'is-dragging':
+                                            draggingDialogueLineIndex === index,
                                         'is-drag-over':
                                             isDialogueLineDragOver(index),
+                                        'drop-before':
+                                            isDialogueLineDropBefore(index),
+                                        'drop-after':
+                                            isDialogueLineDropAfter(index),
                                     }"
+                                    @dragenter.prevent="
+                                        onDialogueLineDragEnter(index, $event)
+                                    "
                                     @dragover.prevent="
                                         onDialogueLineDragOver(index, $event)
                                     "
@@ -395,6 +422,116 @@
             </div>
         </div>
     </div>
+
+    <Teleport to="body">
+        <div
+            v-if="showMultiDialogueModal && localNode?.type === 'multidialogue'"
+            class="multi-dialogue-modal-overlay"
+            @click.self="closeMultiDialogueModal"
+        >
+            <div
+                class="multi-dialogue-modal glass-morphism-strong"
+                @mousedown.stop
+                @click.stop
+            >
+                <div class="multi-dialogue-modal-header">
+                    <div>
+                        <h3>多行对话全屏编辑</h3>
+                        <p>拖拽左侧图标调整顺序，Enter 新增行</p>
+                    </div>
+                    <button
+                        class="multi-dialogue-modal-close"
+                        @click="closeMultiDialogueModal"
+                        title="关闭"
+                        aria-label="关闭"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div class="multi-dialogue-modal-body">
+                    <div
+                        class="multi-lines-editor fullscreen"
+                        @dragover.prevent="onDialogueContainerDragOver($event)"
+                        @drop.prevent="onDialogueContainerDrop($event)"
+                    >
+                        <div
+                            v-for="(line, index) in localNode.data.lines"
+                            :key="`modal-line-${index}`"
+                            class="line-edit-row"
+                            :class="{
+                                'is-editing':
+                                    activeMultiDialogueLineIndex === index,
+                                'is-dragging':
+                                    draggingDialogueLineIndex === index,
+                                'is-drag-over': isDialogueLineDragOver(index),
+                                'drop-before': isDialogueLineDropBefore(index),
+                                'drop-after': isDialogueLineDropAfter(index),
+                            }"
+                            @dragenter.prevent="
+                                onDialogueLineDragEnter(index, $event)
+                            "
+                            @dragover.prevent="
+                                onDialogueLineDragOver(index, $event)
+                            "
+                            @drop.prevent="onDialogueLineDrop(index, $event)"
+                        >
+                            <button
+                                class="line-drag-handle"
+                                draggable="true"
+                                title="拖拽排序"
+                                aria-label="拖拽排序"
+                                @dragstart="
+                                    onDialogueLineDragStart(index, $event)
+                                "
+                                @dragend="onDialogueLineDragEnd"
+                            >
+                                <span class="material-symbols-outlined"
+                                    >drag_indicator</span
+                                >
+                            </button>
+
+                            <textarea
+                                :ref="
+                                    (el) => setMultiDialogueLineRef(el, index)
+                                "
+                                class="form-textarea modal-line-textarea"
+                                v-model="line.textKey"
+                                rows="1"
+                                placeholder="输入台词..."
+                                @input="handleModalLineInput(index, $event)"
+                                @keydown.enter.prevent="insertLineAfter(index)"
+                                @keydown.backspace="
+                                    handleLineBackspace(index, $event)
+                                "
+                                @paste="handleDialogueLinePaste(index, $event)"
+                                @focus="handleModalLineFocus(index, $event)"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleDialogueLineBlur(index)"
+                            ></textarea>
+
+                            <button
+                                class="remove-choice-btn line-remove-btn"
+                                :class="{
+                                    'is-filled':
+                                        String(line?.textKey || '').trim()
+                                            .length > 0,
+                                }"
+                                @click="removeDialogueLine(index)"
+                                title="删除该行"
+                                aria-label="删除该行"
+                            >
+                                <span class="material-symbols-outlined"
+                                    >close</span
+                                >
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Teleport>
 </template>
 
 <script setup>
@@ -425,15 +562,31 @@ const isPanelInputFocused = ref(false);
 const multiDialogueLineRefs = ref([]);
 const activeMultiDialogueLineIndex = ref(-1);
 const draggingDialogueLineIndex = ref(-1);
+const dragOverDialogueLineIndex = ref(-1);
+const dragOverDialogueLinePlacement = ref("after");
+const showMultiDialogueModal = ref(false);
 
 // 监听 selectedNode 变化，同步到本地副本
 watch(
     () => props.selectedNode,
     (newNode) => {
+        const isEditingCurrentNodeInModal =
+            showMultiDialogueModal.value &&
+            localNode.value &&
+            newNode &&
+            localNode.value.id === newNode.id;
+
+        if (isEditingCurrentNodeInModal) {
+            return;
+        }
+
         if (newNode) {
             multiDialogueLineRefs.value = [];
             activeMultiDialogueLineIndex.value = -1;
             draggingDialogueLineIndex.value = -1;
+            dragOverDialogueLineIndex.value = -1;
+            dragOverDialogueLinePlacement.value = "after";
+            showMultiDialogueModal.value = false;
             localNode.value = JSON.parse(JSON.stringify(newNode));
             if (localNode.value.type === "multidialogue") {
                 localNode.value.data = localNode.value.data || {};
@@ -449,11 +602,14 @@ watch(
             multiDialogueLineRefs.value = [];
             activeMultiDialogueLineIndex.value = -1;
             draggingDialogueLineIndex.value = -1;
+            dragOverDialogueLineIndex.value = -1;
+            dragOverDialogueLinePlacement.value = "after";
+            showMultiDialogueModal.value = false;
             localNode.value = null;
             isExpanded.value = false; // 取消选中时自动收起
         }
     },
-    { immediate: true, deep: true },
+    { immediate: true },
 );
 
 // 计算当前节点是否为入口节点
@@ -487,6 +643,10 @@ function handlePanelFocusOut(event) {
 }
 
 function handleGlobalPointerDown(event) {
+    if (showMultiDialogueModal.value) {
+        return;
+    }
+
     const panelEl = panelWrapperRef.value;
     const target = event?.target;
     if (!panelEl || !target) return;
@@ -558,10 +718,32 @@ function updateChoice(index, key, value) {
 function setMultiDialogueLineRef(el, index) {
     if (!el) return;
     multiDialogueLineRefs.value[index] = el;
+    if (String(el?.tagName || "").toUpperCase() === "TEXTAREA") {
+        autoResizeTextarea(el);
+    }
 }
 
 function setActiveDialogueLine(index) {
     activeMultiDialogueLineIndex.value = index;
+}
+
+function autoResizeTextarea(el) {
+    if (!el || String(el?.tagName || "").toUpperCase() !== "TEXTAREA") {
+        return;
+    }
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+}
+
+function handleModalLineInput(index, event) {
+    setActiveDialogueLine(index);
+    autoResizeTextarea(event?.target);
+    handleUpdate();
+}
+
+function handleModalLineFocus(index, event) {
+    setActiveDialogueLine(index);
+    autoResizeTextarea(event?.target);
 }
 
 function handleDialogueLineBlur(index) {
@@ -630,14 +812,121 @@ function handleDialogueLinePaste(index, event) {
 
 function onDialogueLineDragStart(index, event) {
     draggingDialogueLineIndex.value = index;
+    dragOverDialogueLineIndex.value = index;
+    dragOverDialogueLinePlacement.value = "after";
+
     if (event?.dataTransfer) {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", String(index));
+
+        const currentTarget = event?.currentTarget;
+        if (
+            currentTarget &&
+            typeof currentTarget.closest === "function" &&
+            typeof event.dataTransfer.setDragImage === "function"
+        ) {
+            const rowEl = currentTarget.closest(".line-edit-row");
+            if (rowEl && typeof rowEl.cloneNode === "function") {
+                const ghost = rowEl.cloneNode(true);
+                ghost.style.position = "fixed";
+                ghost.style.top = "-9999px";
+                ghost.style.left = "-9999px";
+                ghost.style.width = `${rowEl.clientWidth}px`;
+                ghost.style.opacity = "0.96";
+                ghost.style.transform = "scale(1.01)";
+                ghost.style.boxShadow =
+                    "0 14px 26px rgba(15, 23, 42, 0.22), 0 2px 8px rgba(59, 130, 246, 0.28)";
+                ghost.style.background = "rgba(255, 255, 255, 0.92)";
+                ghost.style.borderRadius = "10px";
+                ghost.style.pointerEvents = "none";
+                document.body.appendChild(ghost);
+                event.dataTransfer.setDragImage(ghost, 20, 20);
+                setTimeout(() => {
+                    if (ghost.parentNode) {
+                        ghost.parentNode.removeChild(ghost);
+                    }
+                }, 0);
+            }
+        }
     }
 }
 
 function onDialogueLineDragEnd() {
     draggingDialogueLineIndex.value = -1;
+    dragOverDialogueLineIndex.value = -1;
+    dragOverDialogueLinePlacement.value = "after";
+}
+
+function onDialogueLineDragEnter(index, event) {
+    onDialogueLineDragOver(index, event);
+}
+
+function updateDragTargetFromPointer(rootEl, clientY) {
+    if (!rootEl) return;
+
+    const rowElements = Array.from(rootEl.querySelectorAll(".line-edit-row"));
+    if (rowElements.length === 0) {
+        dragOverDialogueLineIndex.value = -1;
+        dragOverDialogueLinePlacement.value = "after";
+        return;
+    }
+
+    const safeClientY = Number.isFinite(Number(clientY))
+        ? Number(clientY)
+        : rowElements[0].getBoundingClientRect().top;
+
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    let placement = "after";
+
+    rowElements.forEach((rowEl, index) => {
+        if (!rowEl || typeof rowEl.getBoundingClientRect !== "function") {
+            return;
+        }
+        const rect = rowEl.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        const distance = Math.abs(safeClientY - centerY);
+        if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestIndex = index;
+            placement = safeClientY <= centerY ? "before" : "after";
+        }
+    });
+
+    dragOverDialogueLineIndex.value = nearestIndex;
+    dragOverDialogueLinePlacement.value = placement;
+}
+
+function onDialogueContainerDragOver(event) {
+    if (draggingDialogueLineIndex.value < 0) return;
+
+    const rootEl = event?.currentTarget;
+    if (!rootEl || typeof rootEl.querySelectorAll !== "function") return;
+
+    if (event?.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+    }
+
+    updateDragTargetFromPointer(rootEl, event?.clientY);
+}
+
+function onDialogueContainerDrop(event) {
+    if (draggingDialogueLineIndex.value < 0) {
+        onDialogueLineDragEnd();
+        return;
+    }
+
+    const rootEl = event?.currentTarget;
+    if (rootEl && typeof rootEl.querySelectorAll === "function") {
+        updateDragTargetFromPointer(rootEl, event?.clientY);
+    }
+
+    const fallbackTargetIndex =
+        dragOverDialogueLineIndex.value >= 0
+            ? dragOverDialogueLineIndex.value
+            : 0;
+
+    onDialogueLineDrop(fallbackTargetIndex, event);
 }
 
 function onDialogueLineDragOver(index, event) {
@@ -645,42 +934,109 @@ function onDialogueLineDragOver(index, event) {
     if (event?.dataTransfer) {
         event.dataTransfer.dropEffect = "move";
     }
+
+    dragOverDialogueLineIndex.value = index;
+
+    const currentTarget = event?.currentTarget;
+    if (
+        !currentTarget ||
+        typeof currentTarget.getBoundingClientRect !== "function"
+    ) {
+        dragOverDialogueLinePlacement.value = "after";
+        return;
+    }
+
+    const rect = currentTarget.getBoundingClientRect();
+    const offsetY = Number(event?.clientY || 0) - rect.top;
+    dragOverDialogueLinePlacement.value =
+        offsetY <= rect.height / 2 ? "before" : "after";
 }
 
 function isDialogueLineDragOver(index) {
     return (
         draggingDialogueLineIndex.value >= 0 &&
+        dragOverDialogueLineIndex.value === index
+    );
+}
+
+function isDialogueLineDropBefore(index) {
+    return (
+        isDialogueLineDragOver(index) &&
+        dragOverDialogueLinePlacement.value === "before" &&
         draggingDialogueLineIndex.value !== index
     );
 }
 
-function onDialogueLineDrop(targetIndex) {
+function isDialogueLineDropAfter(index) {
+    return (
+        isDialogueLineDragOver(index) &&
+        dragOverDialogueLinePlacement.value === "after" &&
+        draggingDialogueLineIndex.value !== index
+    );
+}
+
+function onDialogueLineDrop(targetIndex, event) {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
 
     const fromIndex = draggingDialogueLineIndex.value;
-    if (fromIndex < 0 || fromIndex === targetIndex) {
-        draggingDialogueLineIndex.value = -1;
+    if (fromIndex < 0) {
+        onDialogueLineDragEnd();
         return;
     }
 
     const lines = Array.isArray(localNode.value.data.lines)
         ? [...localNode.value.data.lines]
         : [];
+
+    const visualTargetIndex =
+        dragOverDialogueLineIndex.value >= 0
+            ? dragOverDialogueLineIndex.value
+            : targetIndex;
+
     if (
         fromIndex >= lines.length ||
-        targetIndex < 0 ||
-        targetIndex >= lines.length
+        visualTargetIndex < 0 ||
+        visualTargetIndex >= lines.length
     ) {
-        draggingDialogueLineIndex.value = -1;
+        onDialogueLineDragEnd();
         return;
     }
 
+    let placement = dragOverDialogueLinePlacement.value;
+
+    const currentTarget = event?.currentTarget;
+    const isLineRowTarget =
+        currentTarget &&
+        typeof currentTarget.classList?.contains === "function" &&
+        currentTarget.classList.contains("line-edit-row");
+    if (
+        isLineRowTarget &&
+        typeof currentTarget.getBoundingClientRect === "function" &&
+        Number.isFinite(Number(event?.clientY))
+    ) {
+        const rect = currentTarget.getBoundingClientRect();
+        const offsetY = Number(event.clientY) - rect.top;
+        placement = offsetY <= rect.height / 2 ? "before" : "after";
+    }
+
     const [moved] = lines.splice(fromIndex, 1);
-    lines.splice(targetIndex, 0, moved);
+
+    let insertIndex = visualTargetIndex;
+    if (placement === "after") {
+        insertIndex += 1;
+    }
+
+    if (fromIndex < visualTargetIndex) {
+        insertIndex -= 1;
+    }
+
+    insertIndex = Math.max(0, Math.min(insertIndex, lines.length));
+
+    lines.splice(insertIndex, 0, moved);
     localNode.value.data.lines = lines;
     handleUpdate();
-    focusDialogueLine(targetIndex);
-    draggingDialogueLineIndex.value = -1;
+    focusDialogueLine(insertIndex);
+    onDialogueLineDragEnd();
 }
 
 function handleLineBackspace(index, event) {
@@ -725,10 +1081,51 @@ function updateParameters(jsonString) {
     }
 }
 
+async function openMultiDialogueModal() {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    isExpanded.value = false;
+    isPanelInputFocused.value = false;
+    showMultiDialogueModal.value = true;
+
+    await nextTick();
+    multiDialogueLineRefs.value.forEach((el) => {
+        autoResizeTextarea(el);
+    });
+}
+
+function closeMultiDialogueModal() {
+    showMultiDialogueModal.value = false;
+    activeMultiDialogueLineIndex.value = -1;
+    draggingDialogueLineIndex.value = -1;
+    dragOverDialogueLineIndex.value = -1;
+    dragOverDialogueLinePlacement.value = "after";
+    if (localNode.value) {
+        isExpanded.value = true;
+    }
+}
+
 function handleUpdate() {
     // 提交本地修改到父组件
     if (localNode.value) {
         emit("update", localNode.value);
+    }
+}
+
+function handleModalShortcutKeydown(event) {
+    if (!showMultiDialogueModal.value) return;
+
+    const key = String(event?.key || "").toLowerCase();
+    const isCtrlOrMeta = !!(event?.ctrlKey || event?.metaKey);
+
+    if (key === "escape") {
+        event.preventDefault();
+        closeMultiDialogueModal();
+        return;
+    }
+
+    if (isCtrlOrMeta && key === "s") {
+        event.preventDefault();
+        closeMultiDialogueModal();
     }
 }
 
@@ -740,10 +1137,12 @@ function handleSetEntryNode() {
 
 onMounted(() => {
     window.addEventListener("pointerdown", handleGlobalPointerDown, true);
+    window.addEventListener("keydown", handleModalShortcutKeydown, true);
 });
 
 onUnmounted(() => {
     window.removeEventListener("pointerdown", handleGlobalPointerDown, true);
+    window.removeEventListener("keydown", handleModalShortcutKeydown, true);
 });
 </script>
 
@@ -1034,6 +1433,30 @@ onUnmounted(() => {
     text-align: center;
 }
 
+.multi-lines-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.open-dialogue-modal-btn {
+    border: none;
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.open-dialogue-modal-btn .material-symbols-outlined {
+    font-size: 18px;
+}
+
 .multi-lines-editor {
     display: flex;
     flex-direction: column;
@@ -1045,12 +1468,56 @@ onUnmounted(() => {
     grid-template-columns: 26px 1fr 26px;
     gap: 8px;
     align-items: center;
-    border-radius: 8px;
-    transition: background 0.12s ease;
+    border-radius: 10px;
+    position: relative;
+    transition:
+        transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+        box-shadow 0.18s ease,
+        background 0.18s ease,
+        opacity 0.18s ease;
 }
 
 .line-edit-row.is-drag-over {
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.line-edit-row.is-dragging {
+    opacity: 0.6;
+    transform: scale(0.985);
+}
+
+.line-edit-row.drop-before {
+    transform: translateY(8px);
+}
+
+.line-edit-row.drop-after {
+    transform: translateY(-8px);
+}
+
+.line-edit-row.drop-before::before,
+.line-edit-row.drop-after::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        rgba(59, 130, 246, 0.22),
+        rgba(99, 102, 241, 0.8),
+        rgba(59, 130, 246, 0.22)
+    );
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+    pointer-events: none;
+}
+
+.line-edit-row.drop-before::before {
+    top: -6px;
+}
+
+.line-edit-row.drop-after::after {
+    bottom: -6px;
 }
 
 .line-drag-handle {
@@ -1076,6 +1543,11 @@ onUnmounted(() => {
     color: rgba(30, 58, 138, 0.78);
 }
 
+.line-edit-row.is-dragging .line-drag-handle {
+    cursor: grabbing;
+    color: rgba(30, 58, 138, 0.82);
+}
+
 .line-drag-handle .material-symbols-outlined {
     font-size: 16px;
     line-height: 1;
@@ -1096,5 +1568,132 @@ onUnmounted(() => {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0) scale(1);
+}
+
+.multi-dialogue-modal-overlay {
+    --nr-md-overlay-bg: rgba(15, 23, 42, 0.24);
+    --nr-md-panel-bg: rgba(255, 255, 255, 0.72);
+    --nr-md-panel-border: rgba(148, 163, 184, 0.28);
+    --nr-md-header-border: rgba(148, 163, 184, 0.24);
+    --nr-md-title: #1e3a8a;
+    --nr-md-subtitle: #64748b;
+    --nr-md-close: rgba(30, 58, 138, 0.42);
+    --nr-md-close-hover: rgba(30, 58, 138, 0.72);
+
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    background: var(--nr-md-overlay-bg);
+    backdrop-filter: blur(4px);
+    display: grid;
+    place-items: center;
+    padding: 22px;
+}
+
+:global(body.light-theme) .multi-dialogue-modal-overlay,
+:global(body[data-theme="light"]) .multi-dialogue-modal-overlay {
+    --nr-md-overlay-bg: rgba(15, 23, 42, 0.18);
+    --nr-md-panel-bg: rgba(255, 255, 255, 0.76);
+    --nr-md-panel-border: rgba(148, 163, 184, 0.26);
+    --nr-md-header-border: rgba(148, 163, 184, 0.22);
+    --nr-md-title: #1e3a8a;
+    --nr-md-subtitle: #64748b;
+    --nr-md-close: rgba(30, 58, 138, 0.42);
+    --nr-md-close-hover: rgba(30, 58, 138, 0.72);
+}
+
+:global(body.dark-theme) .multi-dialogue-modal-overlay,
+:global(body[data-theme="dark"]) .multi-dialogue-modal-overlay {
+    --nr-md-overlay-bg: rgba(2, 6, 23, 0.52);
+    --nr-md-panel-bg: rgba(15, 23, 42, 0.78);
+    --nr-md-panel-border: rgba(96, 165, 250, 0.26);
+    --nr-md-header-border: rgba(96, 165, 250, 0.22);
+    --nr-md-title: #dbeafe;
+    --nr-md-subtitle: #94a3b8;
+    --nr-md-close: rgba(191, 219, 254, 0.52);
+    --nr-md-close-hover: rgba(219, 234, 254, 0.86);
+}
+
+:global(body.dark-theme) .line-edit-row.drop-before::before,
+:global(body.dark-theme) .line-edit-row.drop-after::after,
+:global(body[data-theme="dark"]) .line-edit-row.drop-before::before,
+:global(body[data-theme="dark"]) .line-edit-row.drop-after::after {
+    background: linear-gradient(
+        90deg,
+        rgba(125, 211, 252, 0.22),
+        rgba(96, 165, 250, 0.86),
+        rgba(125, 211, 252, 0.22)
+    );
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+}
+
+.multi-dialogue-modal {
+    width: min(74vw, 1160px);
+    aspect-ratio: 16 / 9;
+    max-height: 78vh;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--nr-md-panel-bg);
+    border: 1px solid var(--nr-md-panel-border);
+}
+
+.multi-dialogue-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--nr-md-header-border);
+}
+
+.multi-dialogue-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--nr-md-title);
+}
+
+.multi-dialogue-modal-header p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--nr-md-subtitle);
+}
+
+.multi-dialogue-modal-close {
+    border: none;
+    background: transparent;
+    color: var(--nr-md-close);
+    width: 24px;
+    height: 24px;
+    border-radius: 0;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.16s ease;
+}
+
+.multi-dialogue-modal-close:hover {
+    color: var(--nr-md-close-hover);
+}
+
+.multi-dialogue-modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 18px;
+}
+
+.multi-lines-editor.fullscreen {
+    gap: 10px;
+}
+
+.modal-line-textarea {
+    min-height: 40px;
+    height: auto;
+    max-height: 220px;
+    resize: vertical;
+    line-height: 1.45;
+    overflow-y: auto;
 }
 </style>
