@@ -169,6 +169,10 @@ NarrRail.WebEditor/
 
 ---
 
+## 规划中的大型功能
+
+- 阅读模式（Read Mode）设计说明：`README_READING_MODE.md`
+
 ## 已知限制 / 待优化
 
 - 条件编辑目前 `terms` 仍以 JSON 文本输入为主（后续可视化表单化）

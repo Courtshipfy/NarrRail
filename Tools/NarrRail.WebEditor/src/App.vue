@@ -18,10 +18,16 @@
         <div class="main-content">
             <div class="graph-editor-wrapper">
                 <GraphEditorWrapper
+                    v-if="editorMode === 'graph'"
                     :nodes="nodes"
                     :edges="edges"
                     :edge-render-mode="edgeRenderMode"
                     :preset-speakers="presetSpeakers"
+                />
+                <ReadModePanel
+                    v-else
+                    :lines="readModeLines"
+                    :is-dark-mode="darkModeEnabled"
                 />
             </div>
         </div>
@@ -29,6 +35,7 @@
         <Toolbar
             :focus-mode-enabled="focusModeEnabled"
             :is-dark-mode="darkModeEnabled"
+            :read-mode-enabled="editorMode === 'read'"
             :edge-style="edgeRenderMode"
             @new="handleNew"
             @import="handleImport"
@@ -39,6 +46,7 @@
             @auto-layout="handleAutoLayout"
             @toggle-edge-style="handleToggleEdgeRenderMode"
             @toggle-focus-mode="handleToggleFocusMode"
+            @toggle-read-mode="handleToggleReadMode"
             @toggle-dark-mode="handleToggleDarkMode"
             @go-library="handleGoLibrary"
             @help="handleHelp"
@@ -56,6 +64,7 @@
         />
 
         <PropertyPanel
+            v-if="editorMode === 'graph'"
             :selected-node="selectedNode"
             :entry-node-id="storyMeta.entryNodeId"
             :preset-speakers="presetSpeakers"
@@ -67,13 +76,17 @@
         />
 
         <VariablePanel
+            v-if="editorMode === 'graph'"
             :variables="variables"
             :preset-speakers="presetSpeakers"
             @update="handleVariablesUpdate"
             @update-speakers="handlePresetSpeakersUpdate"
         />
 
-        <div v-if="selectedEdge" class="edge-editor glass-morphism-strong">
+        <div
+            v-if="editorMode === 'graph' && selectedEdge"
+            class="edge-editor glass-morphism-strong"
+        >
             <div class="edge-editor-header">
                 <h3>边属性</h3>
                 <button class="close-btn" @click="clearEdgeSelection">✕</button>
@@ -223,6 +236,7 @@ import GraphEditorWrapper from "./components/GraphEditorWrapper.vue";
 import PropertyPanel from "./components/PropertyPanel.vue";
 import VariablePanel from "./components/VariablePanel.vue";
 import StatusBar from "./components/StatusBar.vue";
+import ReadModePanel from "./components/ReadModePanel.vue";
 import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
 import { buildYAMLString, exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
@@ -297,6 +311,7 @@ const lastNodeClickMeta = ref({ id: "", time: 0 });
 const recentDragSuppressUntil = ref(0);
 const focusModeEnabled = ref(false);
 const darkModeEnabled = ref(false);
+const editorMode = ref("graph");
 const edgeRenderMode = ref("straight");
 const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
 
@@ -338,6 +353,7 @@ const fileInput = ref(null);
 const validationResult = ref({ errors: [], warnings: [] });
 const hasErrors = computed(() => validationResult.value.errors.length > 0);
 const hasWarnings = computed(() => validationResult.value.warnings.length > 0);
+const readModeLines = computed(() => buildReadModeLines());
 
 const edgeDraft = reactive({
     priority: 0,
@@ -1252,6 +1268,91 @@ function handleAutoLayout() {
     }
 }
 
+function getNodeById(nodeId) {
+    return nodes.value.find((node) => node.id === nodeId) || null;
+}
+
+function getOutgoingEdgesBySource(sourceId) {
+    return edges.value
+        .filter((edge) => edge.source === sourceId)
+        .sort((a, b) => {
+            const pa = Number(a?.data?.priority ?? 0);
+            const pb = Number(b?.data?.priority ?? 0);
+            if (pa !== pb) return pa - pb;
+            return String(a?.id || "").localeCompare(String(b?.id || ""));
+        });
+}
+
+function toReadSpeaker(rawSpeaker) {
+    const s = String(rawSpeaker || "").trim();
+    return s || "旁白";
+}
+
+function toReadText(rawText) {
+    return String(rawText || "").trim();
+}
+
+function buildReadModeLines() {
+    const lines = [];
+    const entryId = String(storyMeta.value?.entryNodeId || "").trim();
+    if (!entryId) return lines;
+
+    const visited = new Set();
+    let currentId = entryId;
+    let guard = 0;
+
+    while (currentId && guard < 20000) {
+        guard += 1;
+        if (visited.has(currentId)) break;
+        visited.add(currentId);
+
+        const node = getNodeById(currentId);
+        if (!node) break;
+
+        if (node.type === "dialogue") {
+            const text = toReadText(node?.data?.textKey);
+            if (text) {
+                lines.push({
+                    nodeId: node.id,
+                    lineIndex: 0,
+                    speaker: toReadSpeaker(node?.data?.speakerId),
+                    text,
+                    kind: "dialogue",
+                });
+            }
+        } else if (node.type === "multidialogue") {
+            const speaker = toReadSpeaker(node?.data?.speakerId);
+            const rawLines = Array.isArray(node?.data?.lines)
+                ? node.data.lines
+                : [];
+            const mergedText = rawLines
+                .map((line) =>
+                    toReadText(typeof line === "string" ? line : line?.textKey),
+                )
+                .filter((text) => text.length > 0)
+                .join("\n");
+
+            if (mergedText) {
+                lines.push({
+                    nodeId: node.id,
+                    lineIndex: 0,
+                    speaker,
+                    text: mergedText,
+                    kind: "multidialogue",
+                });
+            }
+        }
+
+        if (node.type === "end") break;
+
+        const outgoing = getOutgoingEdgesBySource(node.id);
+        if (outgoing.length <= 0) break;
+        currentId = outgoing[0]?.target || "";
+    }
+
+    return lines;
+}
+
 function handleToggleFocusMode() {
     focusModeEnabled.value = !focusModeEnabled.value;
     applyEdgeVisualStyles();
@@ -1261,6 +1362,15 @@ function handleToggleDarkMode() {
     darkModeEnabled.value = !darkModeEnabled.value;
     applyThemeMode();
     persistDarkModePreference();
+}
+
+function handleToggleReadMode() {
+    editorMode.value = editorMode.value === "graph" ? "read" : "graph";
+    if (editorMode.value === "read") {
+        selectedNode.value = null;
+        selectedEdge.value = null;
+        applyEdgeVisualStyles();
+    }
 }
 
 function handleLoginGithub() {

@@ -104,6 +104,16 @@
 
         <button
             class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
+            :class="{ active: readModeEnabled }"
+            @click="$emit('toggle-read-mode')"
+            :title="readModeEnabled ? '退出阅读模式' : '进入阅读模式'"
+            :aria-label="readModeEnabled ? '阅读模式已开启' : '阅读模式已关闭'"
+        >
+            <span class="material-symbols-outlined">article</span>
+        </button>
+
+        <button
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             :class="{ active: isDarkMode }"
             @click="$emit('toggle-dark-mode')"
             :title="isDarkMode ? '切换为浅色模式' : '切换为深色模式'"
@@ -148,6 +158,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    readModeEnabled: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 defineEmits([
@@ -160,6 +174,7 @@ defineEmits([
     "auto-layout",
     "toggle-edge-style",
     "toggle-focus-mode",
+    "toggle-read-mode",
     "toggle-dark-mode",
     "go-library",
     "help",
