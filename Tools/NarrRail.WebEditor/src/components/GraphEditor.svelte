@@ -401,6 +401,8 @@
     window.dispatchEvent(customEvent);
   }
 
+
+
   // 处理边点击
   function handleEdgeClick(event) {
     const edge = event.detail.edge;

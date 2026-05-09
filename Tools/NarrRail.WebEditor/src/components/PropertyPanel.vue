@@ -558,6 +558,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    openMultiDialogueRequest: {
+        type: Object,
+        default: null,
+    },
 });
 
 const emit = defineEmits(["update", "set-entry-node"]);
@@ -627,6 +631,26 @@ const isEntryNode = computed(() => {
     return localNode.value && localNode.value.id === props.entryNodeId;
 });
 
+watch(
+    () => props.openMultiDialogueRequest,
+    async (request) => {
+        const requestNodeId = String(request?.nodeId || "").trim();
+        if (!requestNodeId) return;
+
+        await nextTick();
+
+        if (
+            localNode.value &&
+            localNode.value.type === "multidialogue" &&
+            localNode.value.id === requestNodeId
+        ) {
+            isExpanded.value = false;
+            isPanelInputFocused.value = false;
+            openMultiDialogueModal();
+        }
+    },
+);
+
 // 处理中文输入法
 function handleCompositionStart() {
     isComposing.value = true;
@@ -662,6 +686,19 @@ function handleGlobalPointerDown(event) {
     if (!panelEl || !target) return;
 
     if (typeof panelEl.contains === "function" && panelEl.contains(target)) {
+        return;
+    }
+
+    // 已选中节点时，在画布内进行点击/拖拽不自动收起属性面板，
+    // 避免松手后因重新选中同节点触发“再次弹出动画”。
+    const targetEl =
+        target && typeof target.closest === "function" ? target : null;
+    const isInsideGraphCanvas = !!(
+        targetEl &&
+        (targetEl.closest(".graph-editor") ||
+            targetEl.closest(".svelte-wrapper"))
+    );
+    if (localNode.value && isInsideGraphCanvas) {
         return;
     }
 

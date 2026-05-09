@@ -60,6 +60,7 @@
             :entry-node-id="storyMeta.entryNodeId"
             :preset-speakers="presetSpeakers"
             :is-dark-mode="darkModeEnabled"
+            :open-multi-dialogue-request="multiDialogueOpenRequest"
             @update="handleNodeUpdate"
             @set-entry-node="handleSetEntryNode"
         />
@@ -289,6 +290,9 @@ const edges = ref([
 
 const selectedNode = ref(null);
 const selectedEdge = ref(null);
+const multiDialogueOpenRequest = ref(null);
+const lastNodeClickMeta = ref({ id: "", time: 0 });
+const recentDragSuppressUntil = ref(0);
 const focusModeEnabled = ref(false);
 const darkModeEnabled = ref(false);
 const edgeRenderMode = ref("straight");
@@ -413,6 +417,7 @@ function handleNodeDragStart() {
 
 function handleNodeDragStop() {
     isNodeDragInProgress.value = false;
+    recentDragSuppressUntil.value = Date.now() + 280;
 }
 
 function isDeepEqual(a, b) {
@@ -800,9 +805,39 @@ function clearEdgeSelection() {
 }
 
 function handleNodeClick(event) {
-    selectedNode.value = event.detail ? safeClone(event.detail) : null;
-    if (selectedNode.value) selectedEdge.value = null;
+    const now = Date.now();
+    if (now < recentDragSuppressUntil.value) {
+        return;
+    }
+
+    const node = event.detail ? safeClone(event.detail) : null;
+
+    if (!node) {
+        selectedNode.value = null;
+        applyEdgeVisualStyles();
+        lastNodeClickMeta.value = { id: "", time: now };
+        return;
+    }
+
+    const isSameSelectedNode = selectedNode.value?.id === node.id;
+    if (!isSameSelectedNode) {
+        selectedNode.value = node;
+    }
+    selectedEdge.value = null;
     applyEdgeVisualStyles();
+
+    const isDoubleClickOnSameNode =
+        lastNodeClickMeta.value.id === node.id &&
+        now - Number(lastNodeClickMeta.value.time || 0) <= 280;
+
+    lastNodeClickMeta.value = { id: node.id, time: now };
+
+    if (isDoubleClickOnSameNode && node.type === "multidialogue") {
+        multiDialogueOpenRequest.value = {
+            nodeId: node.id,
+            nonce: now,
+        };
+    }
 }
 
 function handleEdgeClick(event) {
