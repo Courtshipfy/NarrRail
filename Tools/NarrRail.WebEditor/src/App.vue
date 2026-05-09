@@ -61,6 +61,7 @@
             :preset-speakers="presetSpeakers"
             :is-dark-mode="darkModeEnabled"
             :open-multi-dialogue-request="multiDialogueOpenRequest"
+            :open-dialogue-request="dialogueOpenRequest"
             @update="handleNodeUpdate"
             @set-entry-node="handleSetEntryNode"
         />
@@ -291,6 +292,7 @@ const edges = ref([
 const selectedNode = ref(null);
 const selectedEdge = ref(null);
 const multiDialogueOpenRequest = ref(null);
+const dialogueOpenRequest = ref(null);
 const lastNodeClickMeta = ref({ id: "", time: 0 });
 const recentDragSuppressUntil = ref(0);
 const focusModeEnabled = ref(false);
@@ -832,8 +834,20 @@ function handleNodeClick(event) {
 
     lastNodeClickMeta.value = { id: node.id, time: now };
 
-    if (isDoubleClickOnSameNode && node.type === "multidialogue") {
+    if (!isDoubleClickOnSameNode) {
+        return;
+    }
+
+    if (node.type === "multidialogue") {
         multiDialogueOpenRequest.value = {
+            nodeId: node.id,
+            nonce: now,
+        };
+        return;
+    }
+
+    if (node.type === "dialogue") {
+        dialogueOpenRequest.value = {
             nodeId: node.id,
             nonce: now,
         };

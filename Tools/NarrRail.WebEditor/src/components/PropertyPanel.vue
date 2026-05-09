@@ -67,7 +67,19 @@
                         </div>
 
                         <div class="form-group glass-input">
-                            <label class="form-label">对话文本</label>
+                            <div class="multi-lines-header">
+                                <label class="form-label">对话文本</label>
+                                <button
+                                    class="open-dialogue-modal-btn"
+                                    @click="openDialogueModal"
+                                    title="弹窗编辑对话"
+                                    aria-label="弹窗编辑对话"
+                                >
+                                    <span class="material-symbols-outlined"
+                                        >open_in_full</span
+                                    >
+                                </button>
+                            </div>
                             <textarea
                                 class="form-textarea"
                                 v-model="localNode.data.textKey"
@@ -536,6 +548,52 @@
             </div>
         </div>
     </Teleport>
+
+    <Teleport to="body">
+        <div
+            v-if="showDialogueModal && localNode?.type === 'dialogue'"
+            class="multi-dialogue-modal-overlay"
+            @click.self="closeDialogueModal"
+        >
+            <div
+                :class="[
+                    'multi-dialogue-modal',
+                    'dialogue-modal-small',
+                    'glass-morphism-strong',
+                    { 'is-dark-theme': isDarkMode },
+                ]"
+                @mousedown.stop
+                @click.stop
+            >
+                <div class="multi-dialogue-modal-header">
+                    <div>
+                        <h3>对话编辑</h3>
+                        <p>Esc 关闭，Ctrl+S 完成</p>
+                    </div>
+                    <button
+                        class="multi-dialogue-modal-close"
+                        @click="closeDialogueModal"
+                        title="关闭"
+                        aria-label="关闭"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div class="multi-dialogue-modal-body">
+                    <div class="form-group dialogue-modal-text-wrapper">
+                        <textarea
+                            class="form-textarea dialogue-modal-textarea"
+                            v-model="localNode.data.textKey"
+                            @compositionstart="handleCompositionStart"
+                            @compositionend="handleCompositionEnd"
+                            @blur="handleInputChange"
+                        ></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Teleport>
 </template>
 
 <script setup>
@@ -562,6 +620,10 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    openDialogueRequest: {
+        type: Object,
+        default: null,
+    },
 });
 
 const emit = defineEmits(["update", "set-entry-node"]);
@@ -579,13 +641,14 @@ const draggingDialogueLineIndex = ref(-1);
 const dragOverDialogueLineIndex = ref(-1);
 const dragOverDialogueLinePlacement = ref("after");
 const showMultiDialogueModal = ref(false);
+const showDialogueModal = ref(false);
 
 // 监听 selectedNode 变化，同步到本地副本
 watch(
     () => props.selectedNode,
     (newNode) => {
         const isEditingCurrentNodeInModal =
-            showMultiDialogueModal.value &&
+            (showMultiDialogueModal.value || showDialogueModal.value) &&
             localNode.value &&
             newNode &&
             localNode.value.id === newNode.id;
@@ -601,6 +664,7 @@ watch(
             dragOverDialogueLineIndex.value = -1;
             dragOverDialogueLinePlacement.value = "after";
             showMultiDialogueModal.value = false;
+            showDialogueModal.value = false;
             localNode.value = JSON.parse(JSON.stringify(newNode));
             if (localNode.value.type === "multidialogue") {
                 localNode.value.data = localNode.value.data || {};
@@ -619,6 +683,7 @@ watch(
             dragOverDialogueLineIndex.value = -1;
             dragOverDialogueLinePlacement.value = "after";
             showMultiDialogueModal.value = false;
+            showDialogueModal.value = false;
             localNode.value = null;
             isExpanded.value = false; // 取消选中时自动收起
         }
@@ -651,6 +716,26 @@ watch(
     },
 );
 
+watch(
+    () => props.openDialogueRequest,
+    async (request) => {
+        const requestNodeId = String(request?.nodeId || "").trim();
+        if (!requestNodeId) return;
+
+        await nextTick();
+
+        if (
+            localNode.value &&
+            localNode.value.type === "dialogue" &&
+            localNode.value.id === requestNodeId
+        ) {
+            isExpanded.value = false;
+            isPanelInputFocused.value = false;
+            openDialogueModal();
+        }
+    },
+);
+
 // 处理中文输入法
 function handleCompositionStart() {
     isComposing.value = true;
@@ -677,7 +762,7 @@ function handlePanelFocusOut(event) {
 }
 
 function handleGlobalPointerDown(event) {
-    if (showMultiDialogueModal.value) {
+    if (showMultiDialogueModal.value || showDialogueModal.value) {
         return;
     }
 
@@ -1130,6 +1215,7 @@ function updateParameters(jsonString) {
 
 async function openMultiDialogueModal() {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    showDialogueModal.value = false;
     isExpanded.value = false;
     isPanelInputFocused.value = false;
     showMultiDialogueModal.value = true;
@@ -1151,6 +1237,21 @@ function closeMultiDialogueModal() {
     }
 }
 
+function openDialogueModal() {
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
+    showMultiDialogueModal.value = false;
+    isExpanded.value = false;
+    isPanelInputFocused.value = false;
+    showDialogueModal.value = true;
+}
+
+function closeDialogueModal() {
+    showDialogueModal.value = false;
+    if (localNode.value) {
+        isExpanded.value = true;
+    }
+}
+
 function handleUpdate() {
     // 提交本地修改到父组件
     if (localNode.value) {
@@ -1159,20 +1260,28 @@ function handleUpdate() {
 }
 
 function handleModalShortcutKeydown(event) {
-    if (!showMultiDialogueModal.value) return;
+    if (!showMultiDialogueModal.value && !showDialogueModal.value) return;
 
     const key = String(event?.key || "").toLowerCase();
     const isCtrlOrMeta = !!(event?.ctrlKey || event?.metaKey);
 
     if (key === "escape") {
         event.preventDefault();
-        closeMultiDialogueModal();
+        if (showMultiDialogueModal.value) {
+            closeMultiDialogueModal();
+        } else {
+            closeDialogueModal();
+        }
         return;
     }
 
     if (isCtrlOrMeta && key === "s") {
         event.preventDefault();
-        closeMultiDialogueModal();
+        if (showMultiDialogueModal.value) {
+            closeMultiDialogueModal();
+        } else {
+            closeDialogueModal();
+        }
     }
 }
 
@@ -1686,6 +1795,12 @@ onUnmounted(() => {
     border: 1px solid var(--nr-md-panel-border);
 }
 
+.dialogue-modal-small {
+    width: min(56vw, 760px);
+    aspect-ratio: auto;
+    max-height: 72vh;
+}
+
 .multi-dialogue-modal.glass-morphism-strong {
     background: var(--nr-md-panel-bg) !important;
     backdrop-filter: none;
@@ -1776,6 +1891,10 @@ onUnmounted(() => {
     flex: 1;
     overflow: auto;
     padding: 16px 18px;
+}
+
+.dialogue-modal-textarea {
+    min-height: 160px;
 }
 
 .multi-lines-editor.fullscreen {
