@@ -59,6 +59,7 @@
             :selected-node="selectedNode"
             :entry-node-id="storyMeta.entryNodeId"
             :preset-speakers="presetSpeakers"
+            :is-dark-mode="darkModeEnabled"
             @update="handleNodeUpdate"
             @set-entry-node="handleSetEntryNode"
         />

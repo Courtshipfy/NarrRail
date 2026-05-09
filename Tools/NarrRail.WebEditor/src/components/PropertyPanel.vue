@@ -430,7 +430,11 @@
             @click.self="closeMultiDialogueModal"
         >
             <div
-                class="multi-dialogue-modal glass-morphism-strong"
+                :class="[
+                    'multi-dialogue-modal',
+                    'glass-morphism-strong',
+                    { 'is-dark-theme': isDarkMode },
+                ]"
                 @mousedown.stop
                 @click.stop
             >
@@ -550,9 +554,15 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    isDarkMode: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(["update", "set-entry-node"]);
+
+const isDarkMode = computed(() => !!props.isDarkMode);
 
 const panelWrapperRef = ref(null);
 const isExpanded = ref(false);
@@ -1572,7 +1582,7 @@ onUnmounted(() => {
 
 .multi-dialogue-modal-overlay {
     --nr-md-overlay-bg: rgba(15, 23, 42, 0.24);
-    --nr-md-panel-bg: rgba(255, 255, 255, 0.72);
+    --nr-md-panel-bg: rgba(255, 255, 255, 1);
     --nr-md-panel-border: rgba(148, 163, 184, 0.28);
     --nr-md-header-border: rgba(148, 163, 184, 0.24);
     --nr-md-title: #1e3a8a;
@@ -1593,7 +1603,7 @@ onUnmounted(() => {
 :global(body.light-theme) .multi-dialogue-modal-overlay,
 :global(body[data-theme="light"]) .multi-dialogue-modal-overlay {
     --nr-md-overlay-bg: rgba(15, 23, 42, 0.18);
-    --nr-md-panel-bg: rgba(255, 255, 255, 0.76);
+    --nr-md-panel-bg: rgba(255, 255, 255, 1);
     --nr-md-panel-border: rgba(148, 163, 184, 0.26);
     --nr-md-header-border: rgba(148, 163, 184, 0.22);
     --nr-md-title: #1e3a8a;
@@ -1605,7 +1615,7 @@ onUnmounted(() => {
 :global(body.dark-theme) .multi-dialogue-modal-overlay,
 :global(body[data-theme="dark"]) .multi-dialogue-modal-overlay {
     --nr-md-overlay-bg: rgba(2, 6, 23, 0.52);
-    --nr-md-panel-bg: rgba(15, 23, 42, 0.78);
+    --nr-md-panel-bg: rgba(15, 23, 42, 1);
     --nr-md-panel-border: rgba(96, 165, 250, 0.26);
     --nr-md-header-border: rgba(96, 165, 250, 0.22);
     --nr-md-title: #dbeafe;
@@ -1637,6 +1647,53 @@ onUnmounted(() => {
     overflow: hidden;
     background: var(--nr-md-panel-bg);
     border: 1px solid var(--nr-md-panel-border);
+}
+
+.multi-dialogue-modal.glass-morphism-strong {
+    background: var(--nr-md-panel-bg) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.multi-dialogue-modal.is-dark-theme,
+.multi-dialogue-modal.is-dark-theme.glass-morphism-strong {
+    background: #0f172a !important;
+    border-color: rgba(96, 165, 250, 0.26) !important;
+}
+
+:global(body.dark-theme) .multi-dialogue-modal,
+:global(body[data-theme="dark"]) .multi-dialogue-modal,
+:global(body.dark-theme) .multi-dialogue-modal.glass-morphism-strong,
+:global(body[data-theme="dark"]) .multi-dialogue-modal.glass-morphism-strong {
+    background: #0f172a !important;
+    border-color: rgba(96, 165, 250, 0.26) !important;
+}
+
+.multi-dialogue-modal.is-dark-theme .multi-dialogue-modal-header {
+    border-bottom-color: rgba(96, 165, 250, 0.22) !important;
+}
+
+:global(body.dark-theme) .multi-dialogue-modal-header,
+:global(body[data-theme="dark"]) .multi-dialogue-modal-header {
+    border-bottom-color: rgba(96, 165, 250, 0.22) !important;
+}
+
+.multi-dialogue-modal.is-dark-theme .multi-dialogue-modal-header h3 {
+    color: #dbeafe !important;
+}
+
+:global(body.dark-theme) .multi-dialogue-modal-header h3,
+:global(body[data-theme="dark"]) .multi-dialogue-modal-header h3 {
+    color: #dbeafe !important;
+}
+
+.multi-dialogue-modal.is-dark-theme .multi-dialogue-modal-header p {
+    color: #94a3b8 !important;
+}
+
+:global(body.dark-theme) .multi-dialogue-modal-header p,
+:global(body[data-theme="dark"]) .multi-dialogue-modal-header p {
+    color: #94a3b8 !important;
 }
 
 .multi-dialogue-modal-header {
