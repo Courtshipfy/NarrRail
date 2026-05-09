@@ -80,6 +80,7 @@ defineProps({
     align-items: center;
     justify-content: center;
     padding: 14px 0;
+    position: relative;
 }
 
 .read-empty {
@@ -98,16 +99,19 @@ defineProps({
 }
 
 .read-lines {
-    width: min(920px, 96%);
+    display: grid;
+    grid-auto-rows: max-content;
+    row-gap: 12px;
+    width: max-content;
+    max-width: min(920px, 96%);
     margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
 }
 
 .read-line {
     display: grid;
-    grid-template-columns: 11ch auto 1fr;
+    grid-template-columns: 11ch max-content max-content;
+    width: max-content;
+    max-width: 100%;
     align-items: start;
     column-gap: 2px;
     line-height: 1.7;
@@ -116,6 +120,7 @@ defineProps({
 }
 
 .speaker {
+    max-width: 11ch;
     font-weight: 700;
     color: #1e3a8a;
     text-align: right;
@@ -129,6 +134,9 @@ defineProps({
 }
 
 .text {
+    display: inline-block;
+    width: fit-content;
+    max-width: 72ch;
     color: #111827;
     word-break: break-word;
     white-space: pre-wrap;
