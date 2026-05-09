@@ -125,6 +125,18 @@ public:
     }
 
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    int32 GetCurrentMultiDialogueLineIndex() const
+    {
+        return CurrentMultiDialogueLineIndex;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    int32 GetCurrentMultiDialogueTotalLines() const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    bool IsCurrentNodeMultiDialogue() const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
     bool GetCurrentNode(FNarrRailNode& OutNode) const;
 
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")

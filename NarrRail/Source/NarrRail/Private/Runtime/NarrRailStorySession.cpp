@@ -321,6 +321,23 @@ FNarrRailRuntimeResult UNarrRailStorySession::Stop()
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Session stopped."), Context.CurrentNodeId);
 }
 
+int32 UNarrRailStorySession::GetCurrentMultiDialogueTotalLines() const
+{
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
+    if (Node == nullptr || Node->NodeType != ENarrRailNodeType::MultiDialogue)
+    {
+        return 0;
+    }
+
+    return Node->MultiDialogue.Lines.Num();
+}
+
+bool UNarrRailStorySession::IsCurrentNodeMultiDialogue() const
+{
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
+    return Node != nullptr && Node->NodeType == ENarrRailNodeType::MultiDialogue;
+}
+
 bool UNarrRailStorySession::GetCurrentNode(FNarrRailNode& OutNode) const
 {
     const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);

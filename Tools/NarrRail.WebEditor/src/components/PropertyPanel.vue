@@ -166,6 +166,12 @@
                                         @keydown.backspace="
                                             handleLineBackspace(index, $event)
                                         "
+                                        @paste="
+                                            handleDialogueLinePaste(
+                                                index,
+                                                $event,
+                                            )
+                                        "
                                         @focus="setActiveDialogueLine(index)"
                                         @compositionstart="
                                             handleCompositionStart
@@ -173,6 +179,29 @@
                                         @compositionend="handleCompositionEnd"
                                         @blur="handleDialogueLineBlur(index)"
                                     />
+                                    <div class="line-order-actions">
+                                        <button
+                                            class="line-order-btn"
+                                            @click="moveDialogueLineUp(index)"
+                                            :disabled="index === 0"
+                                            title="上移"
+                                            aria-label="上移"
+                                        >
+                                            ↑
+                                        </button>
+                                        <button
+                                            class="line-order-btn"
+                                            @click="moveDialogueLineDown(index)"
+                                            :disabled="
+                                                index >=
+                                                localNode.data.lines.length - 1
+                                            "
+                                            title="下移"
+                                            aria-label="下移"
+                                        >
+                                            ↓
+                                        </button>
+                                    </div>
                                     <button
                                         class="remove-choice-btn line-remove-btn"
                                         :class="{
@@ -563,6 +592,63 @@ function insertLineAfter(index) {
     focusDialogueLine(insertAt);
 }
 
+function handleDialogueLinePaste(index, event) {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    const raw = event?.clipboardData?.getData("text") || "";
+    if (!raw.includes("\n")) return;
+
+    event.preventDefault();
+
+    const pastedLines = raw
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .split("\n");
+
+    if (pastedLines.length === 0) return;
+
+    const lines = Array.isArray(localNode.value.data.lines)
+        ? [...localNode.value.data.lines]
+        : [];
+
+    const first = pastedLines[0] || "";
+    lines[index] = { ...(lines[index] || {}), textKey: first };
+
+    if (pastedLines.length > 1) {
+        const additional = pastedLines
+            .slice(1)
+            .map((text) => ({ textKey: text }));
+        lines.splice(index + 1, 0, ...additional);
+    }
+
+    localNode.value.data.lines = lines;
+    handleUpdate();
+    focusDialogueLine(index + pastedLines.length - 1);
+}
+
+function moveDialogueLineUp(index) {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (index <= 0) return;
+    const lines = Array.isArray(localNode.value.data.lines)
+        ? [...localNode.value.data.lines]
+        : [];
+    [lines[index - 1], lines[index]] = [lines[index], lines[index - 1]];
+    localNode.value.data.lines = lines;
+    handleUpdate();
+    focusDialogueLine(index - 1);
+}
+
+function moveDialogueLineDown(index) {
+    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    const lines = Array.isArray(localNode.value.data.lines)
+        ? [...localNode.value.data.lines]
+        : [];
+    if (index < 0 || index >= lines.length - 1) return;
+    [lines[index], lines[index + 1]] = [lines[index + 1], lines[index]];
+    localNode.value.data.lines = lines;
+    handleUpdate();
+    focusDialogueLine(index + 1);
+}
+
 function handleLineBackspace(index, event) {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
     const lines = Array.isArray(localNode.value.data.lines)
@@ -922,7 +1008,7 @@ onUnmounted(() => {
 
 .line-edit-row {
     display: grid;
-    grid-template-columns: 26px 1fr 26px;
+    grid-template-columns: 26px 1fr auto 26px;
     gap: 8px;
     align-items: center;
 }
@@ -936,6 +1022,28 @@ onUnmounted(() => {
 
 .line-edit-row .remove-choice-btn {
     position: static;
+}
+
+.line-order-actions {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.line-order-btn {
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: rgba(255, 255, 255, 0.55);
+    color: #1e3a8a;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.line-order-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
 .line-remove-btn {

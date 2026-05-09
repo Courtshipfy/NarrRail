@@ -1,5 +1,24 @@
 import YAML from "yaml";
 
+function normalizeMultiDialogueLines(linesInput) {
+  const lines = Array.isArray(linesInput)
+    ? linesInput.map((line) => {
+        if (typeof line === "string") return { textKey: line };
+        return { textKey: line?.textKey || "" };
+      })
+    : [];
+
+  let lastNonEmpty = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (String(lines[i]?.textKey || "").trim().length > 0) {
+      lastNonEmpty = i;
+    }
+  }
+
+  if (lastNonEmpty < 0) return [{ textKey: "" }];
+  return lines.slice(0, lastNonEmpty + 1);
+}
+
 const nodeTypeMap = {
   dialogue: "Dialogue",
   multidialogue: "MultiDialogue",
@@ -27,17 +46,9 @@ export function buildYAMLString(nodes, edges, variables, meta) {
         voiceAsset: node.data.voiceAsset || "",
       };
     } else if (node.type === "multidialogue") {
-      const normalizedLines = Array.isArray(node.data?.lines)
-        ? node.data.lines.map((line) => {
-            if (typeof line === "string") {
-              return { textKey: line };
-            }
-            return { textKey: line?.textKey || "" };
-          })
-        : [];
       base.multiDialogue = {
         speakerId: node.data?.speakerId || "",
-        lines: normalizedLines,
+        lines: normalizeMultiDialogueLines(node.data?.lines),
       };
     } else if (node.type === "choice") {
       // 从边中找到每个选项对应的目标节点
