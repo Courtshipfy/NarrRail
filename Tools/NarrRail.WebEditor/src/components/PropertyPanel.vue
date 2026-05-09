@@ -143,11 +143,33 @@
                                         'is-editing':
                                             activeMultiDialogueLineIndex ===
                                             index,
+                                        'is-drag-over':
+                                            isDialogueLineDragOver(index),
                                     }"
+                                    @dragover.prevent="
+                                        onDialogueLineDragOver(index, $event)
+                                    "
+                                    @drop.prevent="
+                                        onDialogueLineDrop(index, $event)
+                                    "
                                 >
-                                    <span class="line-index">{{
-                                        index + 1
-                                    }}</span>
+                                    <button
+                                        class="line-drag-handle"
+                                        draggable="true"
+                                        title="拖拽排序"
+                                        aria-label="拖拽排序"
+                                        @dragstart="
+                                            onDialogueLineDragStart(
+                                                index,
+                                                $event,
+                                            )
+                                        "
+                                        @dragend="onDialogueLineDragEnd"
+                                    >
+                                        <span class="material-symbols-outlined"
+                                            >drag_indicator</span
+                                        >
+                                    </button>
                                     <input
                                         :ref="
                                             (el) =>
@@ -179,29 +201,7 @@
                                         @compositionend="handleCompositionEnd"
                                         @blur="handleDialogueLineBlur(index)"
                                     />
-                                    <div class="line-order-actions">
-                                        <button
-                                            class="line-order-btn"
-                                            @click="moveDialogueLineUp(index)"
-                                            :disabled="index === 0"
-                                            title="上移"
-                                            aria-label="上移"
-                                        >
-                                            ↑
-                                        </button>
-                                        <button
-                                            class="line-order-btn"
-                                            @click="moveDialogueLineDown(index)"
-                                            :disabled="
-                                                index >=
-                                                localNode.data.lines.length - 1
-                                            "
-                                            title="下移"
-                                            aria-label="下移"
-                                        >
-                                            ↓
-                                        </button>
-                                    </div>
+
                                     <button
                                         class="remove-choice-btn line-remove-btn"
                                         :class="{
@@ -424,6 +424,7 @@ const isComposing = ref(false);
 const isPanelInputFocused = ref(false);
 const multiDialogueLineRefs = ref([]);
 const activeMultiDialogueLineIndex = ref(-1);
+const draggingDialogueLineIndex = ref(-1);
 
 // 监听 selectedNode 变化，同步到本地副本
 watch(
@@ -432,6 +433,7 @@ watch(
         if (newNode) {
             multiDialogueLineRefs.value = [];
             activeMultiDialogueLineIndex.value = -1;
+            draggingDialogueLineIndex.value = -1;
             localNode.value = JSON.parse(JSON.stringify(newNode));
             if (localNode.value.type === "multidialogue") {
                 localNode.value.data = localNode.value.data || {};
@@ -446,6 +448,7 @@ watch(
         } else {
             multiDialogueLineRefs.value = [];
             activeMultiDialogueLineIndex.value = -1;
+            draggingDialogueLineIndex.value = -1;
             localNode.value = null;
             isExpanded.value = false; // 取消选中时自动收起
         }
@@ -625,28 +628,59 @@ function handleDialogueLinePaste(index, event) {
     focusDialogueLine(index + pastedLines.length - 1);
 }
 
-function moveDialogueLineUp(index) {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
-    if (index <= 0) return;
-    const lines = Array.isArray(localNode.value.data.lines)
-        ? [...localNode.value.data.lines]
-        : [];
-    [lines[index - 1], lines[index]] = [lines[index], lines[index - 1]];
-    localNode.value.data.lines = lines;
-    handleUpdate();
-    focusDialogueLine(index - 1);
+function onDialogueLineDragStart(index, event) {
+    draggingDialogueLineIndex.value = index;
+    if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(index));
+    }
 }
 
-function moveDialogueLineDown(index) {
+function onDialogueLineDragEnd() {
+    draggingDialogueLineIndex.value = -1;
+}
+
+function onDialogueLineDragOver(index, event) {
+    if (draggingDialogueLineIndex.value < 0) return;
+    if (event?.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+    }
+}
+
+function isDialogueLineDragOver(index) {
+    return (
+        draggingDialogueLineIndex.value >= 0 &&
+        draggingDialogueLineIndex.value !== index
+    );
+}
+
+function onDialogueLineDrop(targetIndex) {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
+
+    const fromIndex = draggingDialogueLineIndex.value;
+    if (fromIndex < 0 || fromIndex === targetIndex) {
+        draggingDialogueLineIndex.value = -1;
+        return;
+    }
+
     const lines = Array.isArray(localNode.value.data.lines)
         ? [...localNode.value.data.lines]
         : [];
-    if (index < 0 || index >= lines.length - 1) return;
-    [lines[index], lines[index + 1]] = [lines[index + 1], lines[index]];
+    if (
+        fromIndex >= lines.length ||
+        targetIndex < 0 ||
+        targetIndex >= lines.length
+    ) {
+        draggingDialogueLineIndex.value = -1;
+        return;
+    }
+
+    const [moved] = lines.splice(fromIndex, 1);
+    lines.splice(targetIndex, 0, moved);
     localNode.value.data.lines = lines;
     handleUpdate();
-    focusDialogueLine(index + 1);
+    focusDialogueLine(targetIndex);
+    draggingDialogueLineIndex.value = -1;
 }
 
 function handleLineBackspace(index, event) {
@@ -1008,42 +1042,47 @@ onUnmounted(() => {
 
 .line-edit-row {
     display: grid;
-    grid-template-columns: 26px 1fr auto 26px;
+    grid-template-columns: 26px 1fr 26px;
     gap: 8px;
     align-items: center;
+    border-radius: 8px;
+    transition: background 0.12s ease;
 }
 
-.line-index {
-    font-size: 11px;
-    font-weight: 700;
-    color: #64748b;
-    text-align: center;
+.line-edit-row.is-drag-over {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.line-drag-handle {
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: rgba(30, 58, 138, 0.38);
+    border-radius: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    padding: 0;
+}
+
+.line-drag-handle:hover {
+    color: rgba(30, 58, 138, 0.62);
+}
+
+.line-drag-handle:active {
+    cursor: grabbing;
+    color: rgba(30, 58, 138, 0.78);
+}
+
+.line-drag-handle .material-symbols-outlined {
+    font-size: 16px;
+    line-height: 1;
 }
 
 .line-edit-row .remove-choice-btn {
     position: static;
-}
-
-.line-order-actions {
-    display: inline-flex;
-    gap: 4px;
-}
-
-.line-order-btn {
-    width: 22px;
-    height: 22px;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    background: rgba(255, 255, 255, 0.55);
-    color: #1e3a8a;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 1;
-}
-
-.line-order-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
 }
 
 .line-remove-btn {
