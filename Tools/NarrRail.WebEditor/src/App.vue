@@ -258,7 +258,10 @@ const nodes = ref([
         id: "node-2",
         type: "choice",
         position: { x: 560, y: 120 },
-        data: { choices: [{ textKey: "继续对话" }, { textKey: "结束对话" }] },
+        data: {
+            choices: [{ textKey: "继续对话" }, { textKey: "结束对话" }],
+            choiceMode: "SinglePass",
+        },
     },
     {
         id: "node-3",
@@ -465,6 +468,11 @@ function normalizeEdge(edge) {
 function isValidChoiceHandle(node, sourceHandle) {
     if (!node || node.type !== "choice") return true;
     if (!sourceHandle) return true;
+
+    if (sourceHandle === "choice-complete") {
+        return node.data?.choiceMode === "ExhaustiveUntilComplete";
+    }
+
     const match = /^choice-(\d+)$/.exec(sourceHandle);
     if (!match) return false;
     const index = Number(match[1]);

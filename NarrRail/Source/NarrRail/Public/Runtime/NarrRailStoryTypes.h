@@ -51,6 +51,13 @@ enum class ENarrRailActionType : uint8
     EmitEvent UMETA(DisplayName = "Emit Event")
 };
 
+UENUM(BlueprintType)
+enum class ENarrRailChoiceMode : uint8
+{
+    SinglePass UMETA(DisplayName = "Single Pass"),
+    ExhaustiveUntilComplete UMETA(DisplayName = "Exhaustive Until Complete")
+};
+
 USTRUCT(BlueprintType)
 struct NARRRAIL_API FNarrRailDialoguePayload
 {
@@ -186,6 +193,12 @@ struct NARRRAIL_API FNarrRailNode
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     TArray<FNarrRailChoiceOption> Choices;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    ENarrRailChoiceMode ChoiceMode = ENarrRailChoiceMode::SinglePass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FName ChoiceCompletionTargetNodeId = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     FName JumpTargetNodeId = NAME_None;

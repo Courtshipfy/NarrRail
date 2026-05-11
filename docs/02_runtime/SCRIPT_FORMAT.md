@@ -75,6 +75,8 @@ edges: []
 | `dialogue` | 对象 | 否 | 用于 `Dialogue` 类型 |
 | `multiDialogue` | 对象 | 否 | 用于 `MultiDialogue` 类型 |
 | `choices` | 数组 | 否 | 用于 `Choice` 类型 |
+| `choiceMode` | 枚举 | 否 | 用于 `Choice` 类型，`SinglePass`（默认）/ `ExhaustiveUntilComplete` |
+| `choiceCompletionTargetNodeId` | string | 否 | 用于 `Choice` 类型；当 `choiceMode=ExhaustiveUntilComplete` 时必填 |
 | `jumpTargetNodeId` | string | 否 | 用于 `Jump` 类型 |
 | `enterActions` | 数组 | 否 | 节点主体执行前的动作 |
 | `exitActions` | 数组 | 否 | 离开节点前的动作 |

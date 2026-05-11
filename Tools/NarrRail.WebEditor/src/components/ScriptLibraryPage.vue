@@ -449,6 +449,11 @@ const folders = computed(() => {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
 });
 
+function toSortableTime(value) {
+    const timestamp = new Date(value).getTime();
+    return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
 const filteredScripts = computed(() => {
     const kw = keyword.value.toLowerCase();
     let result = mockScripts.value.filter((s) => {
@@ -463,10 +468,11 @@ const filteredScripts = computed(() => {
         return inFolder && inKeyword;
     });
 
-    result = result.sort(
-        (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
+    result = result.sort((a, b) => {
+        const diff = toSortableTime(b.updatedAt) - toSortableTime(a.updatedAt);
+        if (diff !== 0) return diff;
+        return String(a.fileName || "").localeCompare(String(b.fileName || ""));
+    });
 
     return result;
 });
@@ -758,6 +764,8 @@ async function loadRepos() {
 async function loadGlobalConfigFromRepo() {
     if (!selectedOwner.value || !selectedRepoName.value) return;
 
+    const repoSnapshot = `${selectedOwner.value}/${selectedRepoName.value}@${selectedRepoBranch.value}`;
+
     try {
         const url = new URL(
             window.location.origin + "/api/github/file-content",
@@ -793,13 +801,23 @@ async function loadGlobalConfigFromRepo() {
             }
         }
 
+        if (
+            `${selectedOwner.value}/${selectedRepoName.value}@${selectedRepoBranch.value}` !==
+            repoSnapshot
+        ) {
+            return;
+        }
+
         if (!loadedData) {
+            const emptyConfig = {
+                variables: [],
+                presetSpeakers: [],
+            };
+            emit("update-variables", emptyConfig.variables);
+            emit("update-speakers", emptyConfig.presetSpeakers);
             globalConfigRepoPath.value = GLOBAL_CONFIG_CANDIDATE_PATHS[0];
             globalConfigRepoSha.value = "";
-            await syncGlobalConfigToRepo({
-                variables: props.variables,
-                presetSpeakers: props.presetSpeakers,
-            });
+            await syncGlobalConfigToRepo(emptyConfig);
             return;
         }
 
@@ -884,8 +902,12 @@ function saveScriptListToStorage() {
     }
 }
 
+function toYamlDoubleQuoted(value) {
+    return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 function buildNewStoryYaml(storyId) {
-    return `meta:\n  schemaVersion: 1\n  storyId: ${storyId}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
+    return `meta:\n  schemaVersion: 1\n  storyId: ${toYamlDoubleQuoted(storyId)}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
 }
 
 function sleep(ms) {
@@ -896,18 +918,20 @@ async function createNewScript() {
     const baseName = prompt("请输入新脚本名称（不含扩展名）", "new_story");
     if (!baseName) return;
 
-    const normalized = String(baseName)
-        .trim()
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_\-]/g, "_")
-        .toLowerCase();
+    const normalized = String(baseName).trim();
 
-    if (!normalized) {
+    const safeStem = normalized
+        .replace(/\s+/g, "_")
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+        .replace(/^\.+|\.+$/g, "")
+        .replace(/_+/g, "_");
+
+    if (!safeStem) {
         alert("脚本名称不能为空");
         return;
     }
 
-    const fileName = `${normalized}.narrrail.yaml`;
+    const fileName = `${safeStem}.narrrail.yaml`;
     const existing = mockScripts.value.some((s) => s.fileName === fileName);
     if (existing) {
         alert("同名脚本已存在，请换一个名称");
@@ -929,7 +953,7 @@ async function createNewScript() {
                     repo: selectedRepoName.value,
                     branch: selectedRepoBranch.value,
                     path: createdPath,
-                    content: buildNewStoryYaml(normalized),
+                    content: buildNewStoryYaml(safeStem),
                     message: `feat(script): create ${createdPath}`,
                 }),
             });
@@ -971,7 +995,7 @@ async function createNewScript() {
         fileName,
         extension: ".yaml",
         path: createdPath,
-        storyId: normalized,
+        storyId: safeStem,
         size: 0,
         updatedAt: new Date().toISOString(),
         tags: ["New", "Sandbox"],
@@ -988,7 +1012,9 @@ function formatSize(bytes) {
 }
 
 function formatDate(iso) {
-    return new Date(iso).toLocaleString();
+    const timestamp = new Date(iso).getTime();
+    if (!Number.isFinite(timestamp)) return "--";
+    return new Date(timestamp).toLocaleString();
 }
 
 onMounted(async () => {
@@ -1031,6 +1057,12 @@ watch(
     async (fullName) => {
         if (!fullName) return;
         localStorage.setItem(REPO_SELECTION_STORAGE_KEY, fullName);
+
+        emit("update-variables", []);
+        emit("update-speakers", []);
+        globalConfigRepoPath.value = GLOBAL_CONFIG_CANDIDATE_PATHS[0];
+        globalConfigRepoSha.value = "";
+
         if (props.authState?.authenticated) {
             await reloadScriptsFromRepo();
         }

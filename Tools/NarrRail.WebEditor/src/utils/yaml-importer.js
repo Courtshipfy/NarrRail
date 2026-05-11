@@ -37,10 +37,15 @@ export function importFromYAML(yamlString) {
     if (node.nodeType === "Choice" || node.choice || node.choices) {
       // Choice 节点：兼容新旧格式，只保存选项文本，不保存 targetNodeId（通过边表示）
       const choiceArray = getChoiceArray(node);
+      const choiceMode =
+        node.choiceMode === "ExhaustiveUntilComplete"
+          ? "ExhaustiveUntilComplete"
+          : "SinglePass";
       base.data = {
         choices: choiceArray.map((c) => ({
           textKey: c.textKey,
         })),
+        choiceMode,
       };
     } else if (node.nodeType === "MultiDialogue" || node.multiDialogue) {
       const md = node.multiDialogue || {};
@@ -127,6 +132,47 @@ export function importFromYAML(yamlString) {
           },
         });
       });
+    }
+
+    if (
+      node.choiceMode === "ExhaustiveUntilComplete" &&
+      node.choiceCompletionTargetNodeId
+    ) {
+      const existingCompletion = edges.find(
+        (e) =>
+          e.source === node.nodeId &&
+          e.sourceHandle === "choice-complete" &&
+          e.target === node.choiceCompletionTargetNodeId,
+      );
+
+      if (!existingCompletion) {
+        const plainCompletionEdge = edges.find(
+          (e) =>
+            e.source === node.nodeId &&
+            (e.sourceHandle == null || e.sourceHandle === "") &&
+            e.target === node.choiceCompletionTargetNodeId,
+        );
+
+        if (plainCompletionEdge) {
+          plainCompletionEdge.sourceHandle = "choice-complete";
+          plainCompletionEdge.style =
+            "stroke: rgba(124, 58, 237, 0.72); stroke-width: 2px;";
+        } else {
+          edges.push({
+            id: `e${edgeIndex++}`,
+            source: node.nodeId,
+            sourceHandle: "choice-complete",
+            target: node.choiceCompletionTargetNodeId,
+            type: "default",
+            animated: false,
+            style: "stroke: rgba(124, 58, 237, 0.72); stroke-width: 2px;",
+            data: {
+              priority: 0,
+              condition: { logic: "All", terms: [] },
+            },
+          });
+        }
+      }
     }
   });
 

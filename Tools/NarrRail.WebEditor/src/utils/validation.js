@@ -169,6 +169,35 @@ function validateChoiceNodeEdgeMapping(
     return;
   }
 
+  const choiceMode =
+    node?.data?.choiceMode === "ExhaustiveUntilComplete"
+      ? "ExhaustiveUntilComplete"
+      : "SinglePass";
+  if (choiceMode === "ExhaustiveUntilComplete") {
+    const completionEdges = sourceEdges.filter(
+      (e) => e?.sourceHandle === "choice-complete",
+    );
+
+    if (completionEdges.length === 0) {
+      addError(`节点 ${node.id}: 穷举选择模式缺少完成连线（choice-complete）`, {
+        nodeId: node.id,
+      });
+    } else if (completionEdges.length > 1) {
+      addError(`节点 ${node.id}: 穷举选择模式只允许一条完成连线`, {
+        nodeId: node.id,
+      });
+    }
+
+    for (const edge of completionEdges) {
+      if (!nodeMap.has(edge.target)) {
+        addError(
+          `节点 ${node.id}: 穷举选择完成目标不存在: ${edge.target || "(空)"}`,
+          { nodeId: node.id },
+        );
+      }
+    }
+  }
+
   // 每个 choice 文本必填 + 每个 index 必须有且只有一条对应边
   for (let i = 0; i < choices.length; i++) {
     const c = choices[i] || {};
@@ -214,6 +243,15 @@ function validateChoiceNodeEdgeMapping(
       addWarning(
         `节点 ${node.id}: 存在未绑定选项句柄的边 ${edge.id || "(无ID)"}`,
       );
+      continue;
+    }
+
+    if (sh === "choice-complete") {
+      if (choiceMode !== "ExhaustiveUntilComplete") {
+        addWarning(
+          `节点 ${node.id}: 非穷举模式下不建议存在 choice-complete 连线`,
+        );
+      }
       continue;
     }
 

@@ -66,6 +66,17 @@ export function buildYAMLString(nodes, edges, variables, meta) {
 
       // 按 NarrRail SCRIPT_FORMAT 规范：Choice 节点直接使用 choices 字段
       base.choices = choices;
+      base.choiceMode =
+        node.data?.choiceMode === "ExhaustiveUntilComplete"
+          ? "ExhaustiveUntilComplete"
+          : "SinglePass";
+
+      const completionEdge = edges.find(
+        (e) => e.source === node.id && e.sourceHandle === "choice-complete",
+      );
+      base.choiceCompletionTargetNodeId = completionEdge
+        ? completionEdge.target
+        : "";
     } else if (node.type === "jump") {
       base.jump = {
         targetNodeId: node.data.targetNodeId || "",
