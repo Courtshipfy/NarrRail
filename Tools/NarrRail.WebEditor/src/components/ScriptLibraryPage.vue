@@ -449,6 +449,11 @@ const folders = computed(() => {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
 });
 
+function toSortableTime(value) {
+    const timestamp = new Date(value).getTime();
+    return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
 const filteredScripts = computed(() => {
     const kw = keyword.value.toLowerCase();
     let result = mockScripts.value.filter((s) => {
@@ -463,10 +468,11 @@ const filteredScripts = computed(() => {
         return inFolder && inKeyword;
     });
 
-    result = result.sort(
-        (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
+    result = result.sort((a, b) => {
+        const diff = toSortableTime(b.updatedAt) - toSortableTime(a.updatedAt);
+        if (diff !== 0) return diff;
+        return String(a.fileName || "").localeCompare(String(b.fileName || ""));
+    });
 
     return result;
 });
@@ -1006,7 +1012,9 @@ function formatSize(bytes) {
 }
 
 function formatDate(iso) {
-    return new Date(iso).toLocaleString();
+    const timestamp = new Date(iso).getTime();
+    if (!Number.isFinite(timestamp)) return "--";
+    return new Date(timestamp).toLocaleString();
 }
 
 onMounted(async () => {

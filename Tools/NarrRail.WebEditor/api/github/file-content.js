@@ -6,6 +6,51 @@ function normalizePath(path) {
     .replace(/^\/+/, "");
 }
 
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function fetchLatestCommitDateForPath({
+  owner,
+  repo,
+  branch,
+  path,
+  accessToken,
+}) {
+  const commitsUrl = new URL(
+    `https://api.github.com/repos/${owner}/${repo}/commits`,
+  );
+  commitsUrl.searchParams.set("sha", branch);
+  commitsUrl.searchParams.set("path", path);
+  commitsUrl.searchParams.set("per_page", "1");
+
+  try {
+    const commits = await githubFetchJson(commitsUrl.toString(), accessToken);
+    const first = Array.isArray(commits) ? commits[0] : null;
+    return (
+      first?.commit?.author?.date || first?.commit?.committer?.date || null
+    );
+  } catch (error) {
+    if (error?.status === 404 || error?.status === 409) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
@@ -43,7 +88,7 @@ export default async function handler(req, res) {
         throw error;
       }
 
-      const files = tree
+      const candidates = tree
         .filter((item) => item?.type === "blob")
         .map((item) => ({
           path: item.path,
@@ -58,8 +103,18 @@ export default async function handler(req, res) {
             lower.endsWith("global-config.narrrail.yml");
           const inRoot = rootPath ? item.path.startsWith(rootPath) : true;
           return isYaml && inRoot;
-        })
-        .map((item) => ({
+        });
+
+      const files = await mapWithConcurrency(candidates, 6, async (item) => {
+        const updatedAt = await fetchLatestCommitDateForPath({
+          owner,
+          repo,
+          branch,
+          path: item.path,
+          accessToken,
+        });
+
+        return {
           id: item.path,
           path: item.path,
           fileName: item.path.split("/").pop(),
@@ -71,13 +126,14 @@ export default async function handler(req, res) {
             "",
           ),
           size: item.size,
-          updatedAt: null,
+          updatedAt,
           tags: ["GitHub"],
           source: "github",
           owner,
           repo,
           branch,
-        }));
+        };
+      });
 
       res.status(200).json({ files });
       return;
