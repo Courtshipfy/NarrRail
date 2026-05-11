@@ -758,6 +758,8 @@ async function loadRepos() {
 async function loadGlobalConfigFromRepo() {
     if (!selectedOwner.value || !selectedRepoName.value) return;
 
+    const repoSnapshot = `${selectedOwner.value}/${selectedRepoName.value}@${selectedRepoBranch.value}`;
+
     try {
         const url = new URL(
             window.location.origin + "/api/github/file-content",
@@ -793,13 +795,23 @@ async function loadGlobalConfigFromRepo() {
             }
         }
 
+        if (
+            `${selectedOwner.value}/${selectedRepoName.value}@${selectedRepoBranch.value}` !==
+            repoSnapshot
+        ) {
+            return;
+        }
+
         if (!loadedData) {
+            const emptyConfig = {
+                variables: [],
+                presetSpeakers: [],
+            };
+            emit("update-variables", emptyConfig.variables);
+            emit("update-speakers", emptyConfig.presetSpeakers);
             globalConfigRepoPath.value = GLOBAL_CONFIG_CANDIDATE_PATHS[0];
             globalConfigRepoSha.value = "";
-            await syncGlobalConfigToRepo({
-                variables: props.variables,
-                presetSpeakers: props.presetSpeakers,
-            });
+            await syncGlobalConfigToRepo(emptyConfig);
             return;
         }
 
@@ -1031,6 +1043,12 @@ watch(
     async (fullName) => {
         if (!fullName) return;
         localStorage.setItem(REPO_SELECTION_STORAGE_KEY, fullName);
+
+        emit("update-variables", []);
+        emit("update-speakers", []);
+        globalConfigRepoPath.value = GLOBAL_CONFIG_CANDIDATE_PATHS[0];
+        globalConfigRepoSha.value = "";
+
         if (props.authState?.authenticated) {
             await reloadScriptsFromRepo();
         }
