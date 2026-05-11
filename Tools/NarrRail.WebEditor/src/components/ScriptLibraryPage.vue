@@ -896,8 +896,12 @@ function saveScriptListToStorage() {
     }
 }
 
+function toYamlDoubleQuoted(value) {
+    return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 function buildNewStoryYaml(storyId) {
-    return `meta:\n  schemaVersion: 1\n  storyId: ${storyId}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
+    return `meta:\n  schemaVersion: 1\n  storyId: ${toYamlDoubleQuoted(storyId)}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
 }
 
 function sleep(ms) {
@@ -908,18 +912,20 @@ async function createNewScript() {
     const baseName = prompt("请输入新脚本名称（不含扩展名）", "new_story");
     if (!baseName) return;
 
-    const normalized = String(baseName)
-        .trim()
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_\-]/g, "_")
-        .toLowerCase();
+    const normalized = String(baseName).trim();
 
-    if (!normalized) {
+    const safeStem = normalized
+        .replace(/\s+/g, "_")
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+        .replace(/^\.+|\.+$/g, "")
+        .replace(/_+/g, "_");
+
+    if (!safeStem) {
         alert("脚本名称不能为空");
         return;
     }
 
-    const fileName = `${normalized}.narrrail.yaml`;
+    const fileName = `${safeStem}.narrrail.yaml`;
     const existing = mockScripts.value.some((s) => s.fileName === fileName);
     if (existing) {
         alert("同名脚本已存在，请换一个名称");
@@ -941,7 +947,7 @@ async function createNewScript() {
                     repo: selectedRepoName.value,
                     branch: selectedRepoBranch.value,
                     path: createdPath,
-                    content: buildNewStoryYaml(normalized),
+                    content: buildNewStoryYaml(safeStem),
                     message: `feat(script): create ${createdPath}`,
                 }),
             });
@@ -983,7 +989,7 @@ async function createNewScript() {
         fileName,
         extension: ".yaml",
         path: createdPath,
-        storyId: normalized,
+        storyId: safeStem,
         size: 0,
         updatedAt: new Date().toISOString(),
         tags: ["New", "Sandbox"],
