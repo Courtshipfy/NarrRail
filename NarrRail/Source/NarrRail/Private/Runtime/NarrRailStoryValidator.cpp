@@ -131,6 +131,30 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
 
             ReferencedTargets.Add(Option.TargetNodeId);
         }
+
+        if (Node.NodeType == ENarrRailNodeType::Choice && Node.ChoiceMode == ENarrRailChoiceMode::ExhaustiveUntilComplete)
+        {
+            if (Node.ChoiceCompletionTargetNodeId == NAME_None)
+            {
+                NarrRailValidation::AddIssue(
+                    Issues,
+                    ENarrRailValidationSeverity::Error,
+                    Node.NodeId,
+                    TEXT("Exhaustive choice node requires ChoiceCompletionTargetNodeId."));
+            }
+            else if (!NarrRailValidation::ContainsNode(NodeIds, Node.ChoiceCompletionTargetNodeId))
+            {
+                NarrRailValidation::AddIssue(
+                    Issues,
+                    ENarrRailValidationSeverity::Error,
+                    Node.NodeId,
+                    TEXT("Exhaustive choice completion target node does not exist."));
+            }
+            else
+            {
+                ReferencedTargets.Add(Node.ChoiceCompletionTargetNodeId);
+            }
+        }
     }
 
     for (const FNarrRailNode& Node : StoryAsset->Nodes)

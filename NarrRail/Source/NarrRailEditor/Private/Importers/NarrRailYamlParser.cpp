@@ -15,6 +15,7 @@ static ENarrRailVariableType ParseVariableType(const FString& TypeStr);
 static ENarrRailComparisonOp ParseOperator(const FString& OpStr);
 static ENarrRailActionType ParseActionType(const FString& ActionStr);
 static ENarrRailConditionLogic ParseLogicType(const FString& LogicStr);
+static ENarrRailChoiceMode ParseChoiceMode(const FString& ChoiceModeStr);
 
 static bool ParseMeta(const YAML::Node& MetaNode, FNarrRailScriptData& OutData, FString& OutError);
 static bool ParseVariables(const YAML::Node& VarsNode, FNarrRailScriptData& OutData, FString& OutError);
@@ -146,6 +147,12 @@ static ENarrRailConditionLogic ParseLogicType(const FString& LogicStr)
 	return ENarrRailConditionLogic::All; // Default
 }
 
+static ENarrRailChoiceMode ParseChoiceMode(const FString& ChoiceModeStr)
+{
+	if (ChoiceModeStr == TEXT("ExhaustiveUntilComplete")) return ENarrRailChoiceMode::ExhaustiveUntilComplete;
+	return ENarrRailChoiceMode::SinglePass; // Default
+}
+
 // Parse meta section
 static bool ParseMeta(const YAML::Node& MetaNode, FNarrRailScriptData& OutData, FString& OutError)
 {
@@ -266,10 +273,27 @@ static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData
 			ParseChoices(NodeYaml["choices"], Node.Choices);
 		}
 
+		// Parse choice mode & completion target (if present)
+		if (NodeYaml["choiceMode"])
+		{
+			FString ChoiceModeStr = UTF8_TO_TCHAR(NodeYaml["choiceMode"].as<std::string>().c_str());
+			Node.ChoiceMode = ParseChoiceMode(ChoiceModeStr);
+		}
+
+		if (NodeYaml["choiceCompletionTargetNodeId"])
+		{
+			Node.ChoiceCompletionTargetNodeId = FName(UTF8_TO_TCHAR(NodeYaml["choiceCompletionTargetNodeId"].as<std::string>().c_str()));
+		}
+
 		// Parse jump target (if present)
 		if (NodeYaml["jumpTargetNodeId"])
 		{
 			Node.JumpTargetNodeId = FName(UTF8_TO_TCHAR(NodeYaml["jumpTargetNodeId"].as<std::string>().c_str()));
+		}
+		else if (NodeYaml["jump"] && NodeYaml["jump"]["targetNodeId"])
+		{
+			// Compatibility with web editor export format
+			Node.JumpTargetNodeId = FName(UTF8_TO_TCHAR(NodeYaml["jump"]["targetNodeId"].as<std::string>().c_str()));
 		}
 
 		// Parse enter actions (if present)

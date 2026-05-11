@@ -18,7 +18,6 @@
         {#each data.choices as choice, i}
           <div class="choice-item-with-handle">
             <div class="choice-item">
-              <span class="choice-bullet">{i + 1}</span>
               <span class="choice-text">{choice.textKey || `选项 ${i + 1}`}</span>
             </div>
             <Handle
@@ -31,6 +30,16 @@
       </div>
     {:else}
       <div class="no-choices">暂无选项</div>
+    {/if}
+
+    {#if data?.choiceMode === 'ExhaustiveUntilComplete'}
+      <div class="completion-row-with-handle" aria-hidden="true">
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="choice-complete"
+        />
+      </div>
     {/if}
   </div>
 </div>
@@ -101,6 +110,22 @@
     gap: 0;
   }
 
+  .completion-row-with-handle {
+    position: relative;
+    height: 18px;
+    padding-right: 20px;
+    margin-top: 6px;
+  }
+
+  .completion-row-with-handle :global(.svelte-flow__handle) {
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #7c3aed;
+    border-color: #7c3aed;
+  }
+
   .choice-item-with-handle {
     position: relative;
     height: 32px;
@@ -126,23 +151,11 @@
     transform: translateY(-50%);
   }
 
-  .choice-bullet {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    background: linear-gradient(135deg, #ffcc00, #ffb340);
-    color: white;
-    border-radius: 50%;
-    font-weight: 700;
-    font-size: 11px;
-    flex-shrink: 0;
-  }
+
 
   .choice-text {
     font-weight: 500;
-    max-width: 140px;
+    max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

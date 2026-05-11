@@ -278,6 +278,12 @@ private:
     bool EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const;
     bool ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage);
 
+    TArray<int32> BuildAvailableChoiceIndices(const FNarrRailNode& ChoiceNode) const;
+    TArray<FNarrRailChoiceOption> BuildVisibleChoiceOptions(const FNarrRailNode& ChoiceNode) const;
+
+    // 穷举选择分支结束时的统一回返处理
+    bool TryPopExhaustiveReturn(FName& OutReturnNodeId);
+
 private:
     UPROPERTY(Transient)
     TObjectPtr<const UNarrRailStoryAsset> StoryAsset;
@@ -299,6 +305,15 @@ private:
 
     UPROPERTY(Transient)
     int32 CurrentMultiDialogueLineIndex = INDEX_NONE;
+
+    // 运行时缓存：UHT 不支持 TMap value 为容器类型，因此不使用 UPROPERTY
+    TMap<FName, TSet<int32>> ExhaustiveSelectedChoiceIndices;
+
+    // 运行时缓存：Choice 可见索引映射（UI index -> 原始 choice index）
+    TMap<FName, TArray<int32>> RuntimeVisibleChoiceIndexMap;
+
+    // 穷举选择分支的待返回栈（支持嵌套）
+    TArray<FName> ExhaustivePendingChoiceReturnStack;
 
     UPROPERTY(Transient)
     FString DebugName;

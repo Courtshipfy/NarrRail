@@ -268,6 +268,32 @@
 
                     <template v-else-if="localNode.type === 'choice'">
                         <div class="form-group glass-input">
+                            <label class="form-label">选择模式</label>
+                            <select
+                                class="form-input"
+                                v-model="localNode.data.choiceMode"
+                                @change="handleUpdate"
+                            >
+                                <option value="SinglePass">
+                                    普通分支（单次）
+                                </option>
+                                <option value="ExhaustiveUntilComplete">
+                                    穷举分支（选完全部后继续）
+                                </option>
+                            </select>
+                        </div>
+
+                        <p
+                            v-if="
+                                localNode.data.choiceMode ===
+                                'ExhaustiveUntilComplete'
+                            "
+                            class="choice-hint"
+                        >
+                            提示：请从“穷举完成后”连接点拖线到完成节点
+                        </p>
+
+                        <div class="form-group glass-input">
                             <label class="form-label">选项列表</label>
                             <div
                                 v-for="(choice, index) in localNode.data
@@ -673,6 +699,18 @@ watch(
                 }
                 if (localNode.value.data.lines.length === 0) {
                     localNode.value.data.lines.push({ textKey: "" });
+                }
+            }
+            if (localNode.value.type === "choice") {
+                localNode.value.data = localNode.value.data || {};
+                if (!Array.isArray(localNode.value.data.choices)) {
+                    localNode.value.data.choices = [];
+                }
+                if (
+                    localNode.value.data.choiceMode !==
+                    "ExhaustiveUntilComplete"
+                ) {
+                    localNode.value.data.choiceMode = "SinglePass";
                 }
             }
             isExpanded.value = true; // 选中节点时自动展开

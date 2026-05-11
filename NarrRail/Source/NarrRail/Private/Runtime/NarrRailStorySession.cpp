@@ -83,6 +83,9 @@ FNarrRailRuntimeResult UNarrRailStorySession::Start(const FName OverrideEntryNod
     StateBeforePause = ENarrRailSessionState::Idle;
     ResetSessionContextFromAsset();
     CurrentMultiDialogueLineIndex = INDEX_NONE;
+    ExhaustiveSelectedChoiceIndices.Reset();
+    RuntimeVisibleChoiceIndexMap.Reset();
+    ExhaustivePendingChoiceReturnStack.Reset();
 
     // 重置最后选择信息
     LastChoiceInfo = FNarrRailLastChoiceInfo();
@@ -124,6 +127,12 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
 
     if (Node->NodeType == ENarrRailNodeType::End)
     {
+        FName ReturnNodeId;
+        if (TryPopExhaustiveReturn(ReturnNodeId))
+        {
+            return AdvanceToNode(ReturnNodeId);
+        }
+
         SessionState = ENarrRailSessionState::Completed;
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), Context.CurrentNodeId);
     }
@@ -194,6 +203,12 @@ FNarrRailRuntimeResult UNarrRailStorySession::Next()
     {
         if (ResolveResult.Code == ENarrRailRuntimeResultCode::Completed)
         {
+            FName ReturnNodeId;
+            if (TryPopExhaustiveReturn(ReturnNodeId))
+            {
+                return AdvanceToNode(ReturnNodeId);
+            }
+
             SessionState = ENarrRailSessionState::Completed;
         }
         return ResolveResult;
@@ -226,12 +241,53 @@ FNarrRailRuntimeResult UNarrRailStorySession::Choose(const int32 ChoiceIndex)
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Current node is not a choice node."), Context.CurrentNodeId);
     }
 
-    if (!Node->Choices.IsValidIndex(ChoiceIndex))
+    const TArray<int32>* VisibleIndexMap = RuntimeVisibleChoiceIndexMap.Find(Context.CurrentNodeId);
+    const TArray<int32> AvailableIndices = BuildAvailableChoiceIndices(*Node);
+
+    int32 ActualChoiceIndex = INDEX_NONE;
+
+    if (VisibleIndexMap != nullptr)
     {
-        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice index out of range."), Context.CurrentNodeId);
+        // VisibleIndexMap 映射: UI 可见位置(0-based) → 原始Choices索引
+        // ChoiceIndex 必须是 0-based 进入可见列表，不再做模糊的 1-based 猜测
+        const int32 NumVisible = VisibleIndexMap->Num();
+
+        if (ChoiceIndex >= 0 && ChoiceIndex < NumVisible)
+        {
+            ActualChoiceIndex = (*VisibleIndexMap)[ChoiceIndex];
+        }
+        else
+        {
+            return FNarrRailRuntimeResult::Make(
+                ENarrRailRuntimeResultCode::InvalidInput,
+                *FString::Printf(TEXT("Choice index %d out of visible range [0, %d)."), ChoiceIndex, NumVisible),
+                Context.CurrentNodeId);
+        }
+    }
+    else
+    {
+        // 无 VisibleIndexMap 时退化为原始索引，兼容 0/1-based
+        if (Node->Choices.IsValidIndex(ChoiceIndex))
+        {
+            ActualChoiceIndex = ChoiceIndex;
+        }
+        else if (ChoiceIndex > 0 && Node->Choices.IsValidIndex(ChoiceIndex - 1))
+        {
+            // 兼容 1-based UI 传参（仅限无 VisibleIndexMap 的回退路径）
+            ActualChoiceIndex = ChoiceIndex - 1;
+        }
+        else
+        {
+            return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice index out of range."), Context.CurrentNodeId);
+        }
     }
 
-    const FNarrRailChoiceOption& Option = Node->Choices[ChoiceIndex];
+    if (!AvailableIndices.Contains(ActualChoiceIndex))
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice is not available."), Context.CurrentNodeId);
+    }
+
+    const FNarrRailChoiceOption& Option = Node->Choices[ActualChoiceIndex];
     if (Option.TargetNodeId == NAME_None)
     {
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Choice target node is empty."), Context.CurrentNodeId);
@@ -239,13 +295,20 @@ FNarrRailRuntimeResult UNarrRailStorySession::Choose(const int32 ChoiceIndex)
 
     // 更新最后一次选择的信息
     LastChoiceInfo.ChoiceNodeId = Context.CurrentNodeId;
-    LastChoiceInfo.ChoiceIndex = ChoiceIndex;
+    LastChoiceInfo.ChoiceIndex = ActualChoiceIndex;
     LastChoiceInfo.TargetNodeId = Option.TargetNodeId;
     LastChoiceInfo.ChoiceTextKey = Option.TextKey;
     LastChoiceInfo.bValid = true;
 
     // 触发选择事件
-    OnChoiceSelected.Broadcast(Context.CurrentNodeId, ChoiceIndex, Option.TargetNodeId);
+    OnChoiceSelected.Broadcast(Context.CurrentNodeId, ActualChoiceIndex, Option.TargetNodeId);
+
+    if (Node->ChoiceMode == ENarrRailChoiceMode::ExhaustiveUntilComplete)
+    {
+        TSet<int32>& Selected = ExhaustiveSelectedChoiceIndices.FindOrAdd(Context.CurrentNodeId);
+        Selected.Add(ActualChoiceIndex);
+        ExhaustivePendingChoiceReturnStack.Add(Context.CurrentNodeId);
+    }
 
     FString ActionError;
     if (!ExecuteActions(Node->ExitActions, ActionError))
@@ -358,7 +421,7 @@ TArray<FNarrRailChoiceOption> UNarrRailStorySession::GetCurrentChoices() const
         return {};
     }
 
-    return Node->Choices;
+    return BuildVisibleChoiceOptions(*Node);
 }
 
 // 便捷的变量访问接口实现
@@ -458,6 +521,8 @@ void UNarrRailStorySession::ResetSessionContextFromAsset()
 {
     Context = FNarrRailSessionContext{};
     CurrentMultiDialogueLineIndex = INDEX_NONE;
+    RuntimeVisibleChoiceIndexMap.Reset();
+    ExhaustivePendingChoiceReturnStack.Reset();
 
     if (StoryAsset == nullptr || VariableContainer == nullptr)
     {
@@ -488,6 +553,18 @@ bool UNarrRailStorySession::BuildMultiDialogueDisplay(const FNarrRailNode& Node,
     return true;
 }
 
+bool UNarrRailStorySession::TryPopExhaustiveReturn(FName& OutReturnNodeId)
+{
+    if (ExhaustivePendingChoiceReturnStack.Num() > 0)
+    {
+        OutReturnNodeId = ExhaustivePendingChoiceReturnStack.Pop();
+        return true;
+    }
+
+    OutReturnNodeId = NAME_None;
+    return false;
+}
+
 FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNodeId)
 {
     const FNarrRailNode* Node = FindNode(TargetNodeId);
@@ -495,6 +572,12 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
     {
         SessionState = ENarrRailSessionState::Error;
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Target node not found."), TargetNodeId);
+    }
+
+    if (ExhaustivePendingChoiceReturnStack.Num() > 0 &&
+        ExhaustivePendingChoiceReturnStack.Last() == TargetNodeId)
+    {
+        ExhaustivePendingChoiceReturnStack.Pop();
     }
 
     Context.CurrentNodeId = TargetNodeId;
@@ -523,6 +606,16 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
         PresenterObject->GetClass()->ImplementsInterface(UNarrRailDialoguePresenterInterface::StaticClass());
 
     FNarrRailNode EnteredNodeForEvent = *Node;
+
+    // Choice 节点：提前计算可用选项，避免两个 Choice 块重复调用
+    TArray<int32> ChoiceAvailableIndices;
+    TArray<FNarrRailChoiceOption> ChoiceVisibleOptions;
+    const bool bIsChoiceNode = (Node->NodeType == ENarrRailNodeType::Choice);
+    if (bIsChoiceNode)
+    {
+        ChoiceAvailableIndices = BuildAvailableChoiceIndices(*Node);
+        ChoiceVisibleOptions = BuildVisibleChoiceOptions(*Node);
+    }
 
     if (bPresenterValid)
     {
@@ -553,13 +646,13 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
                 EnteredNodeForEvent.Dialogue.SpeechRate = Request.SpeechRate;
             }
         }
-        else if (Node->NodeType == ENarrRailNodeType::Choice)
+        else if (bIsChoiceNode && !(Node->ChoiceMode == ENarrRailChoiceMode::ExhaustiveUntilComplete && ChoiceAvailableIndices.Num() == 0))
         {
-            // 构建选项显示请求
+            // 构建选项显示请求（使用预计算的可见选项）
             FNarrRailChoiceRequest Request;
             Request.NodeId = TargetNodeId;
-            Request.Choices = Node->Choices;
-            Request.Session = this;  // 传入 Session 对象，UI 可以直接调用 Choose
+            Request.Choices = ChoiceVisibleOptions;
+            Request.Session = this;
 
             // 调用 UI 显示选项
             INarrRailDialoguePresenterInterface::Execute_ShowChoices(PresenterObject, Request);
@@ -577,23 +670,94 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
 
     if (Node->NodeType == ENarrRailNodeType::End)
     {
+        FName ReturnNodeId;
+        if (TryPopExhaustiveReturn(ReturnNodeId))
+        {
+            return AdvanceToNode(ReturnNodeId);
+        }
+
         SessionState = ENarrRailSessionState::Completed;
         // 触发会话结束事件
         OnSessionEnded.Broadcast(Context.CurrentNodeId, SessionState);
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("Reached end node."), Context.CurrentNodeId);
     }
 
-    SessionState = (Node->NodeType == ENarrRailNodeType::Choice)
-        ? ENarrRailSessionState::WaitingForChoice
-        : ENarrRailSessionState::Running;
-
-    // 如果是选择节点，触发选项准备事件
-    if (Node->NodeType == ENarrRailNodeType::Choice)
+    if (bIsChoiceNode)
     {
-        OnChoicesReady.Broadcast(Context.CurrentNodeId, Node->Choices);
+        if (Node->ChoiceMode == ENarrRailChoiceMode::ExhaustiveUntilComplete && ChoiceAvailableIndices.Num() == 0)
+        {
+            while (ExhaustivePendingChoiceReturnStack.Num() > 0 &&
+                ExhaustivePendingChoiceReturnStack.Last() == Context.CurrentNodeId)
+            {
+                ExhaustivePendingChoiceReturnStack.Pop();
+            }
+
+            if (Node->ChoiceCompletionTargetNodeId == NAME_None)
+            {
+                SessionState = ENarrRailSessionState::Error;
+                return FNarrRailRuntimeResult::Make(
+                    ENarrRailRuntimeResultCode::InvalidInput,
+                    TEXT("Exhaustive choice node requires ChoiceCompletionTargetNodeId when all choices are consumed."),
+                    Context.CurrentNodeId);
+            }
+
+            SessionState = ENarrRailSessionState::Running;
+            return AdvanceToNode(Node->ChoiceCompletionTargetNodeId);
+        }
+
+        RuntimeVisibleChoiceIndexMap.Add(Context.CurrentNodeId, ChoiceAvailableIndices);
+
+        SessionState = ENarrRailSessionState::WaitingForChoice;
+        OnChoicesReady.Broadcast(Context.CurrentNodeId, ChoiceVisibleOptions);
+    }
+    else
+    {
+        RuntimeVisibleChoiceIndexMap.Remove(Context.CurrentNodeId);
+        SessionState = ENarrRailSessionState::Running;
     }
 
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Advanced to node."), Context.CurrentNodeId);
+}
+
+TArray<int32> UNarrRailStorySession::BuildAvailableChoiceIndices(const FNarrRailNode& ChoiceNode) const
+{
+    TArray<int32> Available;
+
+    const TSet<int32>* Selected = ExhaustiveSelectedChoiceIndices.Find(ChoiceNode.NodeId);
+
+    for (int32 Index = 0; Index < ChoiceNode.Choices.Num(); ++Index)
+    {
+        if (Selected != nullptr && Selected->Contains(Index))
+        {
+            continue;
+        }
+
+        const FNarrRailChoiceOption& Option = ChoiceNode.Choices[Index];
+        if (!EvaluateConditionExpression(Option.Availability))
+        {
+            continue;
+        }
+
+        Available.Add(Index);
+    }
+
+    return Available;
+}
+
+TArray<FNarrRailChoiceOption> UNarrRailStorySession::BuildVisibleChoiceOptions(const FNarrRailNode& ChoiceNode) const
+{
+    TArray<FNarrRailChoiceOption> VisibleChoices;
+    const TArray<int32> AvailableIndices = BuildAvailableChoiceIndices(ChoiceNode);
+
+    for (const int32 Index : AvailableIndices)
+    {
+        if (ChoiceNode.Choices.IsValidIndex(Index))
+        {
+            VisibleChoices.Add(ChoiceNode.Choices[Index]);
+        }
+    }
+
+    return VisibleChoices;
 }
 
 FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailNode& FromNode, FName& OutNextNodeId) const
