@@ -71,6 +71,7 @@
             :is-dark-mode="darkModeEnabled"
             :open-multi-dialogue-request="multiDialogueOpenRequest"
             :open-dialogue-request="dialogueOpenRequest"
+            :open-choice-request="choiceOpenRequest"
             @update="handleNodeUpdate"
             @set-entry-node="handleSetEntryNode"
         />
@@ -310,6 +311,7 @@ const selectedNode = ref(null);
 const selectedEdge = ref(null);
 const multiDialogueOpenRequest = ref(null);
 const dialogueOpenRequest = ref(null);
+const choiceOpenRequest = ref(null);
 const lastNodeClickMeta = ref({ id: "", time: 0 });
 const recentDragSuppressUntil = ref(0);
 const focusModeEnabled = ref(false);
@@ -875,6 +877,14 @@ function handleNodeClick(event) {
             nodeId: node.id,
             nonce: now,
         };
+        return;
+    }
+
+    if (node.type === "choice") {
+        choiceOpenRequest.value = {
+            nodeId: node.id,
+            nonce: now,
+        };
     }
 }
 
@@ -1040,10 +1050,31 @@ function estimateNodeHeight(node) {
     }
 
     if (node.type === "choice") {
-        const choices = Array.isArray(node.data?.choices)
-            ? node.data.choices.length
-            : 0;
-        return 130 + choices * 18;
+        const choiceTexts = Array.isArray(node.data?.choices)
+            ? node.data.choices.map((choice) =>
+                  String(choice?.textKey || "").trim(),
+              )
+            : [];
+
+        const choiceCount = choiceTexts.length;
+        const approxCharsPerLine = 20;
+        const visualLineCount = Math.max(
+            1,
+            choiceTexts.reduce((sum, text) => {
+                const len = text.length;
+                const lines = Math.max(1, Math.ceil(len / approxCharsPerLine));
+                return sum + lines;
+            }, 0),
+        );
+
+        const baseHeight = 120;
+        const perVisualLineHeight = 18;
+        const perChoiceSpacing = 8;
+        return (
+            baseHeight +
+            visualLineCount * perVisualLineHeight +
+            choiceCount * perChoiceSpacing
+        );
     }
 
     return 140;
@@ -1076,10 +1107,18 @@ function estimateNodeWidth(node) {
     }
 
     if (node.type === "choice") {
-        const choiceCount = Array.isArray(node.data?.choices)
-            ? node.data.choices.length
-            : 0;
-        return Math.min(520, Math.max(240, 230 + choiceCount * 18));
+        const choiceTexts = Array.isArray(node.data?.choices)
+            ? node.data.choices
+                  .map((choice) => String(choice?.textKey || "").trim())
+                  .filter((text) => text.length > 0)
+            : [];
+
+        const maxChoiceLen = choiceTexts.reduce(
+            (max, text) => Math.max(max, text.length),
+            0,
+        );
+
+        return Math.min(620, Math.max(260, 240 + maxChoiceLen * 6));
     }
 
     return 230;

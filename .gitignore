@@ -35,3 +35,6 @@ HostProject/Build-HostProject.cmd
 # Zed editor local files
 .zed/
 HostProject/NarrRailHost.sln
+
+# Web editor build artifacts
+Tools/NarrRail.WebEditor/dist/

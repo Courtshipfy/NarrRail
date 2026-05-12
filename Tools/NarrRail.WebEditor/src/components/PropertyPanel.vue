@@ -294,7 +294,21 @@
                         </p>
 
                         <div class="form-group glass-input">
-                            <label class="form-label">选项列表</label>
+                            <div class="multi-lines-header">
+                                <label class="form-label"
+                                    >选项列表（Enter 新增下一项）</label
+                                >
+                                <button
+                                    class="open-dialogue-modal-btn"
+                                    @click="openChoiceModal"
+                                    title="弹窗编辑选项"
+                                    aria-label="弹窗编辑选项"
+                                >
+                                    <span class="material-symbols-outlined"
+                                        >open_in_full</span
+                                    >
+                                </button>
+                            </div>
                             <div
                                 v-for="(choice, index) in localNode.data
                                     .choices"
@@ -306,6 +320,9 @@
                                     class="form-input"
                                     v-model="choice.textKey"
                                     placeholder="选项文本"
+                                    @keydown.enter.prevent="
+                                        insertChoiceAfter(index)
+                                    "
                                     @compositionstart="handleCompositionStart"
                                     @compositionend="handleCompositionEnd"
                                     @blur="handleInputChange"
@@ -577,6 +594,112 @@
 
     <Teleport to="body">
         <div
+            v-if="showChoiceModal && localNode?.type === 'choice'"
+            class="multi-dialogue-modal-overlay"
+            @click.self="closeChoiceModal"
+        >
+            <div
+                :class="[
+                    'multi-dialogue-modal',
+                    'dialogue-modal-small',
+                    'choice-modal-small',
+                    'glass-morphism-strong',
+                    { 'is-dark-theme': isDarkMode },
+                ]"
+                @mousedown.stop
+                @click.stop
+            >
+                <div class="multi-dialogue-modal-header">
+                    <div>
+                        <h3>选项编辑</h3>
+                        <p>拖拽左侧图标调整顺序，Enter 新增选项</p>
+                    </div>
+                    <button
+                        class="multi-dialogue-modal-close"
+                        @click="closeChoiceModal"
+                        title="关闭"
+                        aria-label="关闭"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div class="multi-dialogue-modal-body">
+                    <div
+                        class="multi-lines-editor fullscreen"
+                        @dragover.prevent="onChoiceContainerDragOver($event)"
+                        @drop.prevent="onChoiceContainerDrop($event)"
+                    >
+                        <div
+                            v-for="(choice, index) in localNode.data.choices"
+                            :key="`modal-choice-${index}`"
+                            class="line-edit-row"
+                            :class="{
+                                'is-editing': activeChoiceIndex === index,
+                                'is-dragging': draggingChoiceIndex === index,
+                                'is-drag-over': isChoiceDragOver(index),
+                                'drop-before': isChoiceDropBefore(index),
+                                'drop-after': isChoiceDropAfter(index),
+                            }"
+                            @dragenter.prevent="
+                                onChoiceDragEnter(index, $event)
+                            "
+                            @dragover.prevent="onChoiceDragOver(index, $event)"
+                            @drop.prevent="onChoiceDrop(index, $event)"
+                        >
+                            <button
+                                class="line-drag-handle"
+                                draggable="true"
+                                title="拖拽排序"
+                                aria-label="拖拽排序"
+                                @dragstart="onChoiceDragStart(index, $event)"
+                                @dragend="onChoiceDragEnd"
+                            >
+                                <span class="material-symbols-outlined"
+                                    >drag_indicator</span
+                                >
+                            </button>
+
+                            <textarea
+                                :ref="(el) => setChoiceRef(el, index)"
+                                class="form-textarea modal-line-textarea"
+                                v-model="choice.textKey"
+                                rows="1"
+                                placeholder="输入选项文本..."
+                                @input="handleChoiceInput(index, $event)"
+                                @keydown.enter.prevent="
+                                    insertChoiceAfter(index)
+                                "
+                                @focus="handleChoiceFocus(index, $event)"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleChoiceBlur(index)"
+                            ></textarea>
+
+                            <button
+                                class="remove-choice-btn line-remove-btn"
+                                :class="{
+                                    'is-filled':
+                                        String(choice?.textKey || '').trim()
+                                            .length > 0,
+                                }"
+                                @click="removeChoice(index)"
+                                title="删除该选项"
+                                aria-label="删除该选项"
+                            >
+                                <span class="material-symbols-outlined"
+                                    >close</span
+                                >
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <Teleport to="body">
+        <div
             v-if="showDialogueModal && localNode?.type === 'dialogue'"
             class="multi-dialogue-modal-overlay"
             @click.self="closeDialogueModal"
@@ -650,6 +773,10 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    openChoiceRequest: {
+        type: Object,
+        default: null,
+    },
 });
 
 const emit = defineEmits(["update", "set-entry-node"]);
@@ -668,13 +795,21 @@ const dragOverDialogueLineIndex = ref(-1);
 const dragOverDialogueLinePlacement = ref("after");
 const showMultiDialogueModal = ref(false);
 const showDialogueModal = ref(false);
+const showChoiceModal = ref(false);
+const choiceRefs = ref([]);
+const activeChoiceIndex = ref(-1);
+const draggingChoiceIndex = ref(-1);
+const dragOverChoiceIndex = ref(-1);
+const dragOverChoicePlacement = ref("after");
 
 // 监听 selectedNode 变化，同步到本地副本
 watch(
     () => props.selectedNode,
     (newNode) => {
         const isEditingCurrentNodeInModal =
-            (showMultiDialogueModal.value || showDialogueModal.value) &&
+            (showMultiDialogueModal.value ||
+                showDialogueModal.value ||
+                showChoiceModal.value) &&
             localNode.value &&
             newNode &&
             localNode.value.id === newNode.id;
@@ -685,12 +820,18 @@ watch(
 
         if (newNode) {
             multiDialogueLineRefs.value = [];
+            choiceRefs.value = [];
             activeMultiDialogueLineIndex.value = -1;
+            activeChoiceIndex.value = -1;
             draggingDialogueLineIndex.value = -1;
+            draggingChoiceIndex.value = -1;
             dragOverDialogueLineIndex.value = -1;
+            dragOverChoiceIndex.value = -1;
             dragOverDialogueLinePlacement.value = "after";
+            dragOverChoicePlacement.value = "after";
             showMultiDialogueModal.value = false;
             showDialogueModal.value = false;
+            showChoiceModal.value = false;
             localNode.value = JSON.parse(JSON.stringify(newNode));
             if (localNode.value.type === "multidialogue") {
                 localNode.value.data = localNode.value.data || {};
@@ -716,12 +857,18 @@ watch(
             isExpanded.value = true; // 选中节点时自动展开
         } else {
             multiDialogueLineRefs.value = [];
+            choiceRefs.value = [];
             activeMultiDialogueLineIndex.value = -1;
+            activeChoiceIndex.value = -1;
             draggingDialogueLineIndex.value = -1;
+            draggingChoiceIndex.value = -1;
             dragOverDialogueLineIndex.value = -1;
+            dragOverChoiceIndex.value = -1;
             dragOverDialogueLinePlacement.value = "after";
+            dragOverChoicePlacement.value = "after";
             showMultiDialogueModal.value = false;
             showDialogueModal.value = false;
+            showChoiceModal.value = false;
             localNode.value = null;
             isExpanded.value = false; // 取消选中时自动收起
         }
@@ -774,6 +921,26 @@ watch(
     },
 );
 
+watch(
+    () => props.openChoiceRequest,
+    async (request) => {
+        const requestNodeId = String(request?.nodeId || "").trim();
+        if (!requestNodeId) return;
+
+        await nextTick();
+
+        if (
+            localNode.value &&
+            localNode.value.type === "choice" &&
+            localNode.value.id === requestNodeId
+        ) {
+            isExpanded.value = false;
+            isPanelInputFocused.value = false;
+            openChoiceModal();
+        }
+    },
+);
+
 // 处理中文输入法
 function handleCompositionStart() {
     isComposing.value = true;
@@ -800,7 +967,11 @@ function handlePanelFocusOut(event) {
 }
 
 function handleGlobalPointerDown(event) {
-    if (showMultiDialogueModal.value || showDialogueModal.value) {
+    if (
+        showMultiDialogueModal.value ||
+        showDialogueModal.value ||
+        showChoiceModal.value
+    ) {
         return;
     }
 
@@ -869,6 +1040,61 @@ function addChoice() {
     const choices = [...(localNode.value.data.choices || [])];
     choices.push({ textKey: "" });
     localNode.value.data.choices = choices;
+    handleUpdate();
+}
+
+function setChoiceRef(el, index) {
+    if (!el) return;
+    choiceRefs.value[index] = el;
+    if (String(el?.tagName || "").toUpperCase() === "TEXTAREA") {
+        autoResizeTextarea(el);
+    }
+}
+
+function setActiveChoice(index) {
+    activeChoiceIndex.value = index;
+}
+
+async function focusChoice(index) {
+    await nextTick();
+    const input = choiceRefs.value[index];
+    if (input && typeof input.focus === "function") {
+        input.focus();
+        if (typeof input.setSelectionRange === "function") {
+            const len = String(input.value || "").length;
+            input.setSelectionRange(len, len);
+        }
+    }
+}
+
+function insertChoiceAfter(index) {
+    if (!localNode.value || localNode.value.type !== "choice") return;
+    const choices = Array.isArray(localNode.value.data.choices)
+        ? [...localNode.value.data.choices]
+        : [];
+    const insertAt = index + 1;
+    choices.splice(insertAt, 0, { textKey: "" });
+    localNode.value.data.choices = choices;
+    handleUpdate();
+    focusChoice(insertAt);
+}
+
+function handleChoiceInput(index, event) {
+    setActiveChoice(index);
+    autoResizeTextarea(event?.target);
+    handleUpdate();
+}
+
+function handleChoiceFocus(index, event) {
+    setActiveChoice(index);
+    autoResizeTextarea(event?.target);
+}
+
+function handleChoiceBlur(index) {
+    if (activeChoiceIndex.value === index) {
+        activeChoiceIndex.value = -1;
+    }
+    handleInputChange();
 }
 
 function removeChoice(index) {
@@ -1209,6 +1435,187 @@ function onDialogueLineDrop(targetIndex, event) {
     onDialogueLineDragEnd();
 }
 
+function onChoiceDragStart(index, event) {
+    draggingChoiceIndex.value = index;
+    dragOverChoiceIndex.value = index;
+    dragOverChoicePlacement.value = "after";
+
+    if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(index));
+    }
+}
+
+function onChoiceDragEnd() {
+    draggingChoiceIndex.value = -1;
+    dragOverChoiceIndex.value = -1;
+    dragOverChoicePlacement.value = "after";
+}
+
+function onChoiceDragEnter(index, event) {
+    onChoiceDragOver(index, event);
+}
+
+function onChoiceContainerDragOver(event) {
+    if (draggingChoiceIndex.value < 0) return;
+
+    if (event?.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+    }
+
+    const rootEl = event?.currentTarget;
+    if (!rootEl || typeof rootEl.querySelectorAll !== "function") return;
+
+    const rowElements = Array.from(rootEl.querySelectorAll(".line-edit-row"));
+    if (rowElements.length === 0) {
+        dragOverChoiceIndex.value = -1;
+        dragOverChoicePlacement.value = "after";
+        return;
+    }
+
+    const safeClientY = Number.isFinite(Number(event?.clientY))
+        ? Number(event.clientY)
+        : rowElements[0].getBoundingClientRect().top;
+
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    let placement = "after";
+
+    rowElements.forEach((rowEl, rowIndex) => {
+        const rect = rowEl.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        const distance = Math.abs(safeClientY - centerY);
+        if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestIndex = rowIndex;
+            placement = safeClientY <= centerY ? "before" : "after";
+        }
+    });
+
+    dragOverChoiceIndex.value = nearestIndex;
+    dragOverChoicePlacement.value = placement;
+}
+
+function onChoiceContainerDrop(event) {
+    if (draggingChoiceIndex.value < 0) {
+        onChoiceDragEnd();
+        return;
+    }
+
+    const fallbackTargetIndex =
+        dragOverChoiceIndex.value >= 0 ? dragOverChoiceIndex.value : 0;
+    onChoiceDrop(fallbackTargetIndex, event);
+}
+
+function onChoiceDragOver(index, event) {
+    if (draggingChoiceIndex.value < 0) return;
+    if (event?.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+    }
+
+    dragOverChoiceIndex.value = index;
+
+    const currentTarget = event?.currentTarget;
+    if (
+        !currentTarget ||
+        typeof currentTarget.getBoundingClientRect !== "function"
+    ) {
+        dragOverChoicePlacement.value = "after";
+        return;
+    }
+
+    const rect = currentTarget.getBoundingClientRect();
+    const offsetY = Number(event?.clientY || 0) - rect.top;
+    dragOverChoicePlacement.value =
+        offsetY <= rect.height / 2 ? "before" : "after";
+}
+
+function isChoiceDragOver(index) {
+    return (
+        draggingChoiceIndex.value >= 0 && dragOverChoiceIndex.value === index
+    );
+}
+
+function isChoiceDropBefore(index) {
+    return (
+        isChoiceDragOver(index) &&
+        dragOverChoicePlacement.value === "before" &&
+        draggingChoiceIndex.value !== index
+    );
+}
+
+function isChoiceDropAfter(index) {
+    return (
+        isChoiceDragOver(index) &&
+        dragOverChoicePlacement.value === "after" &&
+        draggingChoiceIndex.value !== index
+    );
+}
+
+function onChoiceDrop(targetIndex, event) {
+    if (!localNode.value || localNode.value.type !== "choice") return;
+
+    const fromIndex = draggingChoiceIndex.value;
+    if (fromIndex < 0) {
+        onChoiceDragEnd();
+        return;
+    }
+
+    const choices = Array.isArray(localNode.value.data.choices)
+        ? [...localNode.value.data.choices]
+        : [];
+
+    const visualTargetIndex =
+        dragOverChoiceIndex.value >= 0
+            ? dragOverChoiceIndex.value
+            : targetIndex;
+
+    if (
+        fromIndex >= choices.length ||
+        visualTargetIndex < 0 ||
+        visualTargetIndex >= choices.length
+    ) {
+        onChoiceDragEnd();
+        return;
+    }
+
+    let placement = dragOverChoicePlacement.value;
+
+    const currentTarget = event?.currentTarget;
+    const isLineRowTarget =
+        currentTarget &&
+        typeof currentTarget.classList?.contains === "function" &&
+        currentTarget.classList.contains("line-edit-row");
+    if (
+        isLineRowTarget &&
+        typeof currentTarget.getBoundingClientRect === "function" &&
+        Number.isFinite(Number(event?.clientY))
+    ) {
+        const rect = currentTarget.getBoundingClientRect();
+        const offsetY = Number(event.clientY) - rect.top;
+        placement = offsetY <= rect.height / 2 ? "before" : "after";
+    }
+
+    const [moved] = choices.splice(fromIndex, 1);
+
+    let insertIndex = visualTargetIndex;
+    if (placement === "after") {
+        insertIndex += 1;
+    }
+
+    if (fromIndex < visualTargetIndex) {
+        insertIndex -= 1;
+    }
+
+    insertIndex = Math.max(0, Math.min(insertIndex, choices.length));
+
+    choices.splice(insertIndex, 0, moved);
+    localNode.value.data.choices = choices;
+    handleUpdate();
+    focusChoice(insertIndex);
+    onChoiceDragEnd();
+}
+
 function handleLineBackspace(index, event) {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
     const lines = Array.isArray(localNode.value.data.lines)
@@ -1254,6 +1661,7 @@ function updateParameters(jsonString) {
 async function openMultiDialogueModal() {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
     showDialogueModal.value = false;
+    showChoiceModal.value = false;
     isExpanded.value = false;
     isPanelInputFocused.value = false;
     showMultiDialogueModal.value = true;
@@ -1278,13 +1686,39 @@ function closeMultiDialogueModal() {
 function openDialogueModal() {
     if (!localNode.value || localNode.value.type !== "dialogue") return;
     showMultiDialogueModal.value = false;
+    showChoiceModal.value = false;
     isExpanded.value = false;
     isPanelInputFocused.value = false;
     showDialogueModal.value = true;
 }
 
+async function openChoiceModal() {
+    if (!localNode.value || localNode.value.type !== "choice") return;
+    showMultiDialogueModal.value = false;
+    showDialogueModal.value = false;
+    isExpanded.value = false;
+    isPanelInputFocused.value = false;
+    showChoiceModal.value = true;
+
+    await nextTick();
+    choiceRefs.value.forEach((el) => {
+        autoResizeTextarea(el);
+    });
+}
+
 function closeDialogueModal() {
     showDialogueModal.value = false;
+    if (localNode.value) {
+        isExpanded.value = true;
+    }
+}
+
+function closeChoiceModal() {
+    showChoiceModal.value = false;
+    activeChoiceIndex.value = -1;
+    draggingChoiceIndex.value = -1;
+    dragOverChoiceIndex.value = -1;
+    dragOverChoicePlacement.value = "after";
     if (localNode.value) {
         isExpanded.value = true;
     }
@@ -1298,7 +1732,12 @@ function handleUpdate() {
 }
 
 function handleModalShortcutKeydown(event) {
-    if (!showMultiDialogueModal.value && !showDialogueModal.value) return;
+    if (
+        !showMultiDialogueModal.value &&
+        !showDialogueModal.value &&
+        !showChoiceModal.value
+    )
+        return;
 
     const key = String(event?.key || "").toLowerCase();
     const isCtrlOrMeta = !!(event?.ctrlKey || event?.metaKey);
@@ -1307,6 +1746,8 @@ function handleModalShortcutKeydown(event) {
         event.preventDefault();
         if (showMultiDialogueModal.value) {
             closeMultiDialogueModal();
+        } else if (showChoiceModal.value) {
+            closeChoiceModal();
         } else {
             closeDialogueModal();
         }
@@ -1317,6 +1758,8 @@ function handleModalShortcutKeydown(event) {
         event.preventDefault();
         if (showMultiDialogueModal.value) {
             closeMultiDialogueModal();
+        } else if (showChoiceModal.value) {
+            closeChoiceModal();
         } else {
             closeDialogueModal();
         }
@@ -1837,6 +2280,11 @@ onUnmounted(() => {
     width: min(56vw, 760px);
     aspect-ratio: auto;
     max-height: 72vh;
+}
+
+.choice-modal-small {
+    width: min(48vw, 640px);
+    max-height: 68vh;
 }
 
 .multi-dialogue-modal.glass-morphism-strong {

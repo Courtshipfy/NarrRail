@@ -105,10 +105,10 @@
     font-size: 13px;
     font-weight: 600;
     color: #1d1d1f;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .params-count {

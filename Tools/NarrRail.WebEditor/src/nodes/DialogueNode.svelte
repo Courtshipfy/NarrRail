@@ -107,12 +107,9 @@
   }
 
   .text-preview {
-    max-width: 180px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
     line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
     word-break: break-word;
   }
 

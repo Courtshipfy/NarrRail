@@ -128,7 +128,7 @@
 
   .choice-item-with-handle {
     position: relative;
-    height: 32px;
+    min-height: 32px;
     display: flex;
     align-items: center;
     padding-right: 20px;
@@ -136,7 +136,7 @@
 
   .choice-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     font-size: 13px;
     color: #1d1d1f;
@@ -155,10 +155,10 @@
 
   .choice-text {
     font-weight: 500;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .no-choices {
