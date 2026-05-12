@@ -140,4 +140,10 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NarrRail|UI")
 	void SkipDialogueAnimation();
+	
+	/**
+	 * 注入当前剧情会话（用于 UI 主动调用 Next/Choose）(可配合FlowNode推出UI并注册session到UI中方便Next)
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "NarrRail|UI")
+	void SetStorySession(class UNarrRailStorySession* Session);
 };
