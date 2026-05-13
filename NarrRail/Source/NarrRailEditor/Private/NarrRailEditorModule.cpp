@@ -2,12 +2,21 @@
 #include "Debug/NarrRailDebugger.h"
 #include "Debug/NarrRailDebugHUD.h"
 #include "AssetTypeActions_NarrRailStory.h"
+#include "Importers/NarrRailStoryReimportHandler.h"
+#include "Runtime/NarrRailStoryAsset.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "LevelEditor.h"
+#include "EditorReimportHandler.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/Engine.h"
 #include "GameFramework/HUD.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/ScopedSlowTask.h"
+#include "Styling/AppStyle.h"
 #include "DrawDebugHelpers.h"
 
 #define LOCTEXT_NAMESPACE "FNarrRailEditorModule"
@@ -293,6 +302,23 @@ void FNarrRailEditorModule::StartupModule()
 	UE_LOG(LogNarrRailDebug, Log, TEXT("  narrrail.debug.all        - Print full debug info"));
 	UE_LOG(LogNarrRailDebug, Log, TEXT("  narrrail.debug.sessions   - List all active sessions"));
 	UE_LOG(LogNarrRailDebug, Log, TEXT("All commands auto-detect the active session."));
+
+	StoryReimportHandler = MakeUnique<FNarrRailStoryReimportHandler>();
+	FReimportManager::Instance()->RegisterHandler(*StoryReimportHandler);
+
+	// Add a toolbar button for one-click bulk reimport.
+	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		ToolbarExtender = MakeShared<FExtender>();
+		ToolbarExtender->AddToolBarExtension(
+			"Play",
+			EExtensionHook::After,
+			nullptr,
+			FToolBarExtensionDelegate::CreateRaw(this, &FNarrRailEditorModule::AddToolbarExtension)
+		);
+		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
+	}
 }
 
 void FNarrRailEditorModule::ShutdownModule()
@@ -308,12 +334,92 @@ void FNarrRailEditorModule::ShutdownModule()
 	}
 	CreatedAssetTypeActions.Empty();
 
+	if (StoryReimportHandler.IsValid())
+	{
+		FReimportManager::Instance()->UnregisterHandler(*StoryReimportHandler);
+		StoryReimportHandler.Reset();
+	}
+
+	if (ToolbarExtender.IsValid() && FModuleManager::Get().IsModuleLoaded("LevelEditor"))
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditorModule.GetToolBarExtensibilityManager()->RemoveExtender(ToolbarExtender);
+		ToolbarExtender.Reset();
+	}
+
 	// 注销委托
 	if (OnEndFrameHandle.IsValid())
 	{
 		FCoreDelegates::OnEndFrame.Remove(OnEndFrameHandle);
 		OnEndFrameHandle.Reset();
 	}
+}
+
+void FNarrRailEditorModule::AddToolbarExtension(FToolBarBuilder& Builder)
+{
+	Builder.BeginSection("NarrRailTools");
+	Builder.AddToolBarButton(
+		FUIAction(FExecuteAction::CreateRaw(this, &FNarrRailEditorModule::ReimportAllNarrRailStories)),
+		NAME_None,
+		LOCTEXT("NarrRail_ReimportAll_Label", "Reimport Stories"),
+		LOCTEXT("NarrRail_ReimportAll_Tooltip", "Reimport all NarrRail story assets from their source YAML files."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
+	);
+	Builder.EndSection();
+}
+
+void FNarrRailEditorModule::ReimportAllNarrRailStories()
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	TArray<FAssetData> StoryAssets;
+	AssetRegistry.GetAssetsByClass(UNarrRailStoryAsset::StaticClass()->GetClassPathName(), StoryAssets, true);
+
+	int32 Succeeded = 0;
+	int32 Failed = 0;
+	int32 Cancelled = 0;
+
+	FScopedSlowTask SlowTask(static_cast<float>(StoryAssets.Num()), LOCTEXT("NarrRail_ReimportAll_Progress", "Reimporting NarrRail story assets..."));
+	SlowTask.MakeDialog(true);
+
+	for (const FAssetData& AssetData : StoryAssets)
+	{
+		SlowTask.EnterProgressFrame(1.0f, FText::FromName(AssetData.AssetName));
+		if (SlowTask.ShouldCancel())
+		{
+			Cancelled += (StoryAssets.Num() - Succeeded - Failed);
+			break;
+		}
+
+		UNarrRailStoryAsset* StoryAsset = Cast<UNarrRailStoryAsset>(AssetData.GetAsset());
+		if (StoryAsset == nullptr)
+		{
+			++Failed;
+			continue;
+		}
+
+		const bool bReimported = FReimportManager::Instance()->Reimport(StoryAsset, false, true);
+		if (bReimported)
+		{
+			++Succeeded;
+		}
+		else
+		{
+			++Failed;
+			UE_LOG(LogNarrRailDebug, Warning, TEXT("NarrRail bulk reimport failed: %s"), *StoryAsset->GetPathName());
+		}
+	}
+
+	const FText Summary = FText::Format(
+		LOCTEXT("NarrRail_ReimportAll_Summary", "Reimport finished.\nTotal: {0}\nSucceeded: {1}\nFailed: {2}\nCancelled: {3}"),
+		FText::AsNumber(StoryAssets.Num()),
+		FText::AsNumber(Succeeded),
+		FText::AsNumber(Failed),
+		FText::AsNumber(Cancelled)
+	);
+
+	FMessageDialog::Open(EAppMsgType::Ok, Summary, LOCTEXT("NarrRail_ReimportAll_Title", "NarrRail Reimport All"));
 }
 
 #undef LOCTEXT_NAMESPACE

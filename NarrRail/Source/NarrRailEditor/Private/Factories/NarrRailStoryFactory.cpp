@@ -3,6 +3,7 @@
 #include "Runtime/NarrRailStoryAsset.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
+#include "EditorFramework/AssetImportData.h"
 
 UNarrRailStoryFactory::UNarrRailStoryFactory()
 {
@@ -92,6 +93,14 @@ UObject* UNarrRailStoryFactory::FactoryCreateFile(
 	NewAsset->Variables = ScriptData.Variables;
 	NewAsset->Nodes = ScriptData.Nodes;
 	NewAsset->Edges = ScriptData.Edges;
+
+	if (UAssetImportData* ImportData = NewAsset->EnsureAssetImportData())
+	{
+		FString Normalized = FPaths::ConvertRelativePathToFull(Filename);
+		FPaths::NormalizeFilename(Normalized);
+		FPaths::CollapseRelativeDirectories(Normalized);
+		ImportData->UpdateFilenameOnly(Normalized);
+	}
 
 	// Mark as modified
 	NewAsset->MarkPackageDirty();

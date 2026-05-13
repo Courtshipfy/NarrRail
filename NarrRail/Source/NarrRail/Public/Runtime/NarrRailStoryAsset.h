@@ -4,6 +4,7 @@
 #include "Engine/DataAsset.h"
 #include "Runtime/NarrRailStoryTypes.h"
 #include "Runtime/NarrRailVariableContainer.h"
+class UAssetImportData;
 #include "NarrRailStoryAsset.generated.h"
 
 UCLASS(BlueprintType)
@@ -32,7 +33,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
     TArray<FNarrRailNodeEdge> Edges;
 
+#if WITH_EDITORONLY_DATA
+    UPROPERTY(VisibleAnywhere, Instanced, Category = "ImportSettings")
+    TObjectPtr<UAssetImportData> AssetImportData;
+#endif
+
     virtual void PostLoad() override;
+
+#if WITH_EDITOR
+    UAssetImportData* EnsureAssetImportData();
+    UAssetImportData* GetAssetImportData() const;
+#endif
 
 private:
     void UpgradeSchemaIfNeeded();

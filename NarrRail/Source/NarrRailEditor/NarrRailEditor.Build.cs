@@ -21,7 +21,9 @@ public class NarrRailEditor : ModuleRules
             "SlateCore",
             "NarrRail",
             "AssetTools",
-            "ContentBrowser"
+            "ContentBrowser",
+            "AssetRegistry",
+            "LevelEditor"
         });
 
         // yaml-cpp integration
