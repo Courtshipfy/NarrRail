@@ -1,95 +1,61 @@
-<template>
-    <div class="overview-page" :class="{ 'is-dark': isDarkMode }">
-        <section class="hero">
-            <p class="kicker">NarrRail Platform</p>
-            <h1>
-                把剧情创作的表达力，
-                <span>带进 Unreal 的运行时。</span>
-            </h1>
-            <p class="hero-subtitle">
-                WebEditor 负责创作与校验，UE 插件负责执行与集成。 一份 YAML
-                脚本，贯穿从叙事设计到引擎落地的完整链路。
-            </p>
-            <div class="hero-actions">
-                <button class="btn primary" @click="emit('start-editor')">
-                    开始创作
-                </button>
-                <button class="btn secondary" @click="emit('back-library')">
-                    返回主页
-                </button>
-            </div>
-            <div class="hero-media glass-morphism">
-                <img
-                    src="/overview/screen.png"
-                    alt="NarrRail WebEditor 操作界面示意"
-                />
-            </div>
-        </section>
+﻿<template>
+    <div class="overview-cinematic" :class="{ dark: isDarkMode }" ref="scrollRoot">
+        <header class="top-actions">
+            <button class="top-btn ghost" @click="emit('back-library')">返回脚本库</button>
+            <button class="top-btn ghost" @click="emit('toggle-theme')">
+                {{ isDarkMode ? "切换浅色" : "切换深色" }}
+            </button>
+            <button class="top-btn primary" @click="emit('start-editor')">进入编辑器</button>
+        </header>
 
-        <section class="split-section">
-            <div class="copy-block">
-                <p class="eyebrow">Web Editor</p>
-                <h2>可视化编辑，像排故事一样排流程。</h2>
-                <p>
-                    节点化编辑、分支拖拽、自动排布、实时校验与 YAML 导入导出，
-                    让剧情从“文档描述”变成“结构可验证”的资产。
-                </p>
-                <ul>
-                    <li>对话 / 多行对话 / 选择分支 / 跳转 / 变量 / 事件</li>
-                    <li>Choice 支持 Enter 快速新增与拖拽排序</li>
-                    <li>阅读模式用于文案审校和节奏检查</li>
-                </ul>
-            </div>
-            <div class="visual-card glass-morphism">
-                <img src="/overview/screen.png" alt="Web 编辑器实际操作截图" />
-            </div>
-        </section>
+        <nav class="progress-nav" aria-label="Section Progress">
+            <button
+                v-for="(section, index) in sections"
+                :key="section.id"
+                class="dot"
+                :class="{ active: activeIndex === index }"
+                :title="section.kicker"
+                @click="scrollToSection(index)"
+            />
+        </nav>
 
-        <section class="split-section reverse">
-            <div class="copy-block">
-                <p class="eyebrow">UE Runtime Plugin</p>
-                <h2>
-                    运行时执行核心，
-                    <span>稳定地把剧情跑起来。</span>
-                </h2>
-                <p>
-                    C++ Runtime 负责会话推进、分支选择、条件求值和动作执行；
-                    Blueprint 作为业务接入层，便于项目侧调用与事件订阅。
-                </p>
-                <ul>
-                    <li>Start / Next / Choose / Pause / Resume / Stop</li>
-                    <li>SinglePass 与 ExhaustiveUntilComplete 双模式</li>
-                    <li>PIE 调试与资产校验闭环</li>
-                </ul>
-            </div>
-            <div class="visual-card glass-morphism">
-                <img src="/overview/screen.png" alt="UE 插件工作流示意截图" />
-            </div>
-        </section>
+        <section
+            v-for="(section, index) in sections"
+            :key="section.id"
+            class="scene"
+            :class="[
+                section.tone,
+                {
+                    visible: visibleIds.has(section.id),
+                    reverse: index % 2 === 1,
+                },
+            ]"
+            :data-section-id="section.id"
+            :ref="(el) => setSceneRef(el, index)"
+        >
+            <div class="scene-shell">
+                <div class="copy-wrap">
+                    <p class="kicker">{{ section.kicker }}</p>
+                    <h1
+                        v-if="index === 0"
+                        class="headline flow-text"
+                    >
+                        {{ section.title }}
+                    </h1>
+                    <h2 v-else class="headline flow-text">{{ section.title }}</h2>
+                    <p class="subline">{{ section.subline }}</p>
 
-        <section class="flow-section glass-morphism">
-            <p class="eyebrow">One Workflow</p>
-            <h2>从编辑到运行，只走一条主通路。</h2>
-            <div class="flow-steps">
-                <div class="step">
-                    <span>01</span>
-                    <h3>Web 创作与校验</h3>
-                    <p>在图编辑器中搭建剧情节点和分支逻辑。</p>
-                </div>
-                <div class="step">
-                    <span>02</span>
-                    <h3>导出 YAML</h3>
-                    <p>以统一 schema 作为数据交换契约。</p>
-                </div>
-                <div class="step">
-                    <span>03</span>
-                    <h3>UE 导入并执行</h3>
-                    <p>在 Runtime 中运行并验证交互结果。</p>
-                </div>
-                <div class="step">
-                    <span>04</span>
-                    <h3>回流迭代</h3>
-                    <p>发现问题后返回 WebEditor 快速修正。</p>
+                    <ul v-if="section.highlights?.length" class="detail-list">
+                        <li
+                            v-for="item in section.highlights"
+                            :key="`${section.id}-${item.title}`"
+                            class="detail-item"
+                        >
+                            <p class="detail-title">{{ item.title }}</p>
+                            <p class="detail-desc">{{ item.desc }}</p>
+                        </li>
+                    </ul>
+
                 </div>
             </div>
         </section>
@@ -97,7 +63,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 
 const props = defineProps({
     isDarkMode: {
@@ -106,269 +72,568 @@ const props = defineProps({
     },
 });
 
-const isDarkMode = computed(() => !!props.isDarkMode);
-const emit = defineEmits(["back-library", "start-editor"]);
+const emit = defineEmits(["back-library", "start-editor", "toggle-theme"]);
+
+const scrollRoot = ref(null);
+const sceneRefs = ref([]);
+const visibleIds = ref(new Set());
+const activeIndex = ref(0);
+
+let observer = null;
+let wheelHandler = null;
+let wheelLocked = false;
+let animationFrameId = null;
+let animationToken = 0;
+const SCROLL_DURATION_MS = 780;
+
+const sections = [
+    {
+        id: "hero",
+        tone: "tone-hero",
+        kicker: "NarrRail",
+        title: "把剧情创作，做成可执行的产品流程",
+        subline:
+            "从 Web 编辑、到 YAML 协议、再到 Unreal 运行时，一条链路打通创作与实现。",
+        highlights: [
+            {
+                title: "统一资产语义",
+                desc: "剧情节点、条件与动作都使用同一套数据模型，减少跨工具翻译损耗。",
+            },
+            {
+                title: "端到端可追踪",
+                desc: "每次剧情修改都能在 YAML 与 UE 运行结果上对齐验证，定位问题更直接。",
+            },
+            {
+                title: "面向迭代",
+                desc: "流程设计支持反复改稿，不必靠手动重建资产来维持版本一致性。",
+            },
+        ],
+    },
+    {
+        id: "editor",
+        tone: "tone-editor",
+        kicker: "Web Editor",
+        title: "创作速度，不以牺牲结构正确性为代价",
+        subline:
+            "节点编排、条件分支、实时校验同步进行，减少返工，让剧本迭代更像设计流程。",
+        highlights: [
+            {
+                title: "图形化叙事编排",
+                desc: "支持对话、选项、跳转与条件路径，在画布上直接表达叙事结构。",
+            },
+            {
+                title: "创作效率工具",
+                desc: "拖拽连线、右键建点与自动排布配合使用，快速完成大纲到细化的推进。",
+            },
+            {
+                title: "质量保障机制",
+                desc: "实时校验与手动校验并存，尽早暴露空节点、断链和条件配置异常。",
+            },
+        ],
+    },
+    {
+        id: "runtime",
+        tone: "tone-runtime",
+        kicker: "UE Plugin",
+        title: "运行时能力，直接落在引擎里",
+        subline:
+            "会话推进、分支选择、条件执行、动作触发，都在 Blueprint 可接入的运行接口中完成。",
+        highlights: [
+            {
+                title: "会话驱动 API",
+                desc: "通过 Start / Next / Choose 等接口控制剧情推进，便于封装到游戏逻辑。",
+            },
+            {
+                title: "分支执行策略",
+                desc: "支持单路径与穷举式推进模式，满足剧情播放与测试验证两类场景。",
+            },
+            {
+                title: "引擎内调试",
+                desc: "在 PIE 环境直接观察变量变化、条件命中和事件触发，缩短排错路径。",
+            },
+        ],
+    },
+    {
+        id: "pipeline",
+        tone: "tone-pipeline",
+        kicker: "Pipeline",
+        title: "四步一闭环，版本稳定推进",
+        subline:
+            "创作与校验 -> 导出 YAML -> UE 导入执行 -> PIE 调试回流。",
+        highlights: [
+            {
+                title: "步骤清晰",
+                desc: "每个阶段都有明确输入与输出，减少“改了但不知道是否生效”的不确定性。",
+            },
+            {
+                title: "版本可控",
+                desc: "YAML 作为中间契约，便于版本管理、差异审查与回退恢复。",
+            },
+            {
+                title: "闭环反馈",
+                desc: "运行问题可以直接追溯到脚本层，并快速回到编辑器进行定点修订。",
+            },
+        ],
+    },
+    {
+        id: "collaboration",
+        tone: "tone-collab",
+        kicker: "Collaboration",
+        title: "不是一个编辑器，而是一套协作系统",
+        subline:
+            "编剧、客户端、技术美术、制作都在同一资产语义上工作，交付节奏更可控。",
+        highlights: [
+            {
+                title: "编剧可直接验证结构",
+                desc: "不依赖程序中间转译，创作阶段就能确认分支完整性与叙事节奏。",
+            },
+            {
+                title: "技术侧接入稳定",
+                desc: "客户端与技术美术围绕统一数据格式开发，降低接口歧义和集成成本。",
+            },
+            {
+                title: "制作可量化推进",
+                desc: "通过流程节点和校验结果做里程碑验收，减少主观口径差异。",
+            },
+        ],
+    },
+    {
+        id: "cta",
+        tone: "tone-cta",
+        kicker: "Ready",
+        title: "现在，直接开始编辑",
+        subline:
+            "在脚本库创建或打开资产，继续迭代你的剧情系统。",
+        highlights: [
+            {
+                title: "从资产库开始",
+                desc: "直接基于现有脚本继续迭代，或新建脚本快速进入下一轮创作。",
+            },
+            {
+                title: "保留上下文",
+                desc: "主题设置、编辑状态和关键配置能够延续，减少重复准备动作。",
+            },
+            {
+                title: "持续交付",
+                desc: "每次修改都可再次走通导出与运行流程，让剧情资产稳定走向可发布状态。",
+            },
+        ],
+    },
+];
+
+function setSceneRef(el, index) {
+    if (!el) {
+        return;
+    }
+    sceneRefs.value[index] = el;
+}
+
+function scrollToSection(index) {
+    const root = scrollRoot.value;
+    const target = sceneRefs.value[index];
+    if (!root || !target) {
+        return;
+    }
+
+    activeIndex.value = index;
+    wheelLocked = true;
+
+    const startTop = root.scrollTop;
+    const endTop = target.offsetTop;
+    const distance = endTop - startTop;
+
+    if (Math.abs(distance) < 1) {
+        wheelLocked = false;
+        return;
+    }
+
+    if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+
+    const myToken = ++animationToken;
+    const startTime = performance.now();
+
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+    const tick = (now) => {
+        if (!scrollRoot.value || myToken !== animationToken) {
+            return;
+        }
+
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / SCROLL_DURATION_MS);
+        const eased = easeOutCubic(t);
+        scrollRoot.value.scrollTop = startTop + distance * eased;
+
+        if (t < 1) {
+            animationFrameId = window.requestAnimationFrame(tick);
+            return;
+        }
+
+        scrollRoot.value.scrollTop = endTop;
+        animationFrameId = null;
+        wheelLocked = false;
+        updateActiveIndex();
+    };
+
+    animationFrameId = window.requestAnimationFrame(tick);
+}
+
+function updateActiveIndex() {
+    if (!scrollRoot.value) {
+        return;
+    }
+
+    const h = Math.max(scrollRoot.value.clientHeight, 1);
+    const next = Math.round(scrollRoot.value.scrollTop / h);
+    activeIndex.value = Math.max(0, Math.min(sections.length - 1, next));
+}
+
+onMounted(() => {
+    if (!scrollRoot.value) {
+        return;
+    }
+
+    observer = new IntersectionObserver(
+        (entries) => {
+            const next = new Set(visibleIds.value);
+
+            entries.forEach((entry) => {
+                const id = entry.target.getAttribute("data-section-id");
+                if (!id) {
+                    return;
+                }
+
+                if (entry.isIntersecting) {
+                    next.add(id);
+                }
+            });
+
+            visibleIds.value = next;
+            updateActiveIndex();
+        },
+        {
+            root: scrollRoot.value,
+            threshold: 0.42,
+        },
+    );
+
+    sceneRefs.value.forEach((el) => {
+        if (el) {
+            observer.observe(el);
+        }
+    });
+
+    wheelHandler = (event) => {
+        if (!scrollRoot.value) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (wheelLocked || Math.abs(event.deltaY) < 8) {
+            return;
+        }
+
+        const direction = event.deltaY > 0 ? 1 : -1;
+        const nextIndex = Math.max(
+            0,
+            Math.min(sections.length - 1, activeIndex.value + direction),
+        );
+
+        if (nextIndex === activeIndex.value) {
+            return;
+        }
+
+        wheelLocked = true;
+        scrollToSection(nextIndex);
+    };
+
+    scrollRoot.value.addEventListener("wheel", wheelHandler, { passive: false });
+    scrollRoot.value.addEventListener("scroll", updateActiveIndex, { passive: true });
+
+    updateActiveIndex();
+});
+
+onBeforeUnmount(() => {
+    if (observer) {
+        observer.disconnect();
+        observer = null;
+    }
+
+    if (scrollRoot.value) {
+        if (wheelHandler) {
+            scrollRoot.value.removeEventListener("wheel", wheelHandler);
+        }
+        scrollRoot.value.removeEventListener("scroll", updateActiveIndex);
+    }
+
+    if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+});
 </script>
 
 <style scoped>
-.overview-page {
-    --max-width: min(1260px, 94vw);
-    min-height: 100vh;
-    margin: 0 auto;
-    padding: 40px 0 72px;
-    display: flex;
-    flex-direction: column;
-    gap: 44px;
+.overview-cinematic {
+    --bg: #f2f4f7;
+    --bg-2: #ffffff;
+    --text: #0f172a;
+    --muted: #5b6475;
+    --line: rgba(15, 23, 42, 0.16);
+    --card: rgba(255, 255, 255, 0.66);
+    --chip: rgba(255, 255, 255, 0.9);
+    --primary: #0f6fff;
+
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+    overscroll-behavior: contain;
+    color: var(--text);
+    background:
+        radial-gradient(circle at 14% 10%, rgba(82, 123, 255, 0.18), transparent 45%),
+        radial-gradient(circle at 84% 86%, rgba(10, 194, 167, 0.15), transparent 42%),
+        linear-gradient(160deg, var(--bg), var(--bg-2));
 }
 
-.hero,
-.split-section,
-.flow-section {
-    width: var(--max-width);
-    margin: 0 auto;
+.overview-cinematic.dark {
+    --bg: #070b16;
+    --bg-2: #0c1325;
+    --text: #eef3fb;
+    --muted: #bbc7db;
+    --line: rgba(148, 163, 184, 0.34);
+    --card: rgba(11, 16, 30, 0.64);
+    --chip: rgba(16, 23, 40, 0.84);
+    --primary: #69a6ff;
+
+    background:
+        radial-gradient(circle at 16% 14%, rgba(56, 104, 244, 0.32), transparent 48%),
+        radial-gradient(circle at 82% 82%, rgba(0, 190, 167, 0.24), transparent 46%),
+        linear-gradient(160deg, var(--bg), var(--bg-2));
 }
 
-.kicker,
-.eyebrow {
-    margin: 0;
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #6b7280;
-    font-weight: 700;
-}
-
-.hero h1 {
-    margin: 10px 0 16px;
-    font-size: clamp(42px, 5.3vw, 76px);
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    font-weight: 800;
-    color: #0f172a;
-}
-
-.hero h1 span,
-.split-section h2 span {
-    display: block;
-    color: #334155;
-}
-
-.hero-subtitle {
-    margin: 0;
-    max-width: 820px;
-    font-size: clamp(16px, 1.6vw, 22px);
-    line-height: 1.6;
-    color: #475569;
-}
-
-.hero-actions {
-    margin-top: 22px;
+.top-actions {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
     display: flex;
     gap: 10px;
 }
 
-.hero-media {
-    margin-top: 28px;
-    border-radius: 26px;
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.13);
-    position: relative;
-}
-
-.hero-media img,
-.visual-card img {
-    width: 100%;
-    height: auto;
-    display: block;
-}
-
-.split-section {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    gap: 20px;
-    align-items: center;
-}
-
-.split-section.reverse {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-}
-
-.split-section.reverse .copy-block {
-    order: 2;
-}
-
-.split-section.reverse .visual-card {
-    order: 1;
-}
-
-.copy-block {
-    padding: 12px 8px;
-}
-
-.copy-block h2 {
-    margin: 8px 0 14px;
-    font-size: clamp(28px, 3vw, 46px);
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    color: #0f172a;
-}
-
-.copy-block p {
-    margin: 0;
-    color: #475569;
-    line-height: 1.65;
-    font-size: 16px;
-}
-
-.copy-block ul {
-    margin: 14px 0 0;
-    padding-left: 20px;
-    color: #1e293b;
-    line-height: 1.8;
-}
-
-.visual-card {
-    border-radius: 20px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    overflow: hidden;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1);
-    position: relative;
-}
-
-.flow-section {
-    border-radius: 20px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    padding: 26px;
-}
-
-.flow-section h2 {
-    margin: 8px 0 18px;
-    font-size: clamp(28px, 3.2vw, 44px);
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    color: #0f172a;
-}
-
-.flow-steps {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px;
-}
-
-.step {
-    background: rgba(255, 255, 255, 0.4);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 14px;
-    padding: 14px;
-}
-
-.step span {
+.top-btn {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 10px 16px;
     font-size: 13px;
     font-weight: 700;
-    color: #6366f1;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
-.step h3 {
-    margin: 8px 0 6px;
-    font-size: 16px;
-    color: #0f172a;
+.top-btn:hover {
+    transform: translateY(-1px);
 }
 
-.step p {
-    margin: 0;
-    color: #475569;
-    line-height: 1.5;
-    font-size: 14px;
+.top-btn.ghost {
+    background: var(--card);
+    color: var(--text);
 }
 
-.overview-page.is-dark .kicker,
-.overview-page.is-dark .eyebrow {
-    color: #94a3b8;
+.top-btn.primary {
+    background: var(--primary);
+    color: #fff;
+    border-color: transparent;
 }
 
-.overview-page.is-dark .hero h1,
-.overview-page.is-dark .copy-block h2,
-.overview-page.is-dark .flow-section h2 {
-    color: #f1f5f9;
+.progress-nav {
+    position: fixed;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 35;
+    display: grid;
+    gap: 12px;
 }
 
-.overview-page.is-dark .hero h1 span,
-.overview-page.is-dark .split-section h2 span {
-    color: #cbd5e1;
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    cursor: pointer;
+    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
-.overview-page.is-dark .hero-subtitle,
-.overview-page.is-dark .copy-block p,
-.overview-page.is-dark .step p {
-    color: #94a3b8;
+.dot:hover {
+    transform: scale(1.15);
 }
 
-.overview-page.is-dark .copy-block ul {
-    color: #e2e8f0;
+.dot.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    transform: scale(1.2);
 }
 
-.overview-page.is-dark .hero-media,
-.overview-page.is-dark .visual-card,
-.overview-page.is-dark .flow-section {
-    border-color: rgba(100, 116, 139, 0.35);
-    box-shadow: 0 24px 50px rgba(2, 6, 23, 0.35);
+.scene {
+    height: 100vh;
+    width: 100%;
+    padding: 110px 54px 54px;
+    scroll-snap-align: start;
+    scroll-snap-stop: normal;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transform: translateY(36px);
+    transition: opacity 560ms ease, transform 700ms cubic-bezier(0.2, 0.82, 0.2, 1);
 }
 
-.overview-page.is-dark .hero-media img,
-.overview-page.is-dark .visual-card img {
-    filter: brightness(0.72) saturate(0.86) contrast(1.04);
+.scene.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
-.overview-page.is-dark .hero-media::after,
-.overview-page.is-dark .visual-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
+.scene-shell {
+    width: min(980px, 100%);
+    margin: 0 auto;
+    display: block;
+    align-items: stretch;
+}
+
+.copy-wrap {
+    padding: clamp(8px, 1.8vw, 18px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    margin-bottom: 16px;
+}
+
+.headline {
+    font-size: clamp(1.7rem, 4.2vw, 4.4rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    max-width: 14ch;
+}
+
+.flow-text {
     background: linear-gradient(
-        180deg,
-        rgba(15, 23, 42, 0.22) 0%,
-        rgba(2, 6, 23, 0.38) 100%
+        90deg,
+        #ff4d6d 0%,
+        #ff8a3d 18%,
+        #ffd166 34%,
+        #22c55e 50%,
+        #38bdf8 67%,
+        #6366f1 82%,
+        #ec4899 100%
     );
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    animation: flow-headline-gradient 5.2s ease-in-out infinite;
 }
 
-.overview-page.is-dark .step {
-    background: rgba(15, 23, 42, 0.5);
-    border-color: rgba(100, 116, 139, 0.36);
+.subline {
+    font-size: clamp(1.04rem, 1.25vw, 1.28rem);
+    line-height: 1.62;
+    color: var(--muted);
+    max-width: 56ch;
 }
 
-.overview-page.is-dark .step h3 {
-    color: #e2e8f0;
+.detail-list {
+    margin-top: 18px;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    max-width: 70ch;
 }
 
-@media (max-width: 1120px) {
-    .split-section,
-    .split-section.reverse {
-        grid-template-columns: 1fr;
-    }
+.detail-item {
+    padding-left: 14px;
+    border-left: 2px solid var(--line);
+}
 
-    .split-section.reverse .copy-block,
-    .split-section.reverse .visual-card {
-        order: initial;
-    }
+.detail-title {
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.45;
+}
 
-    .flow-steps {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+.detail-desc {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.93rem;
+    line-height: 1.55;
+}
+
+.tone-hero .headline {
+    max-width: 12ch;
+}
+
+.tone-cta .headline {
+    max-width: 10ch;
+}
+
+@media (max-width: 1160px) {
+    .scene-shell {
+        width: min(860px, 100%);
     }
 }
 
-@media (max-width: 720px) {
-    .overview-page {
-        padding-top: 26px;
+@media (max-width: 760px) {
+    .top-actions {
+        top: 10px;
+        left: 12px;
+        right: 12px;
+        transform: none;
+        flex-direction: column;
     }
 
-    .hero-actions {
-        flex-wrap: wrap;
+    .top-btn {
+        width: 100%;
     }
 
-    .flow-steps {
-        grid-template-columns: 1fr;
+    .progress-nav {
+        right: 10px;
+    }
+
+    .scene {
+        padding: 170px 14px 22px;
+    }
+
+    .headline {
+        font-size: clamp(1.55rem, 7.6vw, 2.5rem);
+    }
+}
+
+@keyframes flow-headline-gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
     }
 }
 </style>

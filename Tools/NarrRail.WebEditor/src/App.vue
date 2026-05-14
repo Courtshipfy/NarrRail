@@ -20,6 +20,7 @@
         :is-dark-mode="darkModeEnabled"
         @back-library="handleGoLibrary"
         @start-editor="handleOpenEmptyEditor"
+        @toggle-theme="handleToggleDarkMode"
     />
 
     <div v-else class="editor-container">
