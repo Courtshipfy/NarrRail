@@ -8,10 +8,18 @@
         @toggle-theme="handleToggleDarkMode"
         @open-script="handleOpenScriptFromLibrary"
         @open-empty="handleOpenEmptyEditor"
+        @open-overview="handleOpenOverview"
         @update-variables="handleVariablesUpdate"
         @update-speakers="handlePresetSpeakersUpdate"
         @login-github="handleLoginGithub"
         @logout="handleLogout"
+    />
+
+    <OverviewPage
+        v-else-if="currentView === 'overview'"
+        :is-dark-mode="darkModeEnabled"
+        @back-library="handleGoLibrary"
+        @start-editor="handleOpenEmptyEditor"
     />
 
     <div v-else class="editor-container">
@@ -239,6 +247,7 @@ import VariablePanel from "./components/VariablePanel.vue";
 import StatusBar from "./components/StatusBar.vue";
 import ReadModePanel from "./components/ReadModePanel.vue";
 import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
+import OverviewPage from "./components/OverviewPage.vue";
 import { buildYAMLString, exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
 import { validateStory } from "./utils/validation.js";
@@ -1468,6 +1477,10 @@ function handleToggleEdgeRenderMode() {
 
 function handleGoLibrary() {
     currentView.value = "library";
+}
+
+function handleOpenOverview() {
+    currentView.value = "overview";
 }
 
 function handleOpenEmptyEditor() {

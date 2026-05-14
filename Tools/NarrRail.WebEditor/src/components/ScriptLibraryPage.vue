@@ -58,6 +58,15 @@
 
                 <button
                     class="btn secondary top-icon-btn"
+                    @click="emit('open-overview')"
+                    title="产品介绍"
+                    aria-label="产品介绍"
+                >
+                    <span class="material-symbols-outlined">info</span>
+                </button>
+
+                <button
+                    class="btn secondary top-icon-btn"
                     @click="emit('toggle-theme')"
                     :title="isDarkMode ? '切换浅色' : '切换深色'"
                     :aria-label="isDarkMode ? '切换浅色' : '切换深色'"
@@ -391,6 +400,7 @@ const props = defineProps({
 
 const emit = defineEmits([
     "open-script",
+    "open-overview",
     "toggle-theme",
     "update-variables",
     "update-speakers",
@@ -1076,6 +1086,9 @@ watch(
     padding: 20px;
     color: var(--nr-text);
     background: transparent;
+    position: relative;
+    z-index: 2;
+    pointer-events: auto;
 }
 
 .top-bar {
