@@ -38,5 +38,8 @@ HostProject/NarrRailHost.sln
 
 # Web editor build artifacts
 Tools/NarrRail.WebEditor/dist/
+
+# Vite cache
+**/.vite/
 Tools/NarrRail.WebEditor/node_modules/
 Tools/NarrRail.WebEditor/node_modules/.vite/
