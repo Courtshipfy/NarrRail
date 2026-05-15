@@ -46,15 +46,6 @@
                         {{ authState?.loading ? "hourglass_top" : "login" }}
                     </span>
                 </button>
-                <button
-                    v-else
-                    class="btn secondary top-icon-btn"
-                    @click="emit('logout')"
-                    title="退出登录"
-                    aria-label="退出登录"
-                >
-                    <span class="material-symbols-outlined">logout</span>
-                </button>
 
                 <button
                     class="btn secondary top-icon-btn"
@@ -78,13 +69,43 @@
                 <button
                     class="btn secondary top-icon-btn"
                     @click="createNewScript"
-                    :disabled="isCreatingScript"
-                    :title="isCreatingScript ? '创建中...' : '新建脚本'"
-                    :aria-label="isCreatingScript ? '创建中...' : '新建脚本'"
+                    :disabled="!authState?.authenticated || isCreatingScript"
+                    :title="
+                        !authState?.authenticated
+                            ? '请先登录后新建脚本'
+                            : isCreatingScript
+                              ? '创建中...'
+                              : '新建脚本'
+                    "
+                    :aria-label="
+                        !authState?.authenticated
+                            ? '请先登录后新建脚本'
+                            : isCreatingScript
+                              ? '创建中...'
+                              : '新建脚本'
+                    "
                 >
                     <span class="material-symbols-outlined">{{
                         isCreatingScript ? "progress_activity" : "add_circle"
                     }}</span>
+                </button>
+
+                <button
+                    class="btn secondary top-icon-btn"
+                    @click="emit('logout')"
+                    :disabled="!authState?.authenticated"
+                    :title="
+                        authState?.authenticated
+                            ? '退出登录'
+                            : '未登录，无需退出'
+                    "
+                    :aria-label="
+                        authState?.authenticated
+                            ? '退出登录'
+                            : '未登录，无需退出'
+                    "
+                >
+                    <span class="material-symbols-outlined">logout</span>
                 </button>
             </div>
         </header>

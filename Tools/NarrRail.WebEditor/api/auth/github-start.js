@@ -4,6 +4,7 @@ import {
   getAppBaseUrl,
   getRequiredEnv,
 } from "./_oauth.js";
+import { buildClearSessionCookie } from "./_session.js";
 
 export default async function handler(req, res) {
   try {
@@ -20,8 +21,12 @@ export default async function handler(req, res) {
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("scope", "read:user user:email repo");
     url.searchParams.set("state", state);
+    url.searchParams.set("prompt", "select_account consent");
 
-    res.setHeader("Set-Cookie", buildSetStateCookie(state));
+    res.setHeader("Set-Cookie", [
+      buildClearSessionCookie(),
+      buildSetStateCookie(state),
+    ]);
     res.writeHead(302, { Location: url.toString() });
     res.end();
   } catch (error) {
