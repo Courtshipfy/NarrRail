@@ -342,11 +342,9 @@
                     </button>
                 </div>
 
-                <p class="path">{{ script.path }}</p>
+                <div class="card-meta-spacer" aria-hidden="true"></div>
 
                 <div class="meta">
-                    <span>Story: {{ script.storyId }}</span>
-                    <span>{{ formatSize(script.size) }}</span>
                     <span>{{ formatDate(script.updatedAt) }}</span>
                 </div>
 
@@ -1544,6 +1542,10 @@ watch(
     font-size: 12px;
     color: color-mix(in srgb, var(--nr-text) 55%, transparent);
     word-break: break-all;
+}
+
+.card-meta-spacer {
+    height: 36px;
 }
 
 .meta {
