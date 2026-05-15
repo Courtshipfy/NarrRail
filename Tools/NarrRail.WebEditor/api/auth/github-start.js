@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("scope", "read:user user:email repo");
     url.searchParams.set("state", state);
-    url.searchParams.set("prompt", "select_account consent");
+    url.searchParams.set("allow_signup", "false");
 
     res.setHeader("Set-Cookie", [
       buildClearSessionCookie(),

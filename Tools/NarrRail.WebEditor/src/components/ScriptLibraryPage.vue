@@ -31,23 +31,6 @@
                 </span>
 
                 <button
-                    v-if="!authState?.authenticated"
-                    class="btn secondary top-icon-btn"
-                    @click="emit('login-github')"
-                    :disabled="authState?.loading"
-                    :title="
-                        authState?.loading ? '检查登录中...' : 'GitHub 登录'
-                    "
-                    :aria-label="
-                        authState?.loading ? '检查登录中...' : 'GitHub 登录'
-                    "
-                >
-                    <span class="material-symbols-outlined">
-                        {{ authState?.loading ? "hourglass_top" : "login" }}
-                    </span>
-                </button>
-
-                <button
                     class="btn secondary top-icon-btn"
                     @click="emit('open-overview')"
                     title="产品介绍"
@@ -92,20 +75,30 @@
 
                 <button
                     class="btn secondary top-icon-btn"
-                    @click="emit('logout')"
-                    :disabled="!authState?.authenticated"
-                    :title="
+                    @click="
                         authState?.authenticated
-                            ? '退出登录'
-                            : '未登录，无需退出'
+                            ? emit('logout')
+                            : emit('login-github')
+                    "
+                    :disabled="authState?.loading"
+                    :title="
+                        authState?.loading
+                            ? '检查登录中...'
+                            : authState?.authenticated
+                              ? '退出登录'
+                              : 'GitHub 登录'
                     "
                     :aria-label="
-                        authState?.authenticated
-                            ? '退出登录'
-                            : '未登录，无需退出'
+                        authState?.loading
+                            ? '检查登录中...'
+                            : authState?.authenticated
+                              ? '退出登录'
+                              : 'GitHub 登录'
                     "
                 >
-                    <span class="material-symbols-outlined">logout</span>
+                    <span class="material-symbols-outlined">{{
+                        authState?.authenticated ? "logout" : "login"
+                    }}</span>
                 </button>
             </div>
         </header>
@@ -345,14 +338,7 @@
             class="empty glass-morphism auth-empty"
         >
             <h3>你还没有登录 GitHub</h3>
-            <p>请先登录后查看脚本列表与全局配置。</p>
-            <button
-                class="btn primary"
-                @click="emit('login-github')"
-                :disabled="authState?.loading"
-            >
-                {{ authState?.loading ? "检查登录中..." : "登录 GitHub" }}
-            </button>
+            <p>请点击右上角最右侧按钮登录后查看脚本列表与全局配置。</p>
         </section>
 
         <main v-if="authState?.authenticated" class="grid">
