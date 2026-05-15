@@ -329,6 +329,7 @@ const darkModeEnabled = ref(false);
 const editorMode = ref("graph");
 const edgeRenderMode = ref("straight");
 const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
+const EVER_LOGGED_IN_STORAGE_KEY = "narrrail_ever_logged_in";
 
 const authState = ref({
     loading: false,
@@ -336,7 +337,7 @@ const authState = ref({
     user: null,
 });
 
-const currentView = ref("library");
+const currentView = ref("overview");
 const selectedScriptEntry = ref(null);
 const selectedGithubFileContext = ref(null);
 const isSavingToGithub = ref(false);
@@ -1443,17 +1444,32 @@ async function fetchAuthState() {
         });
 
         const data = await response.json();
+        const authenticated = !!data?.authenticated;
+
         authState.value = {
             loading: false,
-            authenticated: !!data?.authenticated,
+            authenticated,
             user: data?.user || null,
         };
+
+        if (authenticated) {
+            localStorage.setItem(EVER_LOGGED_IN_STORAGE_KEY, "1");
+        }
+
+        const everLoggedIn =
+            localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1";
+        currentView.value =
+            authenticated || everLoggedIn ? "library" : "overview";
     } catch {
         authState.value = {
             loading: false,
             authenticated: false,
             user: null,
         };
+
+        const everLoggedIn =
+            localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1";
+        currentView.value = everLoggedIn ? "library" : "overview";
     }
 }
 

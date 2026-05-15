@@ -47,22 +47,16 @@
 
                         <div class="intro-actions">
                             <button
-                                class="intro-btn ghost"
+                                class="intro-btn primary"
                                 @click="emit('back-library')"
                             >
-                                返回脚本库
+                                进入脚本库
                             </button>
                             <button
                                 class="intro-btn ghost"
-                                @click="emit('toggle-theme')"
+                                @click="openGithubRepo"
                             >
-                                {{ isDarkMode ? "切换浅色" : "切换深色" }}
-                            </button>
-                            <button
-                                class="intro-btn primary"
-                                @click="emit('start-editor')"
-                            >
-                                进入编辑器
+                                GitHub 仓库链接
                             </button>
                         </div>
                     </div>
@@ -95,7 +89,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 
 const props = defineProps({
     isDarkMode: {
@@ -105,6 +99,12 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["back-library", "start-editor", "toggle-theme"]);
+
+const GITHUB_REPO_URL = "https://github.com/Courtshipfy/NarrRail";
+
+function openGithubRepo() {
+    window.open(GITHUB_REPO_URL, "_blank", "noopener,noreferrer");
+}
 
 const scrollRoot = ref(null);
 const sceneRefs = ref([]);
@@ -343,10 +343,15 @@ function updateActiveIndex() {
     activeIndex.value = Math.max(0, Math.min(sections.length - 1, next));
 }
 
-onMounted(() => {
+onMounted(async () => {
+    await nextTick();
+
     if (!scrollRoot.value) {
         return;
     }
+
+    scrollRoot.value.scrollTop = 0;
+    activeIndex.value = 0;
 
     observer = new IntersectionObserver(
         (entries) => {
@@ -750,12 +755,10 @@ onBeforeUnmount(() => {
 
 .tone-hero .headline {
     max-width: none;
-    font-size: clamp(1.08rem, 2vw, 2.05rem);
 }
 
 .tone-cta .headline {
     max-width: none;
-    font-size: clamp(1.02rem, 1.85vw, 1.9rem);
 }
 
 @media (max-width: 1160px) {
