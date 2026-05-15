@@ -337,7 +337,11 @@ const authState = ref({
     user: null,
 });
 
-const currentView = ref("overview");
+const currentView = ref(
+    localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1"
+        ? "library"
+        : "overview",
+);
 const selectedScriptEntry = ref(null);
 const selectedGithubFileContext = ref(null);
 const isSavingToGithub = ref(false);
