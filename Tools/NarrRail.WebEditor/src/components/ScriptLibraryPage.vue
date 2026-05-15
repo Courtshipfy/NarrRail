@@ -89,7 +89,7 @@
             </div>
         </header>
 
-        <section class="filters glass-morphism">
+        <section v-if="authState?.authenticated" class="filters glass-morphism">
             <div class="field repo-field">
                 <label>仓库</label>
                 <div class="repo-row">
@@ -137,7 +137,10 @@
             </div>
         </section>
 
-        <section class="global-config glass-morphism">
+        <section
+            v-if="authState?.authenticated"
+            class="global-config glass-morphism"
+        >
             <div class="global-config-header">
                 <div class="header-main">
                     <h2>全局配置</h2>
@@ -316,7 +319,22 @@
             </div>
         </section>
 
-        <main class="grid">
+        <section
+            v-if="!authState?.authenticated"
+            class="empty glass-morphism auth-empty"
+        >
+            <h3>你还没有登录 GitHub</h3>
+            <p>请先登录后查看脚本列表与全局配置。</p>
+            <button
+                class="btn primary"
+                @click="emit('login-github')"
+                :disabled="authState?.loading"
+            >
+                {{ authState?.loading ? "检查登录中..." : "登录 GitHub" }}
+            </button>
+        </section>
+
+        <main v-if="authState?.authenticated" class="grid">
             <article
                 v-for="script in filteredScripts"
                 :key="script.id"
