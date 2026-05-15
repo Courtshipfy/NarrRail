@@ -342,20 +342,34 @@
                     </button>
                 </div>
 
-                <div class="card-meta-spacer" aria-hidden="true"></div>
+                <div class="card-bottom">
+                    <div class="card-meta-spacer">
+                        <div class="middle-stats">
+                            <span
+                                >Nodes:
+                                {{ formatCount(script.nodeCount) }}</span
+                            >
+                            <span
+                                >Edges:
+                                {{ formatCount(script.edgeCount) }}</span
+                            >
+                            <span>{{ formatSize(script.size) }}</span>
+                        </div>
+                    </div>
 
-                <div class="meta">
-                    <span>{{ formatDate(script.updatedAt) }}</span>
-                </div>
+                    <div class="meta">
+                        <span>{{ formatDate(script.updatedAt) }}</span>
+                    </div>
 
-                <div class="tags">
-                    <span
-                        v-for="tag in script.tags"
-                        :key="`${script.id}-${tag}`"
-                        class="tag"
-                    >
-                        {{ tag }}
-                    </span>
+                    <div class="tags">
+                        <span
+                            v-for="tag in script.tags"
+                            :key="`${script.id}-${tag}`"
+                            class="tag"
+                        >
+                            {{ tag }}
+                        </span>
+                    </div>
                 </div>
             </article>
 
@@ -1019,6 +1033,11 @@ function formatSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function formatCount(value) {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : "--";
+}
+
 function formatDate(iso) {
     const timestamp = new Date(iso).getTime();
     if (!Number.isFinite(timestamp)) return "--";
@@ -1491,6 +1510,12 @@ watch(
 
 .script-card {
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-bottom {
+    margin-top: auto;
 }
 
 .delete-script-btn {
@@ -1545,7 +1570,18 @@ watch(
 }
 
 .card-meta-spacer {
-    height: 36px;
+    min-height: 56px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.middle-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: color-mix(in srgb, var(--nr-text) 74%, transparent);
 }
 
 .meta {
@@ -1561,7 +1597,7 @@ watch(
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 10px;
+    margin-bottom: 0;
 }
 
 .tag {
