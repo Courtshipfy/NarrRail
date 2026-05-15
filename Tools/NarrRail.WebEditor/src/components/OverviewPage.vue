@@ -1,13 +1,9 @@
 ﻿<template>
-    <div class="overview-cinematic" :class="{ dark: isDarkMode }" ref="scrollRoot">
-        <header class="top-actions">
-            <button class="top-btn ghost" @click="emit('back-library')">返回脚本库</button>
-            <button class="top-btn ghost" @click="emit('toggle-theme')">
-                {{ isDarkMode ? "切换浅色" : "切换深色" }}
-            </button>
-            <button class="top-btn primary" @click="emit('start-editor')">进入编辑器</button>
-        </header>
-
+    <div
+        class="overview-cinematic"
+        :class="{ dark: isDarkMode }"
+        ref="scrollRoot"
+    >
         <nav class="progress-nav" aria-label="Section Progress">
             <button
                 v-for="(section, index) in sections"
@@ -25,6 +21,7 @@
             class="scene"
             :class="[
                 section.tone,
+                section.id === 'intro' ? 'intro-section' : '',
                 {
                     visible: visibleIds.has(section.id),
                     reverse: index % 2 === 1,
@@ -33,16 +30,52 @@
             :data-section-id="section.id"
             :ref="(el) => setSceneRef(el, index)"
         >
-            <div class="scene-shell">
-                <div class="copy-wrap">
+            <div
+                class="scene-shell"
+                :class="{ 'intro-shell': section.id === 'intro' }"
+            >
+                <template v-if="section.id === 'intro'">
+                    <div class="intro-hero">
+                        <div class="intro-glow intro-glow-a"></div>
+                        <div class="intro-glow intro-glow-b"></div>
+
+                        <p class="intro-kicker">{{ section.kicker }}</p>
+                        <h1 class="intro-title flow-text">
+                            {{ section.title }}
+                        </h1>
+                        <p class="intro-subline">{{ section.subline }}</p>
+
+                        <div class="intro-actions">
+                            <button
+                                class="intro-btn ghost"
+                                @click="emit('back-library')"
+                            >
+                                返回脚本库
+                            </button>
+                            <button
+                                class="intro-btn ghost"
+                                @click="emit('toggle-theme')"
+                            >
+                                {{ isDarkMode ? "切换浅色" : "切换深色" }}
+                            </button>
+                            <button
+                                class="intro-btn primary"
+                                @click="emit('start-editor')"
+                            >
+                                进入编辑器
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <div v-else class="copy-wrap">
                     <p class="kicker">{{ section.kicker }}</p>
-                    <h1
-                        v-if="index === 0"
-                        class="headline flow-text"
-                    >
+                    <h1 v-if="index === 0" class="headline flow-text">
                         {{ section.title }}
                     </h1>
-                    <h2 v-else class="headline flow-text">{{ section.title }}</h2>
+                    <h2 v-else class="headline flow-text">
+                        {{ section.title }}
+                    </h2>
                     <p class="subline">{{ section.subline }}</p>
 
                     <ul v-if="section.highlights?.length" class="detail-list">
@@ -55,7 +88,6 @@
                             <p class="detail-desc">{{ item.desc }}</p>
                         </li>
                     </ul>
-
                 </div>
             </div>
         </section>
@@ -88,10 +120,32 @@ const SCROLL_DURATION_MS = 780;
 
 const sections = [
     {
+        id: "intro",
+        tone: "tone-hero",
+        kicker: "NarrRail Overview",
+        title: "NarrRail\n一条面向叙事游戏的完整生产链路",
+        subline:
+            "把剧情设计、结构校验、脚本交付与引擎运行连接在一起，让团队围绕统一语义持续迭代。",
+        highlights: [
+            {
+                title: "一体化协作",
+                desc: "编剧、程序与技术美术在同一套资产模型上工作，减少沟通与转译成本。",
+            },
+            {
+                title: "从创作到运行",
+                desc: "Web 编辑器产出的内容可直接进入 YAML 与 UE 运行时流程，路径清晰可追踪。",
+            },
+            {
+                title: "面向生产",
+                desc: "支持持续迭代与版本管理，不是一次性 Demo 工具，而是可落地的工作流。",
+            },
+        ],
+    },
+    {
         id: "hero",
         tone: "tone-hero",
         kicker: "NarrRail",
-        title: "把剧情创作，做成可执行的产品流程",
+        title: "让剧情创作成为可执行的产品流程",
         subline:
             "从 Web 编辑、到 YAML 协议、再到 Unreal 运行时，一条链路打通创作与实现。",
         highlights: [
@@ -158,8 +212,7 @@ const sections = [
         tone: "tone-pipeline",
         kicker: "Pipeline",
         title: "四步一闭环，版本稳定推进",
-        subline:
-            "创作与校验 -> 导出 YAML -> UE 导入执行 -> PIE 调试回流。",
+        subline: "创作与校验 -> 导出 YAML -> UE 导入执行 -> PIE 调试回流。",
         highlights: [
             {
                 title: "步骤清晰",
@@ -202,8 +255,7 @@ const sections = [
         tone: "tone-cta",
         kicker: "Ready",
         title: "现在，直接开始编辑",
-        subline:
-            "在脚本库创建或打开资产，继续迭代你的剧情系统。",
+        subline: "在脚本库创建或打开资产，继续迭代你的剧情系统。",
         highlights: [
             {
                 title: "从资产库开始",
@@ -351,8 +403,12 @@ onMounted(() => {
         scrollToSection(nextIndex);
     };
 
-    scrollRoot.value.addEventListener("wheel", wheelHandler, { passive: false });
-    scrollRoot.value.addEventListener("scroll", updateActiveIndex, { passive: true });
+    scrollRoot.value.addEventListener("wheel", wheelHandler, {
+        passive: false,
+    });
+    scrollRoot.value.addEventListener("scroll", updateActiveIndex, {
+        passive: true,
+    });
 
     updateActiveIndex();
 });
@@ -398,8 +454,16 @@ onBeforeUnmount(() => {
     overscroll-behavior: contain;
     color: var(--text);
     background:
-        radial-gradient(circle at 14% 10%, rgba(82, 123, 255, 0.18), transparent 45%),
-        radial-gradient(circle at 84% 86%, rgba(10, 194, 167, 0.15), transparent 42%),
+        radial-gradient(
+            circle at 14% 10%,
+            rgba(82, 123, 255, 0.18),
+            transparent 45%
+        ),
+        radial-gradient(
+            circle at 84% 86%,
+            rgba(10, 194, 167, 0.15),
+            transparent 42%
+        ),
         linear-gradient(160deg, var(--bg), var(--bg-2));
 }
 
@@ -414,42 +478,52 @@ onBeforeUnmount(() => {
     --primary: #69a6ff;
 
     background:
-        radial-gradient(circle at 16% 14%, rgba(56, 104, 244, 0.32), transparent 48%),
-        radial-gradient(circle at 82% 82%, rgba(0, 190, 167, 0.24), transparent 46%),
+        radial-gradient(
+            circle at 16% 14%,
+            rgba(56, 104, 244, 0.32),
+            transparent 48%
+        ),
+        radial-gradient(
+            circle at 82% 82%,
+            rgba(0, 190, 167, 0.24),
+            transparent 46%
+        ),
         linear-gradient(160deg, var(--bg), var(--bg-2));
 }
 
-.top-actions {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 40;
+.intro-actions {
+    margin-top: 18px;
     display: flex;
-    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
 }
 
-.top-btn {
+.intro-btn {
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 10px 16px;
+    padding: 11px 18px;
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.02em;
     cursor: pointer;
-    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    transition:
+        transform 180ms ease,
+        background 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease;
 }
 
-.top-btn:hover {
+.intro-btn:hover {
     transform: translateY(-1px);
 }
 
-.top-btn.ghost {
-    background: var(--card);
+.intro-btn.ghost {
+    background: color-mix(in srgb, var(--card) 80%, transparent);
     color: var(--text);
 }
 
-.top-btn.primary {
+.intro-btn.primary {
     background: var(--primary);
     color: #fff;
     border-color: transparent;
@@ -472,7 +546,10 @@ onBeforeUnmount(() => {
     border: 1px solid var(--line);
     background: transparent;
     cursor: pointer;
-    transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    transition:
+        transform 180ms ease,
+        background 180ms ease,
+        border-color 180ms ease;
 }
 
 .dot:hover {
@@ -495,7 +572,9 @@ onBeforeUnmount(() => {
     align-items: center;
     opacity: 0;
     transform: translateY(36px);
-    transition: opacity 560ms ease, transform 700ms cubic-bezier(0.2, 0.82, 0.2, 1);
+    transition:
+        opacity 560ms ease,
+        transform 700ms cubic-bezier(0.2, 0.82, 0.2, 1);
 }
 
 .scene.visible {
@@ -508,6 +587,89 @@ onBeforeUnmount(() => {
     margin: 0 auto;
     display: block;
     align-items: stretch;
+}
+
+.intro-shell {
+    width: 100%;
+}
+
+.intro-hero {
+    position: relative;
+    overflow: visible;
+    padding: 0;
+    min-height: min(76vh, 720px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+}
+
+.intro-kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+    color: var(--muted);
+    opacity: 0.9;
+}
+
+.intro-title {
+    font-size: clamp(1.9rem, 5.4vw, 5rem);
+    line-height: 0.98;
+    letter-spacing: -0.02em;
+    word-spacing: 0.01em;
+    max-width: none;
+    width: 100%;
+    white-space: pre-line;
+}
+
+.intro-subline {
+    font-size: clamp(1.05rem, 1.7vw, 1.38rem);
+    line-height: 1.75;
+    color: color-mix(in srgb, var(--text) 76%, var(--muted));
+    max-width: 72ch;
+}
+
+.intro-glow {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    filter: blur(8px);
+    opacity: 0.42;
+}
+
+.intro-glow-a {
+    width: min(48vw, 520px);
+    height: min(48vw, 520px);
+    right: -16%;
+    top: -22%;
+    background: radial-gradient(
+        circle,
+        rgba(59, 130, 246, 0.42) 0%,
+        rgba(59, 130, 246, 0) 66%
+    );
+    animation: intro-float-a 7.8s ease-in-out infinite;
+}
+
+.intro-glow-b {
+    width: min(34vw, 360px);
+    height: min(34vw, 360px);
+    left: -12%;
+    bottom: -26%;
+    background: radial-gradient(
+        circle,
+        rgba(16, 185, 129, 0.34) 0%,
+        rgba(16, 185, 129, 0) 70%
+    );
+    animation: intro-float-b 9.4s ease-in-out infinite;
+}
+
+.scene.visible .intro-title {
+    animation: intro-title-in 720ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.scene.visible .intro-subline {
+    animation: intro-subline-in 860ms cubic-bezier(0.2, 0.86, 0.2, 1) both;
+    animation-delay: 90ms;
 }
 
 .copy-wrap {
@@ -526,11 +688,12 @@ onBeforeUnmount(() => {
 }
 
 .headline {
-    font-size: clamp(1.7rem, 4.2vw, 4.4rem);
-    line-height: 1.02;
-    letter-spacing: -0.02em;
-    margin-bottom: 18px;
-    max-width: 14ch;
+    font-size: clamp(1.2rem, 2.4vw, 2.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+    max-width: none;
+    white-space: nowrap;
 }
 
 .flow-text {
@@ -586,11 +749,13 @@ onBeforeUnmount(() => {
 }
 
 .tone-hero .headline {
-    max-width: 12ch;
+    max-width: none;
+    font-size: clamp(1.08rem, 2vw, 2.05rem);
 }
 
 .tone-cta .headline {
-    max-width: 10ch;
+    max-width: none;
+    font-size: clamp(1.02rem, 1.85vw, 1.9rem);
 }
 
 @media (max-width: 1160px) {
@@ -600,16 +765,23 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 760px) {
-    .top-actions {
-        top: 10px;
-        left: 12px;
-        right: 12px;
-        transform: none;
-        flex-direction: column;
+    .intro-hero {
+        padding: 0;
+        min-height: 68vh;
     }
 
-    .top-btn {
+    .intro-title {
+        font-size: clamp(1.6rem, 8.4vw, 2.6rem);
+        line-height: 1.02;
+    }
+    .intro-actions {
         width: 100%;
+        gap: 10px;
+    }
+
+    .intro-btn {
+        width: 100%;
+        text-align: center;
     }
 
     .progress-nav {
@@ -621,7 +793,8 @@ onBeforeUnmount(() => {
     }
 
     .headline {
-        font-size: clamp(1.55rem, 7.6vw, 2.5rem);
+        font-size: clamp(1.12rem, 4.6vw, 1.6rem);
+        white-space: nowrap;
     }
 }
 
@@ -634,6 +807,52 @@ onBeforeUnmount(() => {
     }
     100% {
         background-position: 0% 50%;
+    }
+}
+
+@keyframes intro-float-a {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 0.38;
+    }
+    50% {
+        transform: translate3d(-10px, 14px, 0) scale(1.06);
+        opacity: 0.52;
+    }
+}
+
+@keyframes intro-float-b {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 0.3;
+    }
+    50% {
+        transform: translate3d(16px, -12px, 0) scale(1.1);
+        opacity: 0.46;
+    }
+}
+
+@keyframes intro-title-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes intro-subline-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 </style>
