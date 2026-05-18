@@ -51,6 +51,76 @@ async function fetchLatestCommitDateForPath({
   }
 }
 
+async function fetchContentTextByPath({
+  owner,
+  repo,
+  branch,
+  path,
+  accessToken,
+}) {
+  const contentUrl = new URL(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`,
+  );
+  contentUrl.searchParams.set("ref", branch);
+
+  const file = await githubFetchJson(contentUrl.toString(), accessToken);
+  const encoded = String(file?.content || "").replace(/\n/g, "");
+  const text = Buffer.from(encoded, "base64").toString("utf-8");
+
+  return {
+    sha: file?.sha || "",
+    size: file?.size || 0,
+    content: text,
+  };
+}
+
+function countYamlArrayItemsByTopLevelKey(yamlText, key) {
+  const lines = String(yamlText || "").split(/\r?\n/);
+  const keyRegex = new RegExp(`^${key}:\\s*(.*)$`);
+
+  let start = -1;
+  let tail = "";
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = lines[i].match(keyRegex);
+    if (match) {
+      start = i;
+      tail = String(match[1] || "").trim();
+      break;
+    }
+  }
+
+  if (start < 0) return null;
+  if (tail === "[]") return 0;
+
+  let count = 0;
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+
+    if (!line.trim()) continue;
+    if (/^\s*#/.test(line)) continue;
+
+    if (/^[^\s][^:]*:\s*/.test(line)) {
+      break;
+    }
+
+    if (/^\s*-\s+/.test(line)) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function deriveNarrRailCounts(yamlText) {
+  const nodeCount = countYamlArrayItemsByTopLevelKey(yamlText, "nodes");
+  const edgeCount = countYamlArrayItemsByTopLevelKey(yamlText, "edges");
+  return {
+    nodeCount: Number.isFinite(nodeCount) ? nodeCount : null,
+    edgeCount: Number.isFinite(edgeCount) ? edgeCount : null,
+  };
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
@@ -106,13 +176,26 @@ export default async function handler(req, res) {
         });
 
       const files = await mapWithConcurrency(candidates, 6, async (item) => {
-        const updatedAt = await fetchLatestCommitDateForPath({
-          owner,
-          repo,
-          branch,
-          path: item.path,
-          accessToken,
-        });
+        const [updatedAt, contentInfo] = await Promise.all([
+          fetchLatestCommitDateForPath({
+            owner,
+            repo,
+            branch,
+            path: item.path,
+            accessToken,
+          }),
+          fetchContentTextByPath({
+            owner,
+            repo,
+            branch,
+            path: item.path,
+            accessToken,
+          }).catch(() => null),
+        ]);
+
+        const counts = contentInfo
+          ? deriveNarrRailCounts(contentInfo.content)
+          : { nodeCount: null, edgeCount: null };
 
         return {
           id: item.path,
@@ -127,6 +210,8 @@ export default async function handler(req, res) {
           ),
           size: item.size,
           updatedAt,
+          nodeCount: counts.nodeCount,
+          edgeCount: counts.edgeCount,
           tags: ["GitHub"],
           source: "github",
           owner,
@@ -144,23 +229,22 @@ export default async function handler(req, res) {
       return;
     }
 
-    const contentUrl = new URL(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`,
-    );
-    contentUrl.searchParams.set("ref", branch);
-
-    const file = await githubFetchJson(contentUrl.toString(), accessToken);
-    const encoded = String(file?.content || "").replace(/\n/g, "");
-    const text = Buffer.from(encoded, "base64").toString("utf-8");
+    const file = await fetchContentTextByPath({
+      owner,
+      repo,
+      branch,
+      path,
+      accessToken,
+    });
 
     res.status(200).json({
       owner,
       repo,
       branch,
       path,
-      sha: file?.sha || "",
-      content: text,
-      size: file?.size || 0,
+      sha: file.sha,
+      content: file.content,
+      size: file.size,
     });
   } catch (error) {
     const status = error.status || 500;
