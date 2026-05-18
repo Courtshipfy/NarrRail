@@ -159,7 +159,7 @@
         </section>
 
         <section
-            v-if="authState?.authenticated"
+            v-if="canAccessLibraryContent"
             class="global-config glass-morphism"
         >
             <div class="global-config-header">
@@ -361,7 +361,7 @@
                             @click="openScript(script)"
                             :title="`打开 ${script.fileName}`"
                         >
-                            {{ script.fileName }}
+                            {{ formatScriptDisplayName(script.fileName) }}
                         </button>
                     </h3>
                     <button
@@ -464,7 +464,12 @@ const GLOBAL_CONFIG_CANDIDATE_PATHS = [
     "global-config.narrrail.yml",
 ];
 const globalConfigRepoPath = ref(GLOBAL_CONFIG_CANDIDATE_PATHS[0]);
-const globalConfigFileName = computed(() => globalConfigRepoPath.value);
+const LOCAL_GLOBAL_CONFIG_STORAGE_KEY = "narrrail_local_global_config";
+const globalConfigFileName = computed(() =>
+    props.authState?.authenticated
+        ? globalConfigRepoPath.value
+        : "localStorage",
+);
 const globalConfigRepoSha = ref("");
 const isSyncingGlobalConfig = ref(false);
 
@@ -677,8 +682,60 @@ function hasSelectedGithubRepo() {
     );
 }
 
+function loadGlobalConfigFromLocal() {
+    try {
+        const raw = localStorage.getItem(LOCAL_GLOBAL_CONFIG_STORAGE_KEY);
+        if (!raw) {
+            emit("update-variables", []);
+            emit("update-speakers", []);
+            return;
+        }
+
+        const parsed = JSON.parse(raw);
+        emit(
+            "update-variables",
+            Array.isArray(parsed?.variables) ? parsed.variables : [],
+        );
+        emit(
+            "update-speakers",
+            Array.isArray(parsed?.presetSpeakers) ? parsed.presetSpeakers : [],
+        );
+    } catch {
+        emit("update-variables", []);
+        emit("update-speakers", []);
+    }
+}
+
+function syncGlobalConfigToLocal(config) {
+    try {
+        localStorage.setItem(
+            LOCAL_GLOBAL_CONFIG_STORAGE_KEY,
+            JSON.stringify({
+                variables: Array.isArray(config?.variables)
+                    ? config.variables
+                    : [],
+                presetSpeakers: Array.isArray(config?.presetSpeakers)
+                    ? config.presetSpeakers
+                    : [],
+                updatedAt: new Date().toISOString(),
+            }),
+        );
+    } catch {
+        // ignore
+    }
+}
+
 async function syncGlobalConfigToRepo(overrideConfig = null) {
-    if (!hasSelectedGithubRepo()) return;
+    if (!props.authState?.authenticated || !hasSelectedGithubRepo()) {
+        syncGlobalConfigToLocal(
+            overrideConfig || {
+                variables: props.variables,
+                presetSpeakers: props.presetSpeakers,
+            },
+        );
+        return;
+    }
+
     if (isSyncingGlobalConfig.value) return;
 
     isSyncingGlobalConfig.value = true;
@@ -1161,6 +1218,10 @@ function formatDate(iso) {
     return new Date(timestamp).toLocaleString();
 }
 
+function formatScriptDisplayName(fileName) {
+    return String(fileName || "").replace(/\.narrrail\.ya?ml$/i, "");
+}
+
 onMounted(async () => {
     syncOfflineState();
     window.addEventListener("online", syncOfflineState);
@@ -1172,6 +1233,8 @@ onMounted(async () => {
         if (selectedRepoFullName.value) {
             await reloadScriptsFromRepo();
         }
+    } else {
+        loadGlobalConfigFromLocal();
     }
 });
 
@@ -1201,6 +1264,7 @@ watch(
             repoOptions.value = [];
             selectedRepoFullName.value = "";
             loadScriptListFromStorage();
+            loadGlobalConfigFromLocal();
         }
     },
 );
