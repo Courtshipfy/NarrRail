@@ -153,6 +153,10 @@ struct NARRRAIL_API FNarrRailChoiceOption
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     FNarrRailConditionExpression Availability;
+
+    // 运行时标记：该选项是否在当前会话中被选择过（主要用于 ExhaustiveUntilComplete UI 呈现）
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "NarrRail|Runtime")
+    bool bHasBeenSelected = false;
 };
 
 // 节点动作定义：用于节点进入/退出时执行变量变更或事件派发。

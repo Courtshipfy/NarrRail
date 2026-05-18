@@ -279,6 +279,7 @@ private:
     bool ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage);
 
     TArray<int32> BuildAvailableChoiceIndices(const FNarrRailNode& ChoiceNode) const;
+    TArray<int32> BuildVisibleChoiceIndices(const FNarrRailNode& ChoiceNode) const;
     TArray<FNarrRailChoiceOption> BuildVisibleChoiceOptions(const FNarrRailNode& ChoiceNode) const;
 
     // 穷举选择分支结束时的统一回返处理

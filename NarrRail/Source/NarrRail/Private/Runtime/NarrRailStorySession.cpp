@@ -609,11 +609,13 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
 
     // Choice 节点：提前计算可用选项，避免两个 Choice 块重复调用
     TArray<int32> ChoiceAvailableIndices;
+    TArray<int32> ChoiceVisibleIndices;
     TArray<FNarrRailChoiceOption> ChoiceVisibleOptions;
     const bool bIsChoiceNode = (Node->NodeType == ENarrRailNodeType::Choice);
     if (bIsChoiceNode)
     {
         ChoiceAvailableIndices = BuildAvailableChoiceIndices(*Node);
+        ChoiceVisibleIndices = BuildVisibleChoiceIndices(*Node);
         ChoiceVisibleOptions = BuildVisibleChoiceOptions(*Node);
     }
 
@@ -705,7 +707,7 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
             return AdvanceToNode(Node->ChoiceCompletionTargetNodeId);
         }
 
-        RuntimeVisibleChoiceIndexMap.Add(Context.CurrentNodeId, ChoiceAvailableIndices);
+        RuntimeVisibleChoiceIndexMap.Add(Context.CurrentNodeId, ChoiceVisibleIndices);
 
         SessionState = ENarrRailSessionState::WaitingForChoice;
         OnChoicesReady.Broadcast(Context.CurrentNodeId, ChoiceVisibleOptions);
@@ -744,16 +746,45 @@ TArray<int32> UNarrRailStorySession::BuildAvailableChoiceIndices(const FNarrRail
     return Available;
 }
 
+TArray<int32> UNarrRailStorySession::BuildVisibleChoiceIndices(const FNarrRailNode& ChoiceNode) const
+{
+    TArray<int32> Visible;
+    const TSet<int32>* Selected = ExhaustiveSelectedChoiceIndices.Find(ChoiceNode.NodeId);
+    const bool bExhaustiveMode = (ChoiceNode.ChoiceMode == ENarrRailChoiceMode::ExhaustiveUntilComplete);
+
+    for (int32 Index = 0; Index < ChoiceNode.Choices.Num(); ++Index)
+    {
+        const FNarrRailChoiceOption& Option = ChoiceNode.Choices[Index];
+        if (!EvaluateConditionExpression(Option.Availability))
+        {
+            continue;
+        }
+
+        // SinglePass: 仅显示当前可选项；Exhaustive: 显示所有可见项，并通过 bHasBeenSelected 标记已选状态。
+        if (!bExhaustiveMode && Selected != nullptr && Selected->Contains(Index))
+        {
+            continue;
+        }
+
+        Visible.Add(Index);
+    }
+
+    return Visible;
+}
+
 TArray<FNarrRailChoiceOption> UNarrRailStorySession::BuildVisibleChoiceOptions(const FNarrRailNode& ChoiceNode) const
 {
     TArray<FNarrRailChoiceOption> VisibleChoices;
-    const TArray<int32> AvailableIndices = BuildAvailableChoiceIndices(ChoiceNode);
+    const TArray<int32> VisibleIndices = BuildVisibleChoiceIndices(ChoiceNode);
+    const TSet<int32>* Selected = ExhaustiveSelectedChoiceIndices.Find(ChoiceNode.NodeId);
 
-    for (const int32 Index : AvailableIndices)
+    for (const int32 Index : VisibleIndices)
     {
         if (ChoiceNode.Choices.IsValidIndex(Index))
         {
-            VisibleChoices.Add(ChoiceNode.Choices[Index]);
+            FNarrRailChoiceOption VisibleChoice = ChoiceNode.Choices[Index];
+            VisibleChoice.bHasBeenSelected = (Selected != nullptr && Selected->Contains(Index));
+            VisibleChoices.Add(MoveTemp(VisibleChoice));
         }
     }
 
