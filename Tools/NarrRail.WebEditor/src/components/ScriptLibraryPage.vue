@@ -52,20 +52,27 @@
                 <button
                     class="btn secondary top-icon-btn"
                     @click="createNewScript"
-                    :disabled="!authState?.authenticated || isCreatingScript"
+                    :disabled="
+                        (!authState?.authenticated && !isOffline) ||
+                        isCreatingScript
+                    "
                     :title="
-                        !authState?.authenticated
+                        !authState?.authenticated && !isOffline
                             ? '请先登录后新建脚本'
                             : isCreatingScript
                               ? '创建中...'
-                              : '新建脚本'
+                              : isOffline
+                                ? '离线新建本地脚本'
+                                : '新建脚本'
                     "
                     :aria-label="
-                        !authState?.authenticated
+                        !authState?.authenticated && !isOffline
                             ? '请先登录后新建脚本'
                             : isCreatingScript
                               ? '创建中...'
-                              : '新建脚本'
+                              : isOffline
+                                ? '离线新建本地脚本'
+                                : '新建脚本'
                     "
                 >
                     <span class="material-symbols-outlined">{{
@@ -103,7 +110,7 @@
             </div>
         </header>
 
-        <section v-if="authState?.authenticated" class="filters glass-morphism">
+        <section v-if="canAccessLibraryContent" class="filters glass-morphism">
             <div class="field repo-field">
                 <label>仓库</label>
                 <div class="repo-row">
@@ -334,14 +341,14 @@
         </section>
 
         <section
-            v-if="!authState?.authenticated"
+            v-if="!canAccessLibraryContent"
             class="empty glass-morphism auth-empty"
         >
             <h3>你还没有登录 GitHub</h3>
             <p>请点击右上角最右侧按钮登录后查看脚本列表与全局配置。</p>
         </section>
 
-        <main v-if="authState?.authenticated" class="grid">
+        <main v-if="canAccessLibraryContent" class="grid">
             <article
                 v-for="script in filteredScripts"
                 :key="script.id"
@@ -410,7 +417,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import {
     parseGlobalConfigFromYAML,
     serializeGlobalConfigToYAML,
@@ -477,6 +484,7 @@ const newSpeaker = reactive({
 
 const SCRIPT_LIST_STORAGE_KEY = "narrrail_mock_script_list";
 const REPO_SELECTION_STORAGE_KEY = "narrrail_selected_repo";
+const LOCAL_SCRIPT_CONTENT_PREFIX = "narrrail_local_script_content_";
 
 const DEFAULT_MOCK_SCRIPTS = [];
 
@@ -488,6 +496,24 @@ const loadingScripts = ref(false);
 const usingMockData = ref(true);
 const isCreatingScript = ref(false);
 const createScriptStatus = ref("");
+
+const isLocalDevHost =
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+const isOffline = ref(
+    isLocalDevHost || (typeof navigator !== "undefined" && !navigator.onLine),
+);
+
+const canAccessLibraryContent = computed(
+    () => !!props.authState?.authenticated || isOffline.value,
+);
+
+function syncOfflineState() {
+    isOffline.value =
+        isLocalDevHost ||
+        (typeof navigator !== "undefined" && !navigator.onLine);
+}
 
 const folders = computed(() => {
     const set = new Set(
@@ -751,6 +777,12 @@ async function deleteScript(script) {
     }
 
     mockScripts.value = mockScripts.value.filter((s) => s.path !== path);
+
+    try {
+        localStorage.removeItem(getLocalScriptStorageKey(path));
+    } catch {
+        // ignore storage failures
+    }
 }
 
 function openScript(script) {
@@ -765,6 +797,11 @@ function openScript(script) {
         owner: script.owner || selectedOwner.value,
         repo: script.repo || selectedRepoName.value,
         branch: script.branch || selectedRepoBranch.value,
+        localStorageKey:
+            script.localStorageKey ||
+            (script.source === "mock-repository"
+                ? getLocalScriptStorageKey(script.path)
+                : ""),
     });
 }
 
@@ -913,6 +950,38 @@ async function reloadScriptsFromRepo() {
     }
 }
 
+function getLocalScriptStorageKey(path) {
+    return `${LOCAL_SCRIPT_CONTENT_PREFIX}${String(path || "")}`;
+}
+
+function buildInitialLocalScriptData(storyId) {
+    return {
+        meta: {
+            schemaVersion: 1,
+            storyId: String(storyId || "NewStory"),
+            entryNodeId: "",
+        },
+        variables: [],
+        nodes: [],
+        edges: [],
+        updatedAt: new Date().toISOString(),
+    };
+}
+
+function saveLocalScriptContent(path, payload) {
+    try {
+        localStorage.setItem(
+            getLocalScriptStorageKey(path),
+            JSON.stringify({
+                ...(payload || {}),
+                updatedAt: new Date().toISOString(),
+            }),
+        );
+    } catch {
+        // ignore storage failures
+    }
+}
+
 function loadScriptListFromStorage() {
     try {
         const raw = localStorage.getItem(SCRIPT_LIST_STORAGE_KEY);
@@ -959,6 +1028,31 @@ function buildNewStoryYaml(storyId) {
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createLocalScriptEntry({ safeStem, fileName, createdPath }) {
+    const created = {
+        id: `s-${Date.now()}`,
+        fileName,
+        extension: ".yaml",
+        path: createdPath,
+        storyId: safeStem,
+        size: 0,
+        nodeCount: 0,
+        edgeCount: 0,
+        updatedAt: new Date().toISOString(),
+        tags: ["Local", "Offline"],
+        source: "mock-repository",
+        localStorageKey: getLocalScriptStorageKey(createdPath),
+    };
+
+    saveLocalScriptContent(createdPath, buildInitialLocalScriptData(safeStem));
+
+    usingMockData.value = true;
+    selectedFolder.value = "all";
+    keyword.value = "";
+    mockScripts.value = [created, ...mockScripts.value];
+    saveScriptListToStorage();
 }
 
 async function createNewScript() {
@@ -1030,6 +1124,16 @@ async function createNewScript() {
             return;
         } catch (error) {
             createScriptStatus.value = "";
+
+            const useOffline = confirm(
+                `创建仓库脚本失败：${error.message}\n\n是否改为离线本地创建？`,
+            );
+            if (useOffline) {
+                createLocalScriptEntry({ safeStem, fileName, createdPath });
+                alert("已在本地离线创建脚本。联网后可继续同步到仓库。");
+                return;
+            }
+
             alert(`创建仓库脚本失败: ${error.message}`);
             return;
         } finally {
@@ -1037,19 +1141,7 @@ async function createNewScript() {
         }
     }
 
-    const created = {
-        id: `s-${Date.now()}`,
-        fileName,
-        extension: ".yaml",
-        path: createdPath,
-        storyId: safeStem,
-        size: 0,
-        updatedAt: new Date().toISOString(),
-        tags: ["New", "Sandbox"],
-        source: "mock-repository",
-    };
-
-    mockScripts.value = [created, ...mockScripts.value];
+    createLocalScriptEntry({ safeStem, fileName, createdPath });
 }
 
 function formatSize(bytes) {
@@ -1070,6 +1162,10 @@ function formatDate(iso) {
 }
 
 onMounted(async () => {
+    syncOfflineState();
+    window.addEventListener("online", syncOfflineState);
+    window.addEventListener("offline", syncOfflineState);
+
     loadScriptListFromStorage();
     if (props.authState?.authenticated) {
         await loadRepos();
@@ -1077,6 +1173,11 @@ onMounted(async () => {
             await reloadScriptsFromRepo();
         }
     }
+});
+
+onUnmounted(() => {
+    window.removeEventListener("online", syncOfflineState);
+    window.removeEventListener("offline", syncOfflineState);
 });
 
 watch(

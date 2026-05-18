@@ -330,6 +330,7 @@ const editorMode = ref("graph");
 const edgeRenderMode = ref("straight");
 const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
 const EVER_LOGGED_IN_STORAGE_KEY = "narrrail_ever_logged_in";
+const LOCAL_SCRIPT_CONTENT_PREFIX = "narrrail_local_script_content_";
 
 const authState = ref({
     loading: false,
@@ -337,8 +338,13 @@ const authState = ref({
     user: null,
 });
 
+const IS_LOCAL_DEV_HOST =
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
 const currentView = ref(
-    localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1"
+    IS_LOCAL_DEV_HOST ||
+        localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1"
         ? "library"
         : "overview",
 );
@@ -393,6 +399,35 @@ let globalConfigSyncTimer = null;
 
 function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
+}
+
+function getLocalScriptStorageKeyByPath(path) {
+    return `${LOCAL_SCRIPT_CONTENT_PREFIX}${String(path || "")}`;
+}
+
+function loadLocalScriptContent(storageKey) {
+    try {
+        const raw = localStorage.getItem(String(storageKey || ""));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function saveLocalScriptContent(storageKey, payload) {
+    try {
+        localStorage.setItem(
+            String(storageKey || ""),
+            JSON.stringify({
+                ...(payload || {}),
+                updatedAt: new Date().toISOString(),
+            }),
+        );
+    } catch {
+        // ignore local storage failures
+    }
 }
 
 function createStateSnapshot() {
@@ -1463,7 +1498,9 @@ async function fetchAuthState() {
         const everLoggedIn =
             localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1";
         currentView.value =
-            authenticated || everLoggedIn ? "library" : "overview";
+            IS_LOCAL_DEV_HOST || authenticated || everLoggedIn
+                ? "library"
+                : "overview";
     } catch {
         authState.value = {
             loading: false,
@@ -1473,7 +1510,8 @@ async function fetchAuthState() {
 
         const everLoggedIn =
             localStorage.getItem(EVER_LOGGED_IN_STORAGE_KEY) === "1";
-        currentView.value = everLoggedIn ? "library" : "overview";
+        currentView.value =
+            IS_LOCAL_DEV_HOST || everLoggedIn ? "library" : "overview";
     }
 }
 
@@ -1574,6 +1612,48 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
             alert(`打开 GitHub 脚本失败: ${error.message}`);
             return;
         }
+    }
+
+    if (scriptEntry?.source === "mock-repository") {
+        const storageKey =
+            scriptEntry?.localStorageKey ||
+            getLocalScriptStorageKeyByPath(scriptEntry?.path || "");
+        const localData = loadLocalScriptContent(storageKey);
+
+        if (localData) {
+            const importedNodes = safeClone(localData.nodes || []);
+            const importedEdges = safeClone(
+                sanitizeEdges(localData.edges || [], importedNodes),
+            );
+
+            pushHistorySnapshot();
+            nodes.value = importedNodes;
+            edges.value = importedEdges;
+            storyMeta.value = {
+                schemaVersion: localData?.meta?.schemaVersion ?? 1,
+                storyId:
+                    localData?.meta?.storyId ||
+                    scriptEntry.storyId ||
+                    "LocalStory",
+                entryNodeId: localData?.meta?.entryNodeId || "",
+            };
+            variables.value = safeClone(localData.variables || []);
+            selectedNode.value = null;
+            selectedEdge.value = null;
+        } else if (scriptEntry?.storyId) {
+            storyMeta.value = {
+                ...storyMeta.value,
+                storyId: scriptEntry.storyId,
+                entryNodeId:
+                    storyMeta.value.entryNodeId || nodes.value[0]?.id || "",
+                schemaVersion: storyMeta.value.schemaVersion || 1,
+            };
+        }
+
+        currentView.value = "editor";
+        scheduleRealtimeValidation();
+        applyEdgeVisualStyles();
+        return;
     }
 
     if (scriptEntry?.storyId) {
@@ -1685,6 +1765,33 @@ watch(
 watch(
     () => storyMeta.value.storyId,
     () => setupAutoSave(),
+);
+
+watch(
+    () => [
+        selectedScriptEntry.value?.path,
+        selectedScriptEntry.value?.source,
+        storyMeta.value,
+        variables.value,
+        nodes.value,
+        edges.value,
+    ],
+    () => {
+        const entry = selectedScriptEntry.value;
+        if (!entry || entry.source !== "mock-repository") return;
+
+        const storageKey =
+            entry.localStorageKey || getLocalScriptStorageKeyByPath(entry.path);
+        if (!storageKey) return;
+
+        saveLocalScriptContent(storageKey, {
+            meta: safeClone(storyMeta.value),
+            variables: safeClone(variables.value),
+            nodes: safeClone(nodes.value),
+            edges: safeClone(edges.value),
+        });
+    },
+    { deep: true },
 );
 
 watch(
