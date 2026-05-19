@@ -10,7 +10,8 @@ public class NarrRail : ModuleRules
         {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "DeveloperSettings"
         });
 
         PrivateDependencyModuleNames.AddRange(new[]
