@@ -2154,6 +2154,8 @@ async function handleExport() {
                 sha: data?.content?.sha || selectedGithubFileContext.value.sha,
             };
 
+            lastSavedAt.value = new Date().toISOString();
+            autoSaveDirty = false;
             alert(
                 `已提交到 GitHub！\ncommit: ${data?.commit?.sha || "(unknown)"}`,
             );
@@ -2166,6 +2168,8 @@ async function handleExport() {
             variables.value,
             storyMeta.value,
         );
+        lastSavedAt.value = new Date().toISOString();
+        autoSaveDirty = false;
         alert(
             `导出成功！\n节点数: ${nodes.value.length}\n边数: ${edges.value.length}`,
         );
