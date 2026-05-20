@@ -123,7 +123,7 @@ export function exportToYAML(nodes, edges, variables, meta) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${meta.storyId}.narrrail.yaml`;
+  a.download = `${meta.storyId}.nrstory`;
   a.click();
   URL.revokeObjectURL(url);
 }

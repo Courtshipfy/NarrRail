@@ -1088,6 +1088,11 @@ function loadScriptListFromStorage() {
             "affinity_demo.narrrail.yaml",
             "new_story_temp.narrrail.yml",
             "ending_route_a.narrrail.yaml",
+            "chapter_01_intro.nrstory",
+            "chapter_01_choice.nrstory",
+            "affinity_demo.nrstory",
+            "new_story_temp.nrstory",
+            "ending_route_a.nrstory",
         ]);
 
         const filtered = parsed.filter(
@@ -1169,9 +1174,11 @@ async function renameScript(script) {
         return;
     }
 
-    const oldExt = oldFileName.toLowerCase().endsWith(".yml")
-        ? ".narrrail.yml"
-        : ".narrrail.yaml";
+    const oldExt = oldFileName.toLowerCase().endsWith(".nrstory")
+        ? ".nrstory"
+        : oldFileName.toLowerCase().endsWith(".yml")
+          ? ".narrrail.yml"
+          : ".narrrail.yaml";
     const newFileName = `${safeStem}${oldExt}`;
     const newPath = `Stories/${newFileName}`;
 
@@ -1299,7 +1306,7 @@ function createLocalScriptEntry({ safeStem, fileName, createdPath }) {
     const created = {
         id: `s-${Date.now()}`,
         fileName,
-        extension: ".yaml",
+        extension: ".nrstory",
         path: createdPath,
         storyId: safeStem,
         size: 0,
@@ -1333,7 +1340,7 @@ async function createNewScript() {
         return;
     }
 
-    const fileName = `${safeStem}.narrrail.yaml`;
+    const fileName = `${safeStem}.nrstory`;
     const existing = mockScripts.value.some((s) => s.fileName === fileName);
     if (existing) {
         alert("同名脚本已存在，请换一个名称");
@@ -1423,7 +1430,9 @@ function formatDate(iso) {
 }
 
 function formatScriptDisplayName(fileName) {
-    return String(fileName || "").replace(/\.narrrail\.ya?ml$/i, "");
+    return String(fileName || "")
+        .replace(/\.nrstory$/i, "")
+        .replace(/\.narrrail\.ya?ml$/i, "");
 }
 
 onMounted(async () => {
