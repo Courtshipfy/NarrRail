@@ -112,7 +112,7 @@ C# CLI tools for:
 - Impact: Need to maintain cross-language data contracts and version compatibility
 
 **Script Format:**
-- YAML-based (`.narrrail.yaml` or `.narrrail.yml`)
+- YAML-based (`.nrstory`)
 - Schema version 1 (see `docs/02_runtime/SCRIPT_FORMAT.md`)
 - Supports nodes (Dialogue/Choice/Jump/SetVariable/EmitEvent/End), edges with conditions, variables (Bool/Int/Float/String)
 

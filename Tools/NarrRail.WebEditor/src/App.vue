@@ -229,7 +229,7 @@
         <input
             ref="fileInput"
             type="file"
-            accept=".nrstory,.yaml,.yml"
+            accept=".nrstory"
             style="display: none"
             @change="handleFileChange"
         />
