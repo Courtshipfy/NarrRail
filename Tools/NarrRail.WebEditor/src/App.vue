@@ -1148,12 +1148,19 @@ function estimateNodeWidth(node) {
             (max, text) => Math.max(max, text.length),
             0,
         );
-        return Math.min(620, Math.max(250, 220 + maxLineLen * 7));
+        const avgLineLen =
+            lines.length > 0
+                ? lines.reduce((sum, text) => sum + text.length, 0) /
+                  lines.length
+                : 0;
+
+        const estimated = 260 + maxLineLen * 8.2 + avgLineLen * 1.1;
+        return Math.min(1300, Math.max(320, estimated));
     }
 
     if (node.type === "dialogue") {
         const textLen = String(node.data?.textKey || "").trim().length;
-        return Math.min(520, Math.max(220, 200 + textLen * 6));
+        return Math.min(900, Math.max(240, 220 + textLen * 7.2));
     }
 
     if (node.type === "choice") {
@@ -1168,7 +1175,7 @@ function estimateNodeWidth(node) {
             0,
         );
 
-        return Math.min(620, Math.max(260, 240 + maxChoiceLen * 6));
+        return Math.min(900, Math.max(280, 250 + maxChoiceLen * 6.8));
     }
 
     return 230;
@@ -1178,18 +1185,33 @@ function getNodeCenterY(node, topY) {
     return topY + estimateNodeHeight(node) * 0.5;
 }
 
-function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
+function computeIncomingDesiredY(
+    node,
+    incomingEdges,
+    assignedYById,
+    nodeMap,
+    options = {},
+) {
     if (!incomingEdges || incomingEdges.length === 0) return null;
 
     const fanOutSpread = 90;
+    const preferEnvelope = !!options.preferEnvelope;
     let total = 0;
     let count = 0;
+    let minTop = Number.POSITIVE_INFINITY;
+    let maxBottom = Number.NEGATIVE_INFINITY;
 
     incomingEdges.forEach((edge) => {
         const sourceTopY = assignedYById.get(edge.source);
         if (sourceTopY == null) return;
 
         const sourceNode = nodeMap.get(edge.source);
+        const sourceHeight = estimateNodeHeight(sourceNode);
+        const sourceBottomY = sourceTopY + sourceHeight;
+
+        minTop = Math.min(minTop, sourceTopY);
+        maxBottom = Math.max(maxBottom, sourceBottomY);
+
         const sourceCenterY = getNodeCenterY(sourceNode, sourceTopY);
         const handleIndex = getChoiceHandleIndex(edge.sourceHandle);
 
@@ -1210,7 +1232,12 @@ function computeIncomingDesiredY(node, incomingEdges, assignedYById, nodeMap) {
     if (count === 0) return null;
 
     const targetHeight = estimateNodeHeight(node);
-    const desiredCenterY = total / count;
+    const meanCenterY = total / count;
+    const envelopeCenterY = (minTop + maxBottom) * 0.5;
+    const desiredCenterY = preferEnvelope
+        ? envelopeCenterY * 0.72 + meanCenterY * 0.28
+        : meanCenterY;
+
     return desiredCenterY - targetHeight * 0.5;
 }
 
@@ -1251,26 +1278,68 @@ function resolveLayerYCollisions(orderedNodes, desiredYById, startY, minGap) {
     return result;
 }
 
+function enforceForwardLayers(initialLayerMap, edgeList, nodeList) {
+    const adjusted = new Map(initialLayerMap || []);
+    const nodeIds = new Set((nodeList || []).map((n) => n.id));
+
+    nodeIds.forEach((id) => {
+        if (!adjusted.has(id)) adjusted.set(id, 0);
+    });
+
+    const maxIterations = Math.max(nodeIds.size * 2, 12);
+    for (let i = 0; i < maxIterations; i += 1) {
+        let changed = false;
+
+        (edgeList || []).forEach((edge) => {
+            if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return;
+
+            const sourceLayer = adjusted.get(edge.source) ?? 0;
+            const targetLayer = adjusted.get(edge.target) ?? 0;
+            const required = sourceLayer + 1;
+
+            if (targetLayer < required) {
+                adjusted.set(edge.target, required);
+                changed = true;
+            }
+        });
+
+        if (!changed) break;
+    }
+
+    return adjusted;
+}
+
 function handleAutoLayout() {
     if (nodes.value.length === 0) return;
 
-    const rankSep = 140;
-    const nodeSep = 185;
+    const rankSep = 180;
+    const nodeSep = 210;
     const startX = 140;
     const startY = 110;
 
-    const layerMap = buildLayers(
+    const rawLayerMap = buildLayers(
         nodes.value,
         edges.value,
         storyMeta.value.entryNodeId,
     );
+    const layerMap = enforceForwardLayers(
+        rawLayerMap,
+        edges.value,
+        nodes.value,
+    );
     const nodeMap = new Map(nodes.value.map((n) => [n.id, n]));
     const incomingByTarget = new Map();
+    const outgoingBySource = new Map();
 
     edges.value.forEach((edge) => {
         if (!incomingByTarget.has(edge.target))
             incomingByTarget.set(edge.target, []);
         incomingByTarget.get(edge.target).push(edge);
+
+        if (!outgoingBySource.has(edge.source)) {
+            outgoingBySource.set(edge.source, []);
+        }
+        outgoingBySource.get(edge.source).push(edge);
     });
 
     const grouped = new Map();
@@ -1294,6 +1363,7 @@ function handleAutoLayout() {
     });
 
     const layerX = new Map();
+    const nodeXById = new Map();
     let cursorX = startX;
     layers.forEach((layer, index) => {
         if (index === 0) {
@@ -1306,6 +1376,8 @@ function handleAutoLayout() {
         cursorX += prevWidth + rankSep;
         layerX.set(layer, cursorX);
     });
+
+    const sinkRightOffset = 190;
 
     layers.forEach((layer) => {
         const layerNodes = grouped.get(layer) || [];
@@ -1324,11 +1396,16 @@ function handleAutoLayout() {
                 },
             );
 
+            const outgoingCount = (outgoingBySource.get(node.id) || []).length;
+            const isFanInSink =
+                incomingEdges.length >= 2 && outgoingCount === 0;
+
             const incomingDesiredY = computeIncomingDesiredY(
                 node,
                 incomingEdges,
                 assignedYById,
                 nodeMap,
+                { preferEnvelope: isFanInSink },
             );
 
             if (incomingDesiredY != null) {
@@ -1346,13 +1423,48 @@ function handleAutoLayout() {
 
         ordered.forEach((node) => {
             assignedYById.set(node.id, resolvedY.get(node.id) ?? startY);
+
+            const incomingEdges = (incomingByTarget.get(node.id) || []).filter(
+                (edge) => {
+                    const sourceLayer = layerMap.get(edge.source) ?? 0;
+                    return sourceLayer < layer;
+                },
+            );
+            const outgoingCount = (outgoingBySource.get(node.id) || []).length;
+            const isFanInSink =
+                incomingEdges.length >= 2 && outgoingCount === 0;
+
+            const baseX = layerX.get(layer) ?? startX;
+
+            if (!isFanInSink) {
+                nodeXById.set(node.id, baseX);
+                return;
+            }
+
+            const sourceRightMost = incomingEdges.reduce((maxRight, edge) => {
+                const sourceNode = nodeMap.get(edge.source);
+                const sourceLayer = layerMap.get(edge.source) ?? 0;
+                const sourceX =
+                    nodeXById.get(edge.source) ??
+                    layerX.get(sourceLayer) ??
+                    startX;
+                const sourceWidth = estimateNodeWidth(sourceNode);
+                return Math.max(maxRight, sourceX + sourceWidth);
+            }, Number.NEGATIVE_INFINITY);
+
+            const safeForwardGap = 230;
+            const sinkX = Math.max(
+                baseX + sinkRightOffset,
+                sourceRightMost + safeForwardGap,
+            );
+            nodeXById.set(node.id, sinkX);
         });
     });
 
     const nextNodes = nodes.value.map((node) => {
         const l = layerMap.get(node.id) ?? 0;
         const y = assignedYById.get(node.id) ?? startY;
-        const x = layerX.get(l) ?? startX;
+        const x = nodeXById.get(node.id) ?? layerX.get(l) ?? startX;
         return {
             ...node,
             position: { x, y },
