@@ -40,7 +40,7 @@
 
                     <template v-if="localNode.type === 'dialogue'">
                         <div class="form-group glass-input">
-                            <label class="form-label">说话人 ID</label>
+                            <label class="form-label">角色 ID</label>
                             <select
                                 class="form-input"
                                 v-model="localNode.data.speakerId"
@@ -59,7 +59,7 @@
                                 type="text"
                                 class="form-input"
                                 v-model="localNode.data.speakerId"
-                                placeholder="可手动输入自定义说话人"
+                                placeholder="可手动输入自定义角色"
                                 @compositionstart="handleCompositionStart"
                                 @compositionend="handleCompositionEnd"
                                 @blur="handleInputChange"
@@ -115,7 +115,7 @@
 
                     <template v-else-if="localNode.type === 'multidialogue'">
                         <div class="form-group glass-input">
-                            <label class="form-label">说话人 ID</label>
+                            <label class="form-label">角色 ID</label>
                             <select
                                 class="form-input"
                                 v-model="localNode.data.speakerId"
@@ -134,7 +134,7 @@
                                 type="text"
                                 class="form-input"
                                 v-model="localNode.data.speakerId"
-                                placeholder="可手动输入自定义说话人（留空为旁白）"
+                                placeholder="可手动输入自定义角色（留空为旁白）"
                                 @compositionstart="handleCompositionStart"
                                 @compositionend="handleCompositionEnd"
                                 @blur="handleInputChange"
@@ -260,8 +260,7 @@
                                 </div>
                             </div>
                             <p class="choice-hint">
-                                按 Enter
-                                新增下一行；留空说话人时将作为“旁白”显示
+                                按 Enter 新增下一行；留空角色时将作为“旁白”显示
                             </p>
                         </div>
                     </template>
@@ -1019,7 +1018,7 @@ function formatPresetSpeakerLabel(speaker) {
     const id = String(speaker?.id || "").trim();
     const displayName = String(speaker?.displayName || "").trim();
     if (displayName && displayName !== id) return `${displayName} (${id})`;
-    return id || "未命名说话人";
+    return id || "未命名角色";
 }
 
 function updateNodeId(event) {

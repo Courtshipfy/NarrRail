@@ -66,10 +66,7 @@
             :edge-count="edges.length"
             :story-id="storyMeta.storyId"
             :entry-node-id="storyMeta.entryNodeId"
-            :error-count="validationResult.errors.length"
-            :warning-count="validationResult.warnings.length"
-            :autosave-interval-sec="30"
-            :autosave-target="`localStorage:narrrail_${storyMeta.storyId || 'NewStory'}`"
+            :last-saved-at="lastSavedAt"
         />
 
         <PropertyPanel
@@ -377,6 +374,7 @@ const presetSpeakers = ref([]);
 const fileInput = ref(null);
 
 const validationResult = ref({ errors: [], warnings: [] });
+const lastSavedAt = ref("");
 const hasErrors = computed(() => validationResult.value.errors.length > 0);
 const hasWarnings = computed(() => validationResult.value.warnings.length > 0);
 const readModeLines = computed(() => buildReadModeLines());
@@ -395,6 +393,7 @@ const conditionVariableScopes = ["Session", "Global"];
 const VALID_LOGICS = new Set(["All", "Any", "Not"]);
 
 let autoSaveTimer = null;
+let autoSaveDirty = false;
 let globalConfigSyncTimer = null;
 
 function safeClone(obj) {
@@ -749,18 +748,42 @@ function scheduleRealtimeValidation() {
     }, 180);
 }
 
+function flushAutoSaveIfDirty() {
+    if (!autoSaveDirty) return false;
+
+    storage.save(storyMeta.value.storyId || "NewStory", {
+        nodes: nodes.value,
+        edges: edges.value,
+        meta: storyMeta.value,
+        variables: variables.value,
+        presetSpeakers: presetSpeakers.value,
+    });
+
+    autoSaveDirty = false;
+    lastSavedAt.value = new Date().toISOString();
+    return true;
+}
+
 function setupAutoSave() {
-    if (autoSaveTimer) clearInterval(autoSaveTimer);
-    autoSaveTimer = storage.setupAutoSave(
-        storyMeta.value.storyId || "NewStory",
-        () => ({
-            nodes: nodes.value,
-            edges: edges.value,
-            meta: storyMeta.value,
-            variables: variables.value,
-            presetSpeakers: presetSpeakers.value,
-        }),
-    );
+    if (autoSaveTimer) {
+        clearInterval(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+
+    autoSaveTimer = setInterval(() => {
+        const didSave = flushAutoSaveIfDirty();
+        if (!didSave) {
+            clearInterval(autoSaveTimer);
+            autoSaveTimer = null;
+        }
+    }, 120000);
+}
+
+function markAutoSaveDirty() {
+    autoSaveDirty = true;
+    if (!autoSaveTimer) {
+        setupAutoSave();
+    }
 }
 
 function applyThemeMode() {
@@ -1843,7 +1866,6 @@ onMounted(() => {
     window.addEventListener("node-drag-stop", handleNodeDragStop);
     window.addEventListener("keydown", handleGlobalKeyDown);
 
-    setupAutoSave();
     runRealtimeValidation();
     applyEdgeVisualStyles();
 });
@@ -1876,7 +1898,28 @@ watch(
 
 watch(
     () => storyMeta.value.storyId,
-    () => setupAutoSave(),
+    () => {
+        if (autoSaveTimer) {
+            clearInterval(autoSaveTimer);
+            autoSaveTimer = null;
+        }
+        autoSaveDirty = false;
+        markAutoSaveDirty();
+    },
+);
+
+watch(
+    () => [
+        nodes.value,
+        edges.value,
+        storyMeta.value,
+        variables.value,
+        presetSpeakers.value,
+    ],
+    () => {
+        markAutoSaveDirty();
+    },
+    { deep: true },
 );
 
 watch(

@@ -1,6 +1,17 @@
 <template>
     <div class="toolbar glass-morphism">
-        <div class="toolbar-title gradient-text">NarrRail Story Editor</div>
+        <div
+            class="toolbar-title gradient-text"
+            role="button"
+            tabindex="0"
+            @click="$emit('go-library')"
+            @keydown.enter.prevent="$emit('go-library')"
+            @keydown.space.prevent="$emit('go-library')"
+            title="返回脚本库"
+            aria-label="返回脚本库"
+        >
+            NarrRail Story Editor
+        </div>
 
         <button
             class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
@@ -126,15 +137,6 @@
 
         <button
             class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
-            @click="$emit('go-library')"
-            title="返回脚本库页面"
-            aria-label="返回脚本库页面"
-        >
-            <span class="material-symbols-outlined">library_books</span>
-        </button>
-
-        <button
-            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('help')"
             title="帮助"
             aria-label="帮助"
@@ -205,6 +207,10 @@ defineEmits([
     margin-right: auto;
     letter-spacing: -0.02em;
     white-space: nowrap;
+}
+
+.toolbar-title {
+    cursor: pointer;
 }
 
 .toolbar-button {

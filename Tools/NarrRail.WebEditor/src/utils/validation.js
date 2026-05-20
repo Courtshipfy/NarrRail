@@ -80,7 +80,7 @@ export function validateStory(nodes, edges, meta) {
 
     if (nodeType === "dialogue") {
       if (!data.speakerId) {
-        addError(`节点 ${node.id}: 缺少说话人 ID`, { nodeId: node.id });
+        addError(`节点 ${node.id}: 缺少角色 ID`, { nodeId: node.id });
       }
       if (!data.textKey) {
         addError(`节点 ${node.id}: 缺少对话文本`, { nodeId: node.id });

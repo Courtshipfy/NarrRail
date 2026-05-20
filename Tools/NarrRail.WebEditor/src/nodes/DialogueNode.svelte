@@ -14,7 +14,7 @@
   </div>
   <div class="node-content">
     <div class="node-field speaker-inline-field">
-      <span class="field-label">说话人:</span>
+      <span class="field-label">角色:</span>
       <span class="field-value">{data.speakerId || '未设置'}</span>
     </div>
     <div class="node-field">

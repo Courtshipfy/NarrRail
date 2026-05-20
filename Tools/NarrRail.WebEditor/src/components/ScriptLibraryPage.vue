@@ -272,15 +272,15 @@
 
                 <div class="config-card">
                     <div class="config-card-head">
-                        <h3>预设说话人</h3>
+                        <h3>预设角色</h3>
                         <button
                             class="icon-btn add"
                             @click="showAddSpeakerForm = !showAddSpeakerForm"
-                            :title="showAddSpeakerForm ? '收起' : '添加说话人'"
+                            :title="showAddSpeakerForm ? '收起' : '添加角色'"
                             :aria-label="
                                 showAddSpeakerForm
-                                    ? '收起添加说话人表单'
-                                    : '添加说话人'
+                                    ? '收起添加角色表单'
+                                    : '添加角色'
                             "
                         >
                             +
@@ -301,20 +301,20 @@
                             <button
                                 class="icon-btn danger"
                                 @click="removeSpeaker(index)"
-                                title="删除说话人"
-                                aria-label="删除说话人"
+                                title="删除角色"
+                                aria-label="删除角色"
                             >
                                 ×
                             </button>
                         </div>
                     </div>
-                    <div v-else class="config-empty">暂无预设说话人</div>
+                    <div v-else class="config-empty">暂无预设角色</div>
 
                     <div v-if="showAddSpeakerForm" class="inline-form">
                         <input
                             v-model.trim="newSpeaker.id"
                             type="text"
-                            placeholder="说话人 ID"
+                            placeholder="角色 ID"
                         />
                         <input
                             v-model.trim="newSpeaker.displayName"
@@ -617,7 +617,7 @@ async function addSpeaker() {
     const displayName = String(newSpeaker.displayName || "").trim();
 
     if (!id) {
-        alert("请输入说话人 ID");
+        alert("请输入角色 ID");
         return;
     }
 
@@ -628,7 +628,7 @@ async function addSpeaker() {
     );
 
     if (normalized.includes(id)) {
-        alert("该说话人 ID 已存在");
+        alert("该角色 ID 已存在");
         return;
     }
 
@@ -663,7 +663,7 @@ function formatSpeakerLabel(speaker) {
     const id = String(speaker?.id || "").trim();
     const displayName = String(speaker?.displayName || "").trim();
     if (displayName && displayName !== id) return `${displayName} (${id})`;
-    return id || "未命名说话人";
+    return id || "未命名角色";
 }
 
 function formatVariableValue(variable) {

@@ -577,6 +577,7 @@
     fitView
     minZoom={0.2}
     maxZoom={2}
+    proOptions={{ hideAttribution: true }}
   >
     <Background variant="dots" gap={20} size={1} />
     <Controls

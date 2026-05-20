@@ -25,7 +25,7 @@
 
   <div class="node-content">
     <div class="node-field speaker-inline-field">
-      <span class="field-label">说话人:</span>
+      <span class="field-label">角色:</span>
       <span class="field-value">{speakerLabel}</span>
     </div>
 

@@ -21,7 +21,7 @@
             </div>
 
             <div class="variable-panel-content">
-                <div class="section-title">预设说话人</div>
+                <div class="section-title">预设角色</div>
 
                 <div v-if="presetSpeakers.length > 0" class="speaker-list">
                     <div
@@ -48,7 +48,7 @@
                     <span class="material-symbols-outlined empty-icon"
                         >record_voice_over</span
                     >
-                    <p>暂无预设说话人</p>
+                    <p>暂无预设角色</p>
                 </div>
 
                 <div class="add-speaker-section">
@@ -59,12 +59,12 @@
                         <span class="material-symbols-outlined"
                             >person_add</span
                         >
-                        <span>添加预设说话人</span>
+                        <span>添加预设角色</span>
                     </button>
 
                     <div v-if="showAddSpeakerForm" class="add-form glass-input">
                         <div class="form-group">
-                            <label class="form-label">说话人 ID</label>
+                            <label class="form-label">角色 ID</label>
                             <input
                                 type="text"
                                 class="form-input"
@@ -313,7 +313,7 @@ function addSpeaker() {
     const displayName = String(newSpeaker.displayName || "").trim();
 
     if (!id) {
-        alert("请输入说话人 ID");
+        alert("请输入角色 ID");
         return;
     }
 
@@ -323,7 +323,7 @@ function addSpeaker() {
     });
 
     if (normalized.includes(id)) {
-        alert("该说话人 ID 已存在");
+        alert("该角色 ID 已存在");
         return;
     }
 
@@ -406,7 +406,7 @@ function formatSpeakerLabel(speaker) {
     const id = String(speaker?.id || "").trim();
     const displayName = String(speaker?.displayName || "").trim();
     if (displayName && displayName !== id) return `${displayName} (${id})`;
-    return id || "未命名说话人";
+    return id || "未命名角色";
 }
 
 function formatValue(variable) {
