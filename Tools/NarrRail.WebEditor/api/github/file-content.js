@@ -166,13 +166,12 @@ export default async function handler(req, res) {
         }))
         .filter((item) => {
           const lower = item.path.toLowerCase();
-          const isYaml =
+          const isStoryScript =
+            lower.endsWith(".nrstory") ||
             lower.endsWith(".narrrail.yaml") ||
-            lower.endsWith(".narrrail.yml") ||
-            lower.endsWith("global-config.narrrail.yaml") ||
-            lower.endsWith("global-config.narrrail.yml");
+            lower.endsWith(".narrrail.yml");
           const inRoot = rootPath ? item.path.startsWith(rootPath) : true;
-          return isYaml && inRoot;
+          return isStoryScript && inRoot;
         });
 
       const files = await mapWithConcurrency(candidates, 6, async (item) => {
@@ -201,13 +200,14 @@ export default async function handler(req, res) {
           id: item.path,
           path: item.path,
           fileName: item.path.split("/").pop(),
-          extension: item.path.toLowerCase().endsWith(".yml")
-            ? ".yml"
-            : ".yaml",
-          storyId: (item.path.split("/").pop() || "").replace(
-            /\.narrrail\.ya?ml$/i,
-            "",
-          ),
+          extension: item.path.toLowerCase().endsWith(".nrstory")
+            ? ".nrstory"
+            : item.path.toLowerCase().endsWith(".yml")
+              ? ".yml"
+              : ".yaml",
+          storyId: (item.path.split("/").pop() || "")
+            .replace(/\.nrstory$/i, "")
+            .replace(/\.narrrail\.ya?ml$/i, ""),
           size: item.size,
           updatedAt,
           nodeCount: counts.nodeCount,
