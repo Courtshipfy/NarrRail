@@ -10,14 +10,19 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelEditor.h"
 #include "EditorReimportHandler.h"
+#include "EditorFramework/AssetImportData.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/Engine.h"
 #include "GameFramework/HUD.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/Paths.h"
+#include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Styling/AppStyle.h"
 #include "DrawDebugHelpers.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Culture.h"
 
 #define LOCTEXT_NAMESPACE "FNarrRailEditorModule"
 
@@ -373,22 +378,102 @@ void FNarrRailEditorModule::ReimportAllNarrRailStories()
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
+	const FString CurrentLanguage = FInternationalization::Get().GetCurrentLanguage()->GetName();
+	const bool bUseChinese = CurrentLanguage.StartsWith(TEXT("zh"), ESearchCase::IgnoreCase);
+
 	TArray<FAssetData> StoryAssets;
 	AssetRegistry.GetAssetsByClass(UNarrRailStoryAsset::StaticClass()->GetClassPathName(), StoryAssets, true);
+
+	// Keep only one top-level asset per package.
+	// Some legacy packages may contain extra standalone exports (same package, different asset names),
+	// which would otherwise be counted/reimported repeatedly.
+	TArray<FAssetData> UniquePackageStoryAssets;
+	UniquePackageStoryAssets.Reserve(StoryAssets.Num());
+	for (const FAssetData& AssetData : StoryAssets)
+	{
+		const FString PackagePath = AssetData.PackageName.ToString();
+		const FString PackageShortName = FPackageName::GetShortName(PackagePath);
+		if (AssetData.AssetName.ToString().Equals(PackageShortName, ESearchCase::CaseSensitive))
+		{
+			UniquePackageStoryAssets.Add(AssetData);
+		}
+		else
+		{
+			if (bUseChinese)
+			{
+				UE_LOG(
+					LogNarrRailDebug,
+					Warning,
+					TEXT("NarrRail 批量重导入已跳过重复导出对象：%s（包=%s，期望主对象名=%s）"),
+					*AssetData.GetObjectPathString(),
+					*PackagePath,
+					*PackageShortName
+				);
+			}
+			else
+			{
+				UE_LOG(
+					LogNarrRailDebug,
+					Warning,
+					TEXT("NarrRail bulk reimport skipped duplicate top-level export: %s (package=%s, expected=%s)"),
+					*AssetData.GetObjectPathString(),
+					*PackagePath,
+					*PackageShortName
+				);
+			}
+		}
+	}
 
 	int32 Succeeded = 0;
 	int32 Failed = 0;
 	int32 Cancelled = 0;
+	int32 SkippedMissingSource = 0;
 
-	FScopedSlowTask SlowTask(static_cast<float>(StoryAssets.Num()), LOCTEXT("NarrRail_ReimportAll_Progress", "Reimporting NarrRail story assets..."));
+	auto ResolveReadableSourcePath = [](const FString& InPath, FString& OutResolvedAbsPath) -> bool
+	{
+		if (InPath.IsEmpty())
+		{
+			return false;
+		}
+
+		TArray<FString> Candidates;
+		Candidates.Reserve(4);
+		Candidates.Add(InPath);
+		Candidates.Add(FPaths::ConvertRelativePathToFull(InPath));
+
+		if (InPath.StartsWith(TEXT("/")) || InPath.StartsWith(TEXT("\\")))
+		{
+			const FString Trimmed = InPath.RightChop(1);
+			Candidates.Add(FPaths::Combine(FPaths::ProjectDir(), Trimmed));
+			Candidates.Add(FPaths::Combine(FPaths::RootDir(), Trimmed));
+		}
+
+		for (FString Candidate : Candidates)
+		{
+			FPaths::NormalizeFilename(Candidate);
+			FPaths::CollapseRelativeDirectories(Candidate);
+			if (FPaths::FileExists(Candidate))
+			{
+				OutResolvedAbsPath = MoveTemp(Candidate);
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	const FText ProgressText = bUseChinese
+		? FText::FromString(TEXT("正在重导入 NarrRail 剧情资产..."))
+		: FText::FromString(TEXT("Reimporting NarrRail story assets..."));
+	FScopedSlowTask SlowTask(static_cast<float>(UniquePackageStoryAssets.Num()), ProgressText);
 	SlowTask.MakeDialog(true);
 
-	for (const FAssetData& AssetData : StoryAssets)
+	for (const FAssetData& AssetData : UniquePackageStoryAssets)
 	{
 		SlowTask.EnterProgressFrame(1.0f, FText::FromName(AssetData.AssetName));
 		if (SlowTask.ShouldCancel())
 		{
-			Cancelled += (StoryAssets.Num() - Succeeded - Failed);
+			Cancelled += (UniquePackageStoryAssets.Num() - Succeeded - Failed - SkippedMissingSource);
 			break;
 		}
 
@@ -396,6 +481,35 @@ void FNarrRailEditorModule::ReimportAllNarrRailStories()
 		if (StoryAsset == nullptr)
 		{
 			++Failed;
+			continue;
+		}
+
+		const UAssetImportData* ImportData = StoryAsset->GetAssetImportData();
+		const FString SourceFilename = ImportData ? ImportData->GetFirstFilename() : FString();
+		FString ResolvedSourcePath;
+		if (SourceFilename.IsEmpty() || !ResolveReadableSourcePath(SourceFilename, ResolvedSourcePath))
+		{
+			++SkippedMissingSource;
+			if (bUseChinese)
+			{
+				UE_LOG(
+					LogNarrRailDebug,
+					Warning,
+					TEXT("NarrRail 批量重导入已跳过（源文件不存在）：%s | 源路径='%s'"),
+					*StoryAsset->GetPathName(),
+					*SourceFilename
+				);
+			}
+			else
+			{
+				UE_LOG(
+					LogNarrRailDebug,
+					Warning,
+					TEXT("NarrRail bulk reimport skipped (missing source): %s | source='%s'"),
+					*StoryAsset->GetPathName(),
+					*SourceFilename
+				);
+			}
 			continue;
 		}
 
@@ -411,11 +525,16 @@ void FNarrRailEditorModule::ReimportAllNarrRailStories()
 		}
 	}
 
+	const FText SummaryPattern = bUseChinese
+		? FText::FromString(TEXT("重导入完成。\n总计（去重后包数）：{0}\n已跳过（重复导出对象）：{1}\n成功：{2}\n失败：{3}\n已跳过（源文件不存在）：{4}\n已取消：{5}"))
+		: FText::FromString(TEXT("Reimport finished.\nTotal(unique packages): {0}\nSkipped(duplicate exports): {1}\nSucceeded: {2}\nFailed: {3}\nSkipped(missing source): {4}\nCancelled: {5}"));
 	const FText Summary = FText::Format(
-		LOCTEXT("NarrRail_ReimportAll_Summary", "Reimport finished.\nTotal: {0}\nSucceeded: {1}\nFailed: {2}\nCancelled: {3}"),
-		FText::AsNumber(StoryAssets.Num()),
+		SummaryPattern,
+		FText::AsNumber(UniquePackageStoryAssets.Num()),
+		FText::AsNumber(StoryAssets.Num() - UniquePackageStoryAssets.Num()),
 		FText::AsNumber(Succeeded),
 		FText::AsNumber(Failed),
+		FText::AsNumber(SkippedMissingSource),
 		FText::AsNumber(Cancelled)
 	);
 

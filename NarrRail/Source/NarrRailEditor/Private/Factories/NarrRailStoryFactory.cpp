@@ -73,7 +73,7 @@ UObject* UNarrRailStoryFactory::FactoryCreateFile(
 		return nullptr;
 	}
 
-	// Create new asset
+	// Create new asset (respect Unreal import pipeline suggested object name)
 	UNarrRailStoryAsset* NewAsset = NewObject<UNarrRailStoryAsset>(
 		InParent,
 		InClass,
