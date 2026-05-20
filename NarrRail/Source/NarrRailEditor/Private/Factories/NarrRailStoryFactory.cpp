@@ -14,8 +14,6 @@ UNarrRailStoryFactory::UNarrRailStoryFactory()
 
 	// Register file formats
 	Formats.Add(TEXT("nrstory;NarrRail Story Script"));
-	Formats.Add(TEXT("yaml;NarrRail Story Script"));
-	Formats.Add(TEXT("yml;NarrRail Story Script"));
 }
 
 bool UNarrRailStoryFactory::DoesSupportClass(UClass* Class)
@@ -36,7 +34,7 @@ FText UNarrRailStoryFactory::GetDisplayName() const
 bool UNarrRailStoryFactory::FactoryCanImport(const FString& Filename)
 {
 	FString Extension = FPaths::GetExtension(Filename);
-	return Extension == TEXT("nrstory") || Extension == TEXT("yaml") || Extension == TEXT("yml");
+	return Extension == TEXT("nrstory");
 }
 
 UObject* UNarrRailStoryFactory::FactoryCreateFile(

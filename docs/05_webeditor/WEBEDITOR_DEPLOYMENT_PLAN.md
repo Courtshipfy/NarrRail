@@ -222,7 +222,7 @@ OAuth 的 `client_secret` 不能暴露在前端。
 ## 10. GitHub 绑定与文件同步策略
 
 ## 10.1 导出到 GitHub（建议路径）
-- `stories/<storyId>.narrrail.yaml`
+- `stories/<storyId>.nrstory`
 
 ## 10.2 提交策略
 - Commit Message 规范：

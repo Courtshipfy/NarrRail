@@ -3,7 +3,7 @@
 ## 1. 适用范围
 
 本文档定义了 NarrRail 用于导入/导出和离线校验的脚本文件格式。
-当前基准格式：YAML (`.narrrail.yaml` 或 `.narrrail.yml`)。
+当前基准格式：YAML (`.nrstory`)。
 
 ## 2. 根结构
 
@@ -281,7 +281,7 @@ edges:
 
 以下是一个完整的好感度系统示例，演示了变量、动作、条件分支的综合使用。
 
-完整脚本见：`Tools/NarrRail.Tooling/affinity_demo.narrrail.yaml`
+完整脚本见：`Tools/NarrRail.Tooling/affinity_demo.nrstory`
 
 ### 剧情流程
 

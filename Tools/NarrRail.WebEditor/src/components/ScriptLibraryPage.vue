@@ -1083,11 +1083,6 @@ function loadScriptListFromStorage() {
         if (!Array.isArray(parsed)) return;
 
         const legacyPresetNames = new Set([
-            "chapter_01_intro.narrrail.yaml",
-            "chapter_01_choice.narrrail.yaml",
-            "affinity_demo.narrrail.yaml",
-            "new_story_temp.narrrail.yml",
-            "ending_route_a.narrrail.yaml",
             "chapter_01_intro.nrstory",
             "chapter_01_choice.nrstory",
             "affinity_demo.nrstory",
@@ -1174,12 +1169,7 @@ async function renameScript(script) {
         return;
     }
 
-    const oldExt = oldFileName.toLowerCase().endsWith(".nrstory")
-        ? ".nrstory"
-        : oldFileName.toLowerCase().endsWith(".yml")
-          ? ".narrrail.yml"
-          : ".narrrail.yaml";
-    const newFileName = `${safeStem}${oldExt}`;
+    const newFileName = `${safeStem}.nrstory`;
     const newPath = `Stories/${newFileName}`;
 
     if (newPath === oldPath) return;
@@ -1430,9 +1420,7 @@ function formatDate(iso) {
 }
 
 function formatScriptDisplayName(fileName) {
-    return String(fileName || "")
-        .replace(/\.nrstory$/i, "")
-        .replace(/\.narrrail\.ya?ml$/i, "");
+    return String(fileName || "").replace(/\.nrstory$/i, "");
 }
 
 onMounted(async () => {

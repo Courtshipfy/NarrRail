@@ -398,7 +398,7 @@
   - UE Factory 模式（资产导入）
   - UE AssetTypeActions（Content Browser 集成）
 - 下一步计划：
-  - 在 UE 编辑器中测试导入 `affinity_demo.narrrail.yaml`
+  - 在 UE 编辑器中测试导入 `affinity_demo.nrstory`
   - 验证导入的资产数据完整性
   - M2.4 导出器（UE 资产 → YAML）
   - M2.5 Round-trip 测试

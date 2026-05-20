@@ -28,7 +28,7 @@ UE5.7 plugin for AVG (Adventure/Visual Novel) games, providing dialogue runtime,
 
 ```bash
 cd Tools/NarrRail.Tooling
-dotnet run --project src/NarrRail.Tooling -- validate affinity_demo.narrrail.yaml
+dotnet run --project src/NarrRail.Tooling -- validate affinity_demo.nrstory
 ```
 
 See `Tools/NarrRail.Tooling/README.md` for CLI usage.
@@ -36,7 +36,7 @@ See `Tools/NarrRail.Tooling/README.md` for CLI usage.
 ### 2. Import YAML Script to UE
 
 1. Open UE Editor with `HostProject/NarrRailHost.uproject`
-2. Drag `Tools/NarrRail.Tooling/affinity_demo.narrrail.yaml` into Content Browser
+2. Drag `Tools/NarrRail.Tooling/affinity_demo.nrstory` into Content Browser
 3. A `UNarrRailStoryAsset` will be automatically created
 
 ### 3. Blueprint Usage
@@ -49,8 +49,8 @@ See `docs/02_runtime/DEBUGGER_GUIDE.md` for runtime debugging.
 
 ## Example Scripts
 
-- `Tools/NarrRail.Tooling/test_valid.narrrail.yaml` - Minimal valid script
-- `Tools/NarrRail.Tooling/affinity_demo.narrrail.yaml` - Complete affinity system demo
+- `Tools/NarrRail.Tooling/test_valid.nrstory` - Minimal valid script
+- `Tools/NarrRail.Tooling/affinity_demo.nrstory` - Complete affinity system demo
 
 ## Documentation
 
