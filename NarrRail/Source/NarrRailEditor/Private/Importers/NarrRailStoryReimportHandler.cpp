@@ -4,6 +4,7 @@
 #include "Runtime/NarrRailStoryAsset.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/Paths.h"
+#include "ObjectTools.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNarrRailReimport, Log, All);
 
@@ -124,6 +125,50 @@ EReimportResult::Type FNarrRailStoryReimportHandler::Reimport(UObject* Obj)
     StoryAsset->Nodes = ScriptData.Nodes;
     StoryAsset->Edges = ScriptData.Edges;
     ImportData->UpdateFilenameOnly(AbsSourceFilename);
+
+    const FString DesiredAssetName = ObjectTools::SanitizeObjectName(ScriptData.StoryId);
+    if (!DesiredAssetName.IsEmpty())
+    {
+        const FString CurrentAssetName = StoryAsset->GetName();
+        if (!CurrentAssetName.Equals(DesiredAssetName, ESearchCase::CaseSensitive))
+        {
+            UObject* Existing = StaticFindObject(
+                nullptr,
+                StoryAsset->GetOuter(),
+                *DesiredAssetName,
+                false
+            );
+
+            if (Existing == nullptr || Existing == StoryAsset)
+            {
+                const bool bRenamed = StoryAsset->Rename(
+                    *DesiredAssetName,
+                    nullptr,
+                    REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders
+                );
+
+                if (!bRenamed)
+                {
+                    UE_LOG(
+                        LogNarrRailReimport,
+                        Warning,
+                        TEXT("Reimport succeeded but rename failed: %s -> %s"),
+                        *CurrentAssetName,
+                        *DesiredAssetName
+                    );
+                }
+            }
+            else
+            {
+                UE_LOG(
+                    LogNarrRailReimport,
+                    Warning,
+                    TEXT("Reimport skipped asset rename due to name conflict: target '%s' already exists"),
+                    *DesiredAssetName
+                );
+            }
+        }
+    }
 
     StoryAsset->PostEditChange();
     StoryAsset->MarkPackageDirty();

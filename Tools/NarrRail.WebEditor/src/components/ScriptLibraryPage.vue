@@ -364,14 +364,50 @@
                             {{ formatScriptDisplayName(script.fileName) }}
                         </button>
                     </h3>
-                    <button
-                        class="delete-script-btn"
-                        @click="deleteScript(script)"
-                        title="删除脚本"
-                        aria-label="删除脚本"
-                    >
-                        ×
-                    </button>
+                    <div class="card-actions">
+                        <button
+                            class="rename-script-btn"
+                            @click="renameScript(script)"
+                            title="重命名脚本"
+                            aria-label="重命名脚本"
+                        >
+                            <svg
+                                class="card-action-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        </button>
+                        <button
+                            class="delete-script-btn"
+                            @click="deleteScript(script)"
+                            title="删除脚本"
+                            aria-label="删除脚本"
+                        >
+                            <svg
+                                class="card-action-icon"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M6 6l12 12M18 6L6 18"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="card-bottom">
@@ -1087,6 +1123,178 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function sanitizeScriptStem(name) {
+    return String(name || "")
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
+        .replace(/^\.+|\.+$/g, "")
+        .replace(/_+/g, "_");
+}
+
+function replaceStoryIdInYaml(yamlText, nextStoryId) {
+    const normalized = String(nextStoryId || "").trim();
+    const escaped = normalized.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+    const source = String(yamlText || "");
+    const replaced = source.replace(
+        /^([ \t]*storyId\s*:\s*)(.*)$/m,
+        `$1"${escaped}"`,
+    );
+
+    if (replaced !== source) return replaced;
+
+    if (/^meta\s*:/m.test(source)) {
+        return source.replace(
+            /^meta\s*:[ \t]*$/m,
+            `meta:\n  storyId: "${escaped}"`,
+        );
+    }
+
+    return `meta:\n  storyId: "${escaped}"\n${source}`;
+}
+
+async function renameScript(script) {
+    const oldPath = String(script?.path || "");
+    const oldFileName = String(script?.fileName || "");
+    const oldStem = formatScriptDisplayName(oldFileName);
+    if (!oldPath || !oldFileName) return;
+
+    const baseName = prompt("请输入新的脚本名称（不含扩展名）", oldStem);
+    if (!baseName) return;
+
+    const safeStem = sanitizeScriptStem(baseName);
+    if (!safeStem) {
+        alert("脚本名称不能为空");
+        return;
+    }
+
+    const oldExt = oldFileName.toLowerCase().endsWith(".yml")
+        ? ".narrrail.yml"
+        : ".narrrail.yaml";
+    const newFileName = `${safeStem}${oldExt}`;
+    const newPath = `Stories/${newFileName}`;
+
+    if (newPath === oldPath) return;
+
+    const pathExists = mockScripts.value.some((s) => s.path === newPath);
+    if (pathExists) {
+        alert("目标名称已存在，请换一个名称");
+        return;
+    }
+
+    if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
+        try {
+            const readUrl = new URL(
+                window.location.origin + "/api/github/file-content",
+            );
+            readUrl.searchParams.set("mode", "content");
+            readUrl.searchParams.set("owner", selectedOwner.value);
+            readUrl.searchParams.set("repo", selectedRepoName.value);
+            readUrl.searchParams.set("branch", selectedRepoBranch.value);
+            readUrl.searchParams.set("path", oldPath);
+
+            const readRes = await fetch(readUrl.toString(), {
+                method: "GET",
+                credentials: "include",
+            });
+            const readData = await readRes.json();
+            if (!readRes.ok) {
+                throw new Error(readData?.error || "读取原脚本失败");
+            }
+
+            const updatedContent = replaceStoryIdInYaml(
+                String(readData?.content || ""),
+                safeStem,
+            );
+
+            const createRes = await fetch("/api/github/commit-file", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    owner: selectedOwner.value,
+                    repo: selectedRepoName.value,
+                    branch: selectedRepoBranch.value,
+                    path: newPath,
+                    content: updatedContent,
+                    message: `feat(script): rename ${oldPath} -> ${newPath}`,
+                }),
+            });
+            const createData = await createRes.json();
+            if (!createRes.ok) {
+                throw new Error(createData?.error || "创建新名称脚本失败");
+            }
+
+            const delRes = await fetch("/api/github/delete-file", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    owner: selectedOwner.value,
+                    repo: selectedRepoName.value,
+                    branch: selectedRepoBranch.value,
+                    path: oldPath,
+                    sha: readData?.sha,
+                    message: `chore(script): delete old name ${oldPath}`,
+                }),
+            });
+            const delData = await delRes.json();
+            if (!delRes.ok) {
+                throw new Error(delData?.error || "删除旧名称脚本失败");
+            }
+
+            await reloadScriptsFromRepo();
+            alert(`重命名成功：\n${oldFileName} -> ${newFileName}`);
+            return;
+        } catch (error) {
+            alert(`重命名脚本失败: ${error.message}`);
+            return;
+        }
+    }
+
+    const targetStorageKey = getLocalScriptStorageKey(newPath);
+    const sourceStorageKey = getLocalScriptStorageKey(oldPath);
+
+    let localData = null;
+    try {
+        const raw = localStorage.getItem(sourceStorageKey);
+        localData = raw ? JSON.parse(raw) : null;
+    } catch {
+        localData = null;
+    }
+
+    if (localData && localData.meta && typeof localData.meta === "object") {
+        localData.meta.storyId = safeStem;
+    }
+
+    saveLocalScriptContent(
+        newPath,
+        localData || buildInitialLocalScriptData(safeStem),
+    );
+
+    try {
+        localStorage.removeItem(sourceStorageKey);
+    } catch {
+        // ignore storage failures
+    }
+
+    mockScripts.value = mockScripts.value.map((entry) => {
+        if (entry.path !== oldPath) return entry;
+        return {
+            ...entry,
+            id: newPath,
+            fileName: newFileName,
+            path: newPath,
+            storyId: safeStem,
+            updatedAt: new Date().toISOString(),
+            localStorageKey: targetStorageKey,
+        };
+    });
+
+    alert(`重命名成功：\n${oldFileName} -> ${newFileName}`);
+}
+
 function createLocalScriptEntry({ safeStem, fileName, createdPath }) {
     const created = {
         id: `s-${Date.now()}`,
@@ -1118,11 +1326,7 @@ async function createNewScript() {
 
     const normalized = String(baseName).trim();
 
-    const safeStem = normalized
-        .replace(/\s+/g, "_")
-        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
-        .replace(/^\.+|\.+$/g, "")
-        .replace(/_+/g, "_");
+    const safeStem = sanitizeScriptStem(normalized);
 
     if (!safeStem) {
         alert("脚本名称不能为空");
@@ -1708,19 +1912,20 @@ watch(
     margin-top: auto;
 }
 
+.card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rename-script-btn,
 .delete-script-btn {
     opacity: 0;
     pointer-events: none;
-    border: 1px solid color-mix(in srgb, #ef4444 46%, transparent);
-    background: color-mix(in srgb, #ef4444 14%, transparent);
-    color: #b91c1c;
     border-radius: 8px;
     width: 24px;
     height: 24px;
     padding: 0;
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1728,9 +1933,35 @@ watch(
     transition: all 0.15s ease;
 }
 
+.card-action-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+    flex: 0 0 auto;
+}
+
+.rename-script-btn {
+    border: 1px solid color-mix(in srgb, #3b82f6 46%, transparent);
+    background: color-mix(in srgb, #3b82f6 12%, transparent);
+    color: #1d4ed8;
+}
+
+.delete-script-btn {
+    border: 1px solid color-mix(in srgb, #ef4444 46%, transparent);
+    background: color-mix(in srgb, #ef4444 14%, transparent);
+    color: #b91c1c;
+    font-size: 16px;
+}
+
+.script-card:hover .rename-script-btn,
 .script-card:hover .delete-script-btn {
     opacity: 1;
     pointer-events: auto;
+}
+
+.rename-script-btn:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, #3b82f6 18%, transparent);
 }
 
 .delete-script-btn:hover {
@@ -1742,7 +1973,7 @@ watch(
     display: flex;
     justify-content: space-between;
     gap: 8px;
-    align-items: start;
+    align-items: center;
 }
 
 .card-head h3 {
@@ -1750,6 +1981,10 @@ watch(
     font-size: 15px;
     line-height: 1.3;
     word-break: break-all;
+}
+
+.card-actions {
+    align-self: center;
 }
 
 .path {
