@@ -53,7 +53,7 @@
 
                                 <template v-else-if="item.kind === 'choice'">
                                     <div class="event-row">
-                                        <span class="choice-label">选择</span>
+                                        <span class="choice-label">→</span>
                                         <span class="text choice-content">{{
                                             item.text
                                         }}</span>
@@ -410,7 +410,7 @@ function advanceUntilPause(maxSteps = 4000) {
             }
             const next = firstNextTarget(node.id);
             if (!next) {
-                setEnded();
+                handleBranchEnd();
                 return;
             }
             state.currentNodeId = next;
@@ -432,7 +432,7 @@ function advanceUntilPause(maxSteps = 4000) {
             if (lines.length === 0) {
                 const next = firstNextTarget(node.id);
                 if (!next) {
-                    setEnded();
+                    handleBranchEnd();
                     return;
                 }
                 state.currentNodeId = next;
@@ -451,7 +451,7 @@ function advanceUntilPause(maxSteps = 4000) {
                 };
                 const next = firstNextTarget(node.id);
                 if (!next) {
-                    setEnded();
+                    handleBranchEnd();
                     return;
                 }
                 state.currentNodeId = next;
@@ -480,7 +480,7 @@ function advanceUntilPause(maxSteps = 4000) {
             };
             const next = firstNextTarget(node.id);
             if (!next) {
-                setEnded();
+                handleBranchEnd();
                 return;
             }
             state.currentNodeId = next;
@@ -529,7 +529,7 @@ function advanceUntilPause(maxSteps = 4000) {
             });
             const next = firstNextTarget(node.id);
             if (!next) {
-                setEnded();
+                handleBranchEnd();
                 return;
             }
             state.currentNodeId = next;
@@ -545,7 +545,7 @@ function advanceUntilPause(maxSteps = 4000) {
             });
             const next = firstNextTarget(node.id);
             if (!next) {
-                setEnded();
+                handleBranchEnd();
                 return;
             }
             state.currentNodeId = next;
@@ -573,13 +573,13 @@ function advanceUntilPause(maxSteps = 4000) {
                 nodeId: node.id,
                 text: `${node.id}`,
             });
-            setEnded();
+            handleBranchEnd();
             return;
         }
 
         const next = firstNextTarget(node.id);
         if (!next) {
-            setEnded();
+            handleBranchEnd();
             return;
         }
         state.currentNodeId = next;
@@ -873,12 +873,13 @@ watch(
     width: 9ch;
     max-width: 9ch;
     text-align: right;
+    align-self: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.78em;
+    font-size: 0.72em;
     font-weight: 700;
-    color: rgba(110, 162, 216, 0.68);
+    color: rgba(110, 162, 216, 0.55);
 }
 
 .sep {
