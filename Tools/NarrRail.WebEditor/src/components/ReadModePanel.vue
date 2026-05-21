@@ -54,7 +54,6 @@
                                 <template v-else-if="item.kind === 'choice'">
                                     <div class="event-row">
                                         <span class="choice-label">选择</span>
-                                        <span class="sep">：</span>
                                         <span class="text choice-content">{{
                                             item.text
                                         }}</span>
@@ -682,17 +681,17 @@ watch(
 <style scoped>
 .preview-mode-root {
     position: absolute;
-    inset: 118px 24px 92px 24px;
+    inset: 104px 24px 96px 24px;
     z-index: 15;
 }
 
 .preview-mode-body {
     width: 100%;
     height: 100%;
-    padding: 6px 4px;
+    padding: 4px 4px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     overflow: hidden;
     background: transparent;
     border: none;
@@ -727,20 +726,37 @@ watch(
     flex: 1;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 6px;
+    align-items: center;
 }
 
 .preview-timeline {
-    width: min(860px, 94%);
-    height: 100%;
-    max-height: min(68vh, 640px);
+    width: min(780px, 92%);
+    max-height: min(56vh, 500px);
     margin: 0 auto;
     border: none;
     border-radius: 0;
-    padding: 6px 2px;
+    padding: 4px 2px;
     overflow: auto;
     background: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+.preview-timeline::-webkit-scrollbar {
+    width: 4px;
+}
+
+.preview-timeline::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.preview-timeline::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.28);
+    border-radius: 4px;
+}
+
+.preview-timeline::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.46);
 }
 
 .timeline-content {
@@ -748,7 +764,7 @@ watch(
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 8px 0;
+    padding: 6px 0;
     position: relative;
 }
 
@@ -799,13 +815,13 @@ watch(
 .timeline-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
 }
 
 .timeline-choice-box {
-    margin-top: 10px;
+    margin-top: 8px;
     border-top: 1px dashed rgba(148, 163, 184, 0.28);
-    padding-top: 10px;
+    padding-top: 8px;
 }
 
 .timeline-end-hint {
@@ -817,18 +833,18 @@ watch(
 .timeline-item {
     border: none;
     border-radius: 0;
-    padding: 2px 2px;
+    padding: 1px 2px;
     width: max-content;
     max-width: 100%;
-    line-height: 1.7;
-    font-size: 16px;
+    line-height: 1.65;
+    font-size: 15px;
     color: #111827;
 }
 
 .line-row,
 .event-row {
     display: grid;
-    grid-template-columns: 11ch auto minmax(0, 1fr);
+    grid-template-columns: 9ch auto minmax(0, 1fr);
     align-items: start;
     column-gap: 2px;
 }
@@ -841,25 +857,26 @@ watch(
 
 .speaker {
     display: inline-block;
-    width: 11ch;
-    max-width: 11ch;
+    width: 9ch;
+    max-width: 9ch;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 700;
+    font-size: 0.95em;
     color: #1e3a8a;
 }
 
 .choice-label {
     display: inline-block;
-    width: 11ch;
-    max-width: 11ch;
+    width: 9ch;
+    max-width: 9ch;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 0.82em;
+    font-size: 0.78em;
     font-weight: 700;
     color: rgba(110, 162, 216, 0.68);
 }
@@ -982,10 +999,9 @@ watch(
 }
 
 .choice-content {
-    display: inline-block;
-    width: fit-content;
-    max-width: 100%;
-    font-size: 0.86em;
+    grid-column: 3;
+    margin-left: 0.6em;
+    font-size: 0.82em;
     font-weight: 700;
     letter-spacing: 0.01em;
 }
