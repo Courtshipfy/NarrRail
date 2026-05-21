@@ -10,8 +10,8 @@ UE5.7 plugin for AVG (Adventure/Visual Novel) games, providing dialogue runtime,
 - ✅ **YAML Import**: Drag-and-drop YAML scripts into UE Content Browser
 - ✅ **Debugger**: Screen HUD and console commands
 - 🚧 **Save/Load**: Planned
-- 🚧 **Visual Editor**: Planned
-- 🚧 **YAML Export**: Planned
+- ✅ **Visual Editor**: Planned
+- ✅ **YAML Export**: Planned
 
 ## Structure
 
