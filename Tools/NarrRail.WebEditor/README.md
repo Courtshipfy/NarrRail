@@ -1,10 +1,6 @@
 # NarrRail WebEditor
 
-[中文](#中文文档) | [English](#english)
-
----
-
-## 中文文档
+[English](./README.en.md)
 
 基于 **Vue 3 + Svelte Flow** 的 NarrRail 剧情可视化编辑器。  
 面向编剧与叙事设计同学，支持节点式编辑、`.nrstory` 导入导出、实时校验、自动保存与运行语义预览。
@@ -112,7 +108,8 @@ Tools/NarrRail.WebEditor/
 │   │   └── EndNode.svelte
 │   └── utils/
 ├── index.html
-└── README.md
+├── README.md
+└── README.en.md
 ```
 
 ## 相关文档
@@ -121,55 +118,6 @@ Tools/NarrRail.WebEditor/
 - 介绍页规范：`Docs/05_webeditor/INTRO_PAGE_CONTENT_STYLE_SPEC.md`
 - 部署方案：`Docs/05_webeditor/WEBEDITOR_DEPLOYMENT_PLAN.md`
 
----
+## 许可证
 
-## English
-
-NarrRail WebEditor is a **Vue 3 + Svelte Flow** visual story editor for narrative production.
-It supports graph editing, `.nrstory` import/export, validation, autosave, and runtime-like preview.
-
-## Tech Stack
-
-- **Vue 3** for app-level UI
-- **Svelte Flow** for graph editing interactions
-- **YAML** serialization with unified `.nrstory` extension
-- **Vite** for dev/build
-
-## Quick Start
-
-### Development
-
-```bash
-cd Tools/NarrRail.WebEditor
-npm install
-npm run dev -- --host
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-## Implemented Features
-
-- Node graph editor (create/connect/move/delete/select)
-- Node types: `Dialogue`, `Choice`, `Jump`, `SetVariable`, `EmitEvent`, `End`
-- Property editing for nodes/edges/variables/speakers
-- `.nrstory` import/export
-- Real-time and manual validation
-- Local autosave fallback
-- Preview Mode with runtime-like flow execution
-  - supports `ExhaustiveUntilComplete`
-  - end-state duplicate-trigger protection
-
-## File Naming Convention
-
-- Story files: `.nrstory`
-- Global config files:
-  - `globalconfig.nrstory`
-  - `global-config.nrstory`
-
-## License
-
-Part of the NarrRail repository and follows repository-level licensing.
+本项目是 NarrRail 仓库的一部分，遵循仓库统一许可证。
