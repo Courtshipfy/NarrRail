@@ -1,5 +1,9 @@
 <template>
-    <div class="preview-mode-root" :class="{ 'is-dark-mode': isDarkMode }">
+    <div
+        class="preview-mode-root"
+        :class="{ 'is-dark-mode': isDarkMode }"
+        @click="handleTimelineAdvance"
+    >
         <div class="preview-mode-body">
             <div class="preview-header">
                 <div class="preview-title-wrap">
@@ -18,11 +22,7 @@
             </div>
 
             <div class="preview-main">
-                <div
-                    ref="timelineRef"
-                    class="preview-timeline"
-                    @click="handleTimelineAdvance"
-                >
+                <div ref="timelineRef" class="preview-timeline">
                     <div class="timeline-title">阅读预览（点击此区域推进）</div>
                     <div class="timeline-content">
                         <div v-if="state.timeline.length === 0" class="hint">
@@ -115,7 +115,6 @@
                             class="timeline-choice-box"
                             @click.stop
                         >
-                            <p class="hint">请选择一个选项继续：</p>
                             <div class="choice-inline-list">
                                 <button
                                     v-for="choice in state.pendingChoices"
@@ -185,6 +184,8 @@ const state = reactive({
         nodeId: "",
         nextIndex: 0,
     },
+    exhaustiveSelectedByNode: {}, // { [nodeId]: { [choiceHandle]: true } }
+    exhaustiveReturnStack: [], // string[]
 });
 
 function toNodeType(node) {
@@ -310,6 +311,29 @@ function getChoiceEdges(nodeId, handle) {
     );
 }
 
+function isExhaustiveChoiceNode(node) {
+    return String(node?.data?.choiceMode || "") === "ExhaustiveUntilComplete";
+}
+
+function isChoiceHandleSelected(nodeId, handle) {
+    const selectedMap = state.exhaustiveSelectedByNode[String(nodeId)];
+    return !!selectedMap?.[String(handle)];
+}
+
+function markChoiceHandleSelected(nodeId, handle) {
+    const key = String(nodeId);
+    const selectedMap = state.exhaustiveSelectedByNode[key] || {};
+    selectedMap[String(handle)] = true;
+    state.exhaustiveSelectedByNode[key] = selectedMap;
+}
+
+function resolveChoiceCompleteTarget(nodeId) {
+    const edge = getChoiceEdges(nodeId, "choice-complete").find((e) =>
+        evaluateCondition(e?.data?.condition),
+    );
+    return edge?.target ? String(edge.target) : "";
+}
+
 function applySetVariable(node) {
     const name = String(node?.data?.variableName || "").trim();
     if (!name) return "变量名为空，已跳过";
@@ -360,6 +384,17 @@ function setEnded(errorText = "") {
 }
 
 function handleBranchEnd() {
+    if (state.exhaustiveReturnStack.length > 0) {
+        const returnNodeId = String(
+            state.exhaustiveReturnStack.pop() || "",
+        ).trim();
+        if (returnNodeId && getNodeById(returnNodeId)) {
+            state.status = "running";
+            state.currentNodeId = returnNodeId;
+            return;
+        }
+    }
+
     setEnded();
 }
 
@@ -371,6 +406,8 @@ function restartPreview() {
         nodeId: "",
         nextIndex: 0,
     };
+    state.exhaustiveSelectedByNode = {};
+    state.exhaustiveReturnStack = [];
     initSessionVars();
 
     const entryId = String(props.entryNodeId || "").trim();
@@ -499,12 +536,20 @@ function advanceUntilPause(maxSteps = 4000) {
             const choices = Array.isArray(node?.data?.choices)
                 ? node.data.choices
                 : [];
+            const exhaustiveMode = isExhaustiveChoiceNode(node);
             const pending = choices
                 .map((choice, idx) => ({
                     handle: `choice-${idx}`,
                     text: toText(choice?.textKey),
                 }))
                 .filter((choice) => {
+                    if (
+                        exhaustiveMode &&
+                        isChoiceHandleSelected(node.id, choice.handle)
+                    ) {
+                        return false;
+                    }
+
                     const edges = getChoiceEdges(node.id, choice.handle);
                     return edges.some((edge) =>
                         evaluateCondition(edge?.data?.condition),
@@ -512,6 +557,18 @@ function advanceUntilPause(maxSteps = 4000) {
                 });
 
             if (pending.length <= 0) {
+                if (exhaustiveMode) {
+                    const completeTarget = resolveChoiceCompleteTarget(node.id);
+                    if (!completeTarget) {
+                        setEnded(
+                            "穷举 Choice 节点已耗尽选项，但未找到 choice-complete 出口。",
+                        );
+                        return;
+                    }
+                    state.currentNodeId = completeTarget;
+                    continue;
+                }
+
                 const fallback = firstNextTarget(node.id);
                 if (!fallback) {
                     setEnded(
@@ -656,6 +713,12 @@ function handleChoose(handle) {
         text: choiceText || `选项 ${choiceIndex + 1}`,
     });
 
+    const exhaustiveMode = isExhaustiveChoiceNode(currentNode);
+    if (exhaustiveMode) {
+        markChoiceHandleSelected(currentNode.id, handle);
+        state.exhaustiveReturnStack.push(String(currentNode.id));
+    }
+
     state.pendingChoices = [];
     state.status = "running";
     state.currentNodeId = String(targetEdge.target);
@@ -687,6 +750,8 @@ watch(
     position: absolute;
     inset: 104px 24px 96px 24px;
     z-index: 15;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .preview-mode-body {
@@ -799,21 +864,30 @@ watch(
 .choice-inline-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
 }
 
 .choice-inline-btn {
     text-align: left;
-    border-radius: 10px;
-    border: 1px solid rgba(59, 130, 246, 0.35);
-    background: rgba(59, 130, 246, 0.08);
-    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    padding: 3px 2px;
     cursor: pointer;
+    border-radius: 4px;
+    transition:
+        background-color 0.12s ease,
+        color 0.12s ease;
 }
 
 .choice-inline-btn:hover {
-    background: rgba(59, 130, 246, 0.14);
-    border-color: rgba(59, 130, 246, 0.48);
+    background: rgba(148, 163, 184, 0.12);
+    color: #0ea5e9;
+}
+
+.choice-inline-btn:focus-visible {
+    outline: 1px solid rgba(14, 165, 233, 0.55);
+    outline-offset: 1px;
 }
 
 .timeline-list {
@@ -825,7 +899,7 @@ watch(
 .timeline-choice-box {
     margin-top: 8px;
     border-top: 1px dashed rgba(148, 163, 184, 0.28);
-    padding-top: 8px;
+    padding-top: 6px;
 }
 
 .timeline-end-hint {
