@@ -35,7 +35,10 @@
                 />
                 <ReadModePanel
                     v-else
-                    :lines="readModeLines"
+                    :nodes="nodes"
+                    :edges="edges"
+                    :variables="variables"
+                    :entry-node-id="storyMeta.entryNodeId"
                     :is-dark-mode="darkModeEnabled"
                 />
             </div>
@@ -377,7 +380,6 @@ const validationResult = ref({ errors: [], warnings: [] });
 const lastSavedAt = ref("");
 const hasErrors = computed(() => validationResult.value.errors.length > 0);
 const hasWarnings = computed(() => validationResult.value.warnings.length > 0);
-const readModeLines = computed(() => buildReadModeLines());
 
 const edgeDraft = reactive({
     priority: 0,
@@ -1515,75 +1517,7 @@ function getOutgoingEdgesBySource(sourceId) {
         });
 }
 
-function toReadSpeaker(rawSpeaker) {
-    const s = String(rawSpeaker || "").trim();
-    return s || "旁白";
-}
 
-function toReadText(rawText) {
-    return String(rawText || "").trim();
-}
-
-function buildReadModeLines() {
-    const lines = [];
-    const entryId = String(storyMeta.value?.entryNodeId || "").trim();
-    if (!entryId) return lines;
-
-    const visited = new Set();
-    let currentId = entryId;
-    let guard = 0;
-
-    while (currentId && guard < 20000) {
-        guard += 1;
-        if (visited.has(currentId)) break;
-        visited.add(currentId);
-
-        const node = getNodeById(currentId);
-        if (!node) break;
-
-        if (node.type === "dialogue") {
-            const text = toReadText(node?.data?.textKey);
-            if (text) {
-                lines.push({
-                    nodeId: node.id,
-                    lineIndex: 0,
-                    speaker: toReadSpeaker(node?.data?.speakerId),
-                    text,
-                    kind: "dialogue",
-                });
-            }
-        } else if (node.type === "multidialogue") {
-            const speaker = toReadSpeaker(node?.data?.speakerId);
-            const rawLines = Array.isArray(node?.data?.lines)
-                ? node.data.lines
-                : [];
-            const mergedText = rawLines
-                .map((line) =>
-                    toReadText(typeof line === "string" ? line : line?.textKey),
-                )
-                .filter((text) => text.length > 0)
-                .join("\n");
-
-            if (mergedText) {
-                lines.push({
-                    nodeId: node.id,
-                    lineIndex: 0,
-                    speaker,
-                    text: mergedText,
-                    kind: "multidialogue",
-                });
-            }
-        }
-
-        if (node.type === "end") break;
-
-        const outgoing = getOutgoingEdgesBySource(node.id);
-        if (outgoing.length <= 0) break;
-        currentId = outgoing[0]?.target || "";
-    }
-
-    return lines;
-}
 
 function handleToggleFocusMode() {
     focusModeEnabled.value = !focusModeEnabled.value;
