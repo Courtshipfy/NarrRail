@@ -494,6 +494,10 @@ const selectedFolder = ref("all");
 const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
 const GLOBAL_CONFIG_CANDIDATE_PATHS = [
+    "globalconfig.nrstory",
+    "global-config.nrstory",
+    "globalconfig.narrrail.nrstory",
+    "global-config.narrrail.nrstory",
     "globalconfig.narrrail.yaml",
     "global-config.narrrail.yaml",
     "globalconfig.narrrail.yml",
