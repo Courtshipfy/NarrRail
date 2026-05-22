@@ -2,7 +2,7 @@
 
 [English](./README.en.md)
 
-NarrRail 是一个面向 AVG（Adventure / Visual Novel）制作流程的工具链，当前优先提供 **WebEditor 创作端**，并配套 **UE5.7 插件运行端**。
+NarrRail 是一个面向 AVG（Adventure / Visual Novel）制作流程的工具链，当前优先提供 **NarrRailEditor 创作端**，并配套 **UE5.7 插件运行端**。
 
 ---
 
