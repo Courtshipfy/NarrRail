@@ -52,12 +52,19 @@
                                 </template>
 
                                 <template v-else-if="item.kind === 'choice'">
-                                    <div class="line-row choice-row">
+                                    <div
+                                        class="line-row meta-row meta-row--choice"
+                                    >
                                         <span class="speaker"></span>
-                                        <span class="sep"></span>
-                                        <span class="text choice-content">
-                                            <span class="choice-arrow">→</span>
-                                            <span class="choice-text">{{
+                                        <span
+                                            class="sep meta-arrow meta-arrow--choice"
+                                        ></span>
+                                        <span class="text meta-content">
+                                            <span
+                                                class="meta-type meta-type--choice"
+                                                >[选择]</span
+                                            >
+                                            <span class="meta-text">{{
                                                 item.text
                                             }}</span>
                                         </span>
@@ -67,44 +74,82 @@
                                 <template
                                     v-else-if="item.kind === 'setvariable'"
                                 >
-                                    <div class="event-row">
-                                        <span class="tag tag-variable"
-                                            >变量</span
-                                        >
-                                        <span class="sep">：</span>
-                                        <span class="text">{{
-                                            item.text
-                                        }}</span>
+                                    <div
+                                        class="line-row meta-row meta-row--setvariable"
+                                    >
+                                        <span class="speaker"></span>
+                                        <span
+                                            class="sep meta-arrow meta-arrow--setvariable"
+                                        ></span>
+                                        <span class="text meta-content">
+                                            <span
+                                                class="meta-type meta-type--setvariable"
+                                                >[变量]</span
+                                            >
+                                            <span class="meta-text">{{
+                                                item.text
+                                            }}</span>
+                                        </span>
                                     </div>
                                 </template>
 
                                 <template v-else-if="item.kind === 'emitevent'">
-                                    <div class="event-row">
-                                        <span class="tag tag-event">事件</span>
-                                        <span class="sep">：</span>
-                                        <span class="text">{{
-                                            item.text
-                                        }}</span>
+                                    <div
+                                        class="line-row meta-row meta-row--emitevent"
+                                    >
+                                        <span class="speaker"></span>
+                                        <span
+                                            class="sep meta-arrow meta-arrow--emitevent"
+                                        ></span>
+                                        <span class="text meta-content">
+                                            <span
+                                                class="meta-type meta-type--emitevent"
+                                                >[事件]</span
+                                            >
+                                            <span class="meta-text">{{
+                                                item.text
+                                            }}</span>
+                                        </span>
                                     </div>
                                 </template>
 
                                 <template v-else-if="item.kind === 'jump'">
-                                    <div class="event-row">
-                                        <span class="tag tag-jump">跳转</span>
-                                        <span class="sep">：</span>
-                                        <span class="text">{{
-                                            item.text
-                                        }}</span>
+                                    <div
+                                        class="line-row meta-row meta-row--jump"
+                                    >
+                                        <span class="speaker"></span>
+                                        <span
+                                            class="sep meta-arrow meta-arrow--jump"
+                                        ></span>
+                                        <span class="text meta-content">
+                                            <span
+                                                class="meta-type meta-type--jump"
+                                                >[跳转]</span
+                                            >
+                                            <span class="meta-text">{{
+                                                item.text
+                                            }}</span>
+                                        </span>
                                     </div>
                                 </template>
 
                                 <template v-else-if="item.kind === 'end'">
-                                    <div class="event-row">
-                                        <span class="tag tag-end">结束</span>
-                                        <span class="sep">：</span>
-                                        <span class="text">{{
-                                            item.text
-                                        }}</span>
+                                    <div
+                                        class="line-row meta-row meta-row--end"
+                                    >
+                                        <span class="speaker"></span>
+                                        <span
+                                            class="sep meta-arrow meta-arrow--end"
+                                        ></span>
+                                        <span class="text meta-content">
+                                            <span
+                                                class="meta-type meta-type--end"
+                                                >[结束]</span
+                                            >
+                                            <span class="meta-text">{{
+                                                item.text
+                                            }}</span>
+                                        </span>
                                     </div>
                                 </template>
                             </div>
@@ -921,8 +966,13 @@ watch(
 
 .line-row,
 .event-row {
+    --speaker-col-width: 9ch;
+    --sep-col-width: 1.2ch;
     display: grid;
-    grid-template-columns: 9ch auto minmax(0, 1fr);
+    grid-template-columns: var(--speaker-col-width) var(--sep-col-width) minmax(
+            0,
+            1fr
+        );
     align-items: start;
     column-gap: 2px;
 }
@@ -946,19 +996,11 @@ watch(
     color: #1e3a8a;
 }
 
-.choice-arrow {
-    display: inline-block;
-    position: relative;
-    left: -0.72em;
-    align-self: center;
-    margin-right: 0;
-    font-size: 0.78em;
-    font-weight: 700;
-    color: rgba(110, 162, 216, 0.55);
-}
-
 .sep {
     color: #64748b;
+    display: inline-block;
+    width: var(--sep-col-width);
+    text-align: right;
 }
 
 .text {
@@ -976,8 +1018,34 @@ watch(
     font-weight: 800;
 }
 
-.preview-mode-root.is-dark-mode .choice-arrow {
+.preview-mode-root.is-dark-mode .meta-arrow,
+.preview-mode-root.is-dark-mode .meta-type {
     color: rgba(141, 183, 226, 0.62) !important;
+}
+
+.preview-mode-root.is-dark-mode .meta-arrow--choice,
+.preview-mode-root.is-dark-mode .meta-type--choice {
+    color: #ffcc00 !important;
+}
+
+.preview-mode-root.is-dark-mode .meta-arrow--setvariable,
+.preview-mode-root.is-dark-mode .meta-type--setvariable {
+    color: #af52de !important;
+}
+
+.preview-mode-root.is-dark-mode .meta-arrow--emitevent,
+.preview-mode-root.is-dark-mode .meta-type--emitevent {
+    color: #ff9500 !important;
+}
+
+.preview-mode-root.is-dark-mode .meta-arrow--jump,
+.preview-mode-root.is-dark-mode .meta-type--jump {
+    color: #007aff !important;
+}
+
+.preview-mode-root.is-dark-mode .meta-arrow--end,
+.preview-mode-root.is-dark-mode .meta-type--end {
+    color: #ff3b30 !important;
 }
 
 .preview-mode-root.is-dark-mode .sep {
@@ -999,9 +1067,46 @@ watch(
     font-weight: 800;
 }
 
-:global(body.dark-theme) .preview-mode-root .choice-arrow,
-:global(body[data-theme="dark"]) .preview-mode-root .choice-arrow {
+:global(body.dark-theme) .preview-mode-root .meta-arrow,
+:global(body.dark-theme) .preview-mode-root .meta-type,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type {
     color: rgba(141, 183, 226, 0.62) !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-arrow--choice,
+:global(body.dark-theme) .preview-mode-root .meta-type--choice,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--choice,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type--choice {
+    color: #ffcc00 !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-arrow--setvariable,
+:global(body.dark-theme) .preview-mode-root .meta-type--setvariable,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--setvariable,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type--setvariable {
+    color: #af52de !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-arrow--emitevent,
+:global(body.dark-theme) .preview-mode-root .meta-type--emitevent,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--emitevent,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type--emitevent {
+    color: #ff9500 !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-arrow--jump,
+:global(body.dark-theme) .preview-mode-root .meta-type--jump,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--jump,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type--jump {
+    color: #007aff !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-arrow--end,
+:global(body.dark-theme) .preview-mode-root .meta-type--end,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--end,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type--end {
+    color: #ff3b30 !important;
 }
 
 :global(body.dark-theme) .preview-mode-root .sep,
@@ -1014,81 +1119,63 @@ watch(
     color: #b8cde0 !important;
 }
 
-.tag {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    justify-self: end;
-    align-self: start;
-    min-width: 2.4em;
-    max-width: 11ch;
-    white-space: nowrap;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    border-radius: 6px;
-    padding: 3px 0.45em;
-    color: #334155;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    background: rgba(148, 163, 184, 0.12);
-}
-
-.tag-choice {
-    color: #6ea2d8;
-    border: none;
-    background: transparent;
-    padding: 0;
-    min-width: 2.2em;
-}
-
-.tag-variable {
-    color: #6d28d9;
-    border-color: rgba(124, 58, 237, 0.32);
-    background: rgba(124, 58, 237, 0.14);
-}
-
-.tag-event {
-    color: #9a3412;
-    border-color: rgba(234, 88, 12, 0.3);
-    background: rgba(234, 88, 12, 0.14);
-}
-
-.tag-jump {
-    color: #0f766e;
-    border-color: rgba(13, 148, 136, 0.3);
-    background: rgba(13, 148, 136, 0.14);
-}
-
-.tag-end {
-    color: #9f1239;
-    border-color: rgba(190, 24, 93, 0.3);
-    background: rgba(190, 24, 93, 0.12);
-}
-
-.event-row .sep {
-    align-self: start;
-}
-
-.event-row .text {
-    align-self: start;
-}
-
-.choice-content {
+.meta-content {
     grid-column: 3;
     margin-left: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.28em;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    column-gap: 0.34em;
     min-width: 0;
     font-size: 0.94em;
     font-weight: 650;
     letter-spacing: 0.005em;
 }
 
-.choice-text {
+.meta-arrow {
+    white-space: nowrap;
+    justify-self: end;
+    width: auto;
+    color: rgba(110, 162, 216, 0.62);
+    font-weight: 700;
+}
+
+.meta-type {
+    white-space: nowrap;
+    color: rgba(110, 162, 216, 0.62);
+    font-weight: 700;
+}
+
+.meta-arrow--choice,
+.meta-type--choice {
+    color: #ffcc00;
+}
+
+.meta-arrow--setvariable,
+.meta-type--setvariable {
+    color: #af52de;
+}
+
+.meta-arrow--emitevent,
+.meta-type--emitevent {
+    color: #ff9500;
+}
+
+.meta-arrow--jump,
+.meta-type--jump {
+    color: #007aff;
+}
+
+.meta-arrow--end,
+.meta-type--end {
+    color: #ff3b30;
+}
+
+.meta-text {
     min-width: 0;
-    flex: 1;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .vars-list {
