@@ -122,7 +122,7 @@ export function parseGlobalConfigFromYAML(yamlString) {
 
 export function downloadGlobalConfigYAML(
   config = {},
-  fileName = "global-config.narrrail.yaml",
+  fileName = "global-config.nrstory",
 ) {
   const yamlString = serializeGlobalConfigToYAML(config);
   const blob = new Blob([yamlString], { type: "text/yaml;charset=utf-8" });
