@@ -355,12 +355,6 @@ const isSyncingGlobalConfigFromEditor = ref(false);
 const GLOBAL_CONFIG_CANDIDATE_PATHS = [
     "globalconfig.nrstory",
     "global-config.nrstory",
-    "globalconfig.narrrail.nrstory",
-    "global-config.narrrail.nrstory",
-    "globalconfig.narrrail.yaml",
-    "global-config.narrrail.yaml",
-    "globalconfig.narrrail.yml",
-    "global-config.narrrail.yml",
 ];
 const globalConfigRepoPathFromEditor = ref(GLOBAL_CONFIG_CANDIDATE_PATHS[0]);
 
