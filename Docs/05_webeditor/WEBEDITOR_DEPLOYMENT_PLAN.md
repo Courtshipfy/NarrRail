@@ -1,6 +1,23 @@
 # NarrRail WebEditor 云端认证与存储部署方案
 
+> 更新：2026-05-22
+> 文档定位：部署与演进方案（含当前落地现状快照）
+
 ## 1. 文档目标
+
+## 1.1 当前实现快照（2026-05）
+
+已落地：
+- WebEditor 图编辑主流程（节点/边/属性/校验/导入导出）
+- Script Library 页（脚本库、仓库选择、全局配置编辑）
+- GitHub 登录与仓库接口打通（基于 `api/auth/*` 与 `api/github/*`）
+- 预览模式（原阅读模式）运行时推进能力
+- 全局配置文件命名切换：`globalconfig.nrstory` / `global-config.nrstory`
+
+进行中 / 待完善：
+- 完整云端数据库主存储（当前仍有 localStorage 兜底逻辑）
+- 冲突解决 UX（版本冲突流程细化）
+- 分享与协作能力（只读链接等）
 
 本方案用于指导 `NarrRail.WebEditor` 从“本地编辑 + localStorage”升级为“云端登录 + 持久化存储 + GitHub 绑定”的可用线上版本，满足以下目标：
 
@@ -12,6 +29,8 @@
 ---
 
 ## 2. 目标能力范围（MVP）
+
+> 说明：以下为“线上产品化”目标，不等同于当前本地/仓库直连模式的已实现范围。
 
 ### 2.1 必做（MVP）
 1. GitHub OAuth 登录
@@ -220,6 +239,12 @@ OAuth 的 `client_secret` 不能暴露在前端。
 ---
 
 ## 10. GitHub 绑定与文件同步策略
+
+## 10.0 当前文件后缀约定（已生效）
+
+- 剧情脚本：`.nrstory`
+- 全局配置：`.nrstory`（推荐文件名：`globalconfig.nrstory` / `global-config.nrstory`）
+- 旧的 `*.narrrail.yaml/yml` 与 `*.narrrail.nrstory` 不再作为默认路径
 
 ## 10.1 导出到 GitHub（建议路径）
 - `stories/<storyId>.nrstory`

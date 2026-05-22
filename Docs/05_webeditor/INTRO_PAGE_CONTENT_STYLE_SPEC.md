@@ -1,4 +1,7 @@
-# NarrRail 介绍页面内容与样式规范（Draft v0.3）
+# NarrRail 介绍页面内容与样式规范（Draft v0.4）
+
+> 更新：2026-05-22
+> 适配现状：WebEditor 已具备图编辑 + 预览双模式、脚本库与全局配置能力
 
 适用范围：`Tools/NarrRail.WebEditor/src/components/OverviewPage.vue`
 
@@ -46,11 +49,15 @@
 
 ### 3.1 WebEditor 能力区（必须覆盖）
 
-1. 节点类型支持。
+1. 节点类型支持（Dialogue / Choice / Jump / SetVariable / EmitEvent / End）。
 2. 编辑交互能力（拖拽、连线、右键建点、自动排布）。
-3. 内容编辑效率能力（多行对话、快捷新增、排序、阅读审校）。
-4. 数据能力（导入导出、实时校验、手动校验、自动保存）。
+3. 内容编辑效率能力（多行对话、条件编辑、预览模式审校）。
+4. 数据能力（`.nrstory` 导入导出、实时校验、手动校验、自动保存）。
 5. 协作入口（脚本库、全局配置、仓库同步）。
+
+补充：
+- 预览模式文案建议强调“运行语义预览”，而非静态阅读。
+- 全局配置文件命名需使用 `.nrstory`（`globalconfig.nrstory` / `global-config.nrstory`）。
 
 ### 3.2 UE 插件能力区（必须覆盖）
 
@@ -63,7 +70,7 @@
 ### 3.3 Workflow 区（必须是四步）
 
 1. Web 创作与校验
-2. 导出 YAML
+2. 导出 `.nrstory`
 3. UE 导入并执行
 4. 调试与回流迭代
 
@@ -107,7 +114,7 @@
 
 1. 先结果后机制：先写能力结果，再写实现方式。
 2. 每条描述尽量 1-2 行，避免过长段落。
-3. 术语统一：`WebEditor`、`YAML`、`Runtime`、`Story Asset`、`Blueprint`、`PIE`。
+3. 术语统一：`WebEditor`、`.nrstory`、`Runtime`、`Story Asset`、`Blueprint`、`PIE`。
 
 ## 8. 验收标准（DoD）
 
