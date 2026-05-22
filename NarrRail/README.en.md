@@ -1,28 +1,40 @@
 # NarrRail
 
-UE5.7 plugin for AVG (Adventure/Visual Novel) games, providing dialogue runtime, script import/export, and flow debugging capabilities.
+[中文](./README.md)
 
-## Features
+NarrRail is an AVG (Adventure / Visual Novel) toolchain. The current primary entry is the **WebEditor authoring side**, backed by the **UE5.7 plugin runtime side**.
 
-- ✅ **Runtime Core**: State machine, variables, conditions, actions
-- ✅ **Blueprint API**: Full event system and helper functions
-- ✅ **Script Validation**: C# CLI tool for YAML script validation
-- ✅ **YAML Import**: Drag-and-drop YAML scripts into UE Content Browser
-- ✅ **Debugger**: Screen HUD and console commands
-- 🚧 **Save/Load**: Planned
-- ✅ **Visual Editor (WebEditor)**: Implemented MVP
-- 🚧 **YAML Export**: In progress
+---
 
-## Structure
+## 1. WebEditor (Primary Entry)
 
-- `NarrRail/`: Plugin source
-  - `Source/NarrRail/`: Runtime module (C++)
-  - `Source/NarrRailEditor/`: Editor module (C++)
-- `HostProject/`: Development host project
-- `Tools/NarrRail.Tooling/`: C# CLI tools for script validation
-- `Docs/`: Documentation
+WebEditor is the most mature entry point for story authoring, structural validation, and preview review.
 
-## WebEditor Docs Hub
+### 1.1 What you can do
+
+- Graph editing (`Dialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `End`)
+- `.nrstory` import/export
+- Real-time + manual validation
+- Local autosave fallback
+- Preview mode with runtime-like execution flow (including exhaustive choice mode)
+
+### 1.2 Quick Start (WebEditor)
+
+Online entry:
+
+- https://narr-rail.courtship.top
+
+Recommended flow:
+
+1. Open WebEditor online, sign in, and enter Script Library
+2. Create/open a `.nrstory`, then edit nodes and run validation
+3. Use Preview Mode to review execution flow (including branches/end paths)
+4. Export `.nrstory` and commit to repository (optional)
+5. Import it into UE and validate in PIE
+
+> Local dev entry (`npm run dev`) is intended for editor feature development/debugging, not daily authoring.
+
+### 1.3 WebEditor Docs Hub
 
 - Chinese (default): `Tools/NarrRail.WebEditor/README.md`
 - English: `Tools/NarrRail.WebEditor/README.en.md`
@@ -30,58 +42,71 @@ UE5.7 plugin for AVG (Adventure/Visual Novel) games, providing dialogue runtime,
 - Deployment Plan: `Docs/05_webeditor/WEBEDITOR_DEPLOYMENT_PLAN.md`
 - Intro Page Spec: `Docs/05_webeditor/INTRO_PAGE_CONTENT_STYLE_SPEC.md`
 
-## Quick Start
+---
 
-### 1) Script Validation (CLI)
+## 2. UE Plugin (Runtime Side)
+
+The UE plugin is responsible for runtime execution, Blueprint integration, debugging, and asset import.
+
+### 2.1 Current capabilities
+
+- ✅ Runtime Core: state machine, variables, conditions, actions
+- ✅ Blueprint API: event system and helper functions
+- ✅ YAML Import: drag-and-drop script import into UE Content Browser
+- ✅ Debugger: HUD and console commands
+- 🚧 Save/Load: planned
+- 🚧 YAML Export: in progress
+
+### 2.2 UE-side Integration Flow
+
+1. Export the latest `.nrstory` from WebEditor
+2. Open `HostProject/NarrRailHost.uproject` with UE5.7
+3. Import/sync script into `UNarrRailStoryAsset`
+4. Run `HostProject/Build-HostProject.cmd` if plugin rebuild is needed
+5. Validate story execution in PIE with debugger tools
+
+### 2.3 Script Validation (CLI)
 
 ```bash
 cd Tools/NarrRail.Tooling
 dotnet run --project src/NarrRail.Tooling -- validate affinity_demo.nrstory
 ```
 
-See `Tools/NarrRail.Tooling/README.md` for CLI usage.
+See `Tools/NarrRail.Tooling/README.md`.
 
-### 2) Import Script to UE
+---
 
-1. Open UE Editor with `HostProject/NarrRailHost.uproject`
-2. Drag `Tools/NarrRail.Tooling/affinity_demo.nrstory` into Content Browser
-3. A `UNarrRailStoryAsset` will be automatically created
+## 3. Example Scripts
 
-### 3) Blueprint Usage
+- `Tools/NarrRail.Tooling/test_valid.nrstory` - minimal valid sample
+- `Tools/NarrRail.Tooling/affinity_demo.nrstory` - complete affinity branching sample
 
-See `Docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md`.
+---
 
-### 4) Debugging
+## 4. Core Documentation
 
-See `Docs/02_runtime/DEBUGGER_GUIDE.md`.
+- `Docs/02_runtime/SCRIPT_FORMAT.md` - script format specification
+- `Docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md` - Blueprint quick start
+- `Docs/02_runtime/DEBUGGER_GUIDE.md` - debugger guide
+- `Docs/01_architecture/TECH_ARCHITECTURE.md` - technical architecture
+- `Docs/06_planning/TASK_PLAN.md` - WBS task plan
 
-## Example Scripts
+---
 
-- `Tools/NarrRail.Tooling/test_valid.nrstory` - Minimal valid script
-- `Tools/NarrRail.Tooling/affinity_demo.nrstory` - Complete affinity system demo
+## 5. Repository Structure
 
-## Core Documentation
+- `NarrRail/` plugin source
+  - `Source/NarrRail/` runtime module (C++)
+  - `Source/NarrRailEditor/` editor module (C++)
+- `HostProject/` development host project
+- `Tools/NarrRail.WebEditor/` web editor
+- `Tools/NarrRail.Tooling/` C# CLI tooling
+- `Docs/` project documentation
 
-- `Docs/02_runtime/SCRIPT_FORMAT.md` - Script format specification
-- `Docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md` - Blueprint quick start guide
-- `Docs/02_runtime/DEBUGGER_GUIDE.md` - Debugger usage guide
-- `Docs/01_architecture/TECH_ARCHITECTURE.md` - Technical architecture
-- `Docs/06_planning/TASK_PLAN.md` - WBS task checklist
+---
 
-## Install (Project Plugin)
+## 6. Language Strategy
 
-1. Copy the `NarrRail` folder into your UE project at `Plugins/NarrRail`.
-2. Generate project files.
-3. Build the project and enable the plugin in the editor.
-
-## Develop With Host Project
-
-1. Open `HostProject/NarrRailHost.uproject` in UE5.7.
-2. Run `HostProject/Build-HostProject.cmd` to compile.
-3. Iterate on `NarrRail/Source/...` and rebuild.
-
-## Language Strategy
-
-- **C++**: Runtime and editor core functionality
-- **C#**: Script processing, validation, CLI tools
-- **Blueprint**: Business integration layer only (NOT for core logic)
+- **C++**: runtime and editor core
+- **C#**: script processing, validation, CLI tooling
+- **Blueprint**: integration layer only (not core execution logic)

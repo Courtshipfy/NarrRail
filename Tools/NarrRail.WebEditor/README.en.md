@@ -14,7 +14,19 @@ It supports graph editing, `.nrstory` import/export, validation, autosave, and r
 
 ## Quick Start
 
-### Development
+### Online Entry (Default)
+
+- https://narr-rail.courtship.top
+
+### Recommended Usage Flow
+
+1. Sign in and enter Script Library
+2. Create/open a `.nrstory`
+3. Edit nodes and run validation
+4. Use Preview Mode to review flow
+5. Export `.nrstory` and bring it back to UE
+
+### Local Development (for maintainers)
 
 ```bash
 cd Tools/NarrRail.WebEditor

@@ -14,7 +14,19 @@
 
 ## 快速开始
 
-### 开发模式
+### 线上入口（默认）
+
+- https://narr-rail.courtship.top
+
+### 使用流程（推荐）
+
+1. 登录后进入脚本库
+2. 新建/打开 `.nrstory`
+3. 编辑节点并完成校验
+4. 使用预览模式审校剧情流程
+5. 导出 `.nrstory` 并回流到 UE
+
+### 本地开发（仅开发者）
 
 ```bash
 cd Tools/NarrRail.WebEditor
@@ -22,18 +34,11 @@ npm install
 npm run dev -- --host
 ```
 
-常见访问地址：
-
-- `http://localhost:5173/`
-- `http://<你的局域网IP>:5173/`
-
-### 生产构建
+生产构建：
 
 ```bash
 npm run build
 ```
-
-构建输出位于 `dist/`。
 
 ## 当前功能（实现状态）
 
