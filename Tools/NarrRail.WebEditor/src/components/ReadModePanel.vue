@@ -52,11 +52,15 @@
                                 </template>
 
                                 <template v-else-if="item.kind === 'choice'">
-                                    <div class="event-row">
-                                        <span class="choice-label">→</span>
-                                        <span class="text choice-content">{{
-                                            item.text
-                                        }}</span>
+                                    <div class="line-row choice-row">
+                                        <span class="speaker"></span>
+                                        <span class="sep"></span>
+                                        <span class="text choice-content">
+                                            <span class="choice-arrow">→</span>
+                                            <span class="choice-text">{{
+                                                item.text
+                                            }}</span>
+                                        </span>
                                     </div>
                                 </template>
 
@@ -355,6 +359,10 @@ function setEnded(errorText = "") {
     state.error = errorText || "";
 }
 
+function handleBranchEnd() {
+    setEnded();
+}
+
 function restartPreview() {
     state.timeline = [];
     state.pendingChoices = [];
@@ -613,11 +621,7 @@ function handleTimelineAdvance() {
     }
 
     if (state.status === "ended") {
-        restartPreview();
-        if (state.status === "running") {
-            advanceUntilPause();
-            scrollTimelineToBottom();
-        }
+        return;
     }
 }
 
@@ -868,16 +872,13 @@ watch(
     color: #1e3a8a;
 }
 
-.choice-label {
+.choice-arrow {
     display: inline-block;
-    width: 9ch;
-    max-width: 9ch;
-    text-align: right;
+    position: relative;
+    left: -0.72em;
     align-self: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.72em;
+    margin-right: 0;
+    font-size: 0.78em;
     font-weight: 700;
     color: rgba(110, 162, 216, 0.55);
 }
@@ -901,7 +902,7 @@ watch(
     font-weight: 800;
 }
 
-.preview-mode-root.is-dark-mode .choice-label {
+.preview-mode-root.is-dark-mode .choice-arrow {
     color: rgba(141, 183, 226, 0.62) !important;
 }
 
@@ -924,8 +925,8 @@ watch(
     font-weight: 800;
 }
 
-:global(body.dark-theme) .preview-mode-root .choice-label,
-:global(body[data-theme="dark"]) .preview-mode-root .choice-label {
+:global(body.dark-theme) .preview-mode-root .choice-arrow,
+:global(body[data-theme="dark"]) .preview-mode-root .choice-arrow {
     color: rgba(141, 183, 226, 0.62) !important;
 }
 
@@ -1001,10 +1002,19 @@ watch(
 
 .choice-content {
     grid-column: 3;
-    margin-left: 0.6em;
-    font-size: 0.82em;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    margin-left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28em;
+    min-width: 0;
+    font-size: 0.94em;
+    font-weight: 650;
+    letter-spacing: 0.005em;
+}
+
+.choice-text {
+    min-width: 0;
+    flex: 1;
 }
 
 .vars-list {
