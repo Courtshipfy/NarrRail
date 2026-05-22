@@ -494,10 +494,8 @@ const selectedFolder = ref("all");
 const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
 const GLOBAL_CONFIG_CANDIDATE_PATHS = [
-    "globalconfig.narrrail.yaml",
-    "global-config.narrrail.yaml",
-    "globalconfig.narrrail.yml",
-    "global-config.narrrail.yml",
+    "globalconfig.nrstory",
+    "global-config.nrstory",
 ];
 const globalConfigRepoPath = ref(GLOBAL_CONFIG_CANDIDATE_PATHS[0]);
 const LOCAL_GLOBAL_CONFIG_STORAGE_KEY = "narrrail_local_global_config";
