@@ -28,11 +28,40 @@ It supports graph editing, `.nrstory` import/export, validation, autosave, and r
 
 ### Local Development (for maintainers)
 
+Requirements:
+
+- Node.js `>= 20` (LTS recommended)
+- npm `>= 9`
+
+Cross-platform rule:
+
+- Do not commit `node_modules`, and do not copy it between Windows and macOS
+- Reinstall dependencies per machine after switching platforms (`npm ci` or `npm install`)
+
+macOS / Linux:
+
 ```bash
 cd Tools/NarrRail.WebEditor
-npm install
-npm run dev -- --host
+npm ci
+npm run dev -- --host 127.0.0.1
 ```
+
+Windows (PowerShell / CMD):
+
+```bash
+cd Tools/NarrRail.WebEditor
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+Default URL: `http://127.0.0.1:5173/`
+
+Common issues:
+
+- `Cannot find module @rollup/rollup-<platform>`:
+  remove `node_modules` and run `npm ci` again
+- `node_modules/.bin/vite: Permission denied` (macOS/Linux):
+  run `chmod +x node_modules/.bin/vite` and retry
 
 ### Build
 

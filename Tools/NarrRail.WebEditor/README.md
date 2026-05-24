@@ -28,11 +28,40 @@
 
 ### 本地开发（仅开发者）
 
+环境要求：
+
+- Node.js `>= 20`（建议 LTS）
+- npm `>= 9`
+
+重要约束（跨平台稳定启动）：
+
+- `node_modules` 不要提交到 Git，也不要在 Win/Mac 之间拷贝复用
+- 切换平台后请在本机重新安装依赖（`npm ci` 或 `npm install`）
+
+macOS / Linux：
+
 ```bash
 cd Tools/NarrRail.WebEditor
-npm install
-npm run dev -- --host
+npm ci
+npm run dev -- --host 127.0.0.1
 ```
+
+Windows（PowerShell / CMD）：
+
+```bash
+cd Tools/NarrRail.WebEditor
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+默认地址：`http://127.0.0.1:5173/`
+
+常见问题：
+
+- `Cannot find module @rollup/rollup-<platform>`：
+  删除 `node_modules` 后重新执行 `npm ci`
+- `node_modules/.bin/vite: Permission denied`（macOS/Linux）：
+  执行 `chmod +x node_modules/.bin/vite` 后重试
 
 生产构建：
 
