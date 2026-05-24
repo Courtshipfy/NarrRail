@@ -398,6 +398,8 @@ let globalConfigSyncTimer = null;
 let pendingValidationAfterDrag = false;
 let pendingMockRepoPersistAfterDrag = false;
 let pendingEdgeStyleAfterDrag = false;
+let pendingDragGraphStateDetail = null;
+let dragGraphStateRafId = 0;
 
 function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -445,6 +447,25 @@ function persistCurrentMockRepoScriptToLocal() {
         variables: safeClone(variables.value),
         nodes: safeClone(nodes.value),
         edges: safeClone(edges.value),
+    });
+}
+
+function clearPendingDragGraphStateFlush() {
+    if (dragGraphStateRafId) {
+        cancelAnimationFrame(dragGraphStateRafId);
+        dragGraphStateRafId = 0;
+    }
+}
+
+function scheduleDragGraphStateFlush() {
+    if (dragGraphStateRafId) return;
+
+    dragGraphStateRafId = requestAnimationFrame(() => {
+        dragGraphStateRafId = 0;
+        const detail = pendingDragGraphStateDetail;
+        pendingDragGraphStateDetail = null;
+        if (!detail) return;
+        applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
     });
 }
 
@@ -504,11 +525,20 @@ function handleNodeDragStart() {
     if (isNodeDragInProgress.value) return;
     isNodeDragInProgress.value = true;
     pushHistorySnapshot();
+    pendingDragGraphStateDetail = null;
+    clearPendingDragGraphStateFlush();
 }
 
 function handleNodeDragStop() {
     isNodeDragInProgress.value = false;
     recentDragSuppressUntil.value = Date.now() + 280;
+
+    clearPendingDragGraphStateFlush();
+    if (pendingDragGraphStateDetail) {
+        const detail = pendingDragGraphStateDetail;
+        pendingDragGraphStateDetail = null;
+        applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
+    }
 
     if (pendingValidationAfterDrag) {
         pendingValidationAfterDrag = false;
@@ -1083,20 +1113,19 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
     } else {
         applyEdgeVisualStyles();
     }
-}
 
-function handleNodesChange(event) {
-    const nextNodes = Array.isArray(event.detail) ? event.detail : [];
-    applyGraphStateSnapshot(nextNodes, edges.value);
-}
-
-function handleEdgesChange(event) {
-    const incomingEdges = Array.isArray(event.detail) ? event.detail : [];
-    applyGraphStateSnapshot(nodes.value, incomingEdges);
 }
 
 function handleGraphStateChange(event) {
     const detail = event?.detail || {};
+    if (isNodeDragInProgress.value) {
+        pendingDragGraphStateDetail = detail;
+        scheduleDragGraphStateFlush();
+        return;
+    }
+
+    pendingDragGraphStateDetail = null;
+    clearPendingDragGraphStateFlush();
     applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
 }
 
@@ -1881,6 +1910,8 @@ onUnmounted(() => {
         clearTimeout(validationDebounceTimer.value);
         validationDebounceTimer.value = null;
     }
+    clearPendingDragGraphStateFlush();
+    pendingDragGraphStateDetail = null;
     window.removeEventListener("node-click", handleNodeClick);
     window.removeEventListener("edge-click", handleEdgeClick);
     window.removeEventListener("graph-state-change", handleGraphStateChange);
