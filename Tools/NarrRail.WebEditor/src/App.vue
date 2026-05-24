@@ -395,6 +395,9 @@ const VALID_LOGICS = new Set(["All", "Any", "Not"]);
 let autoSaveTimer = null;
 let autoSaveDirty = false;
 let globalConfigSyncTimer = null;
+let pendingValidationAfterDrag = false;
+let pendingMockRepoPersistAfterDrag = false;
+let pendingEdgeStyleAfterDrag = false;
 
 function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -427,6 +430,22 @@ function saveLocalScriptContent(storageKey, payload) {
     } catch {
         // ignore local storage failures
     }
+}
+
+function persistCurrentMockRepoScriptToLocal() {
+    const entry = selectedScriptEntry.value;
+    if (!entry || entry.source !== "mock-repository") return;
+
+    const storageKey =
+        entry.localStorageKey || getLocalScriptStorageKeyByPath(entry.path);
+    if (!storageKey) return;
+
+    saveLocalScriptContent(storageKey, {
+        meta: safeClone(storyMeta.value),
+        variables: safeClone(variables.value),
+        nodes: safeClone(nodes.value),
+        edges: safeClone(edges.value),
+    });
 }
 
 function createStateSnapshot() {
@@ -490,10 +509,48 @@ function handleNodeDragStart() {
 function handleNodeDragStop() {
     isNodeDragInProgress.value = false;
     recentDragSuppressUntil.value = Date.now() + 280;
+
+    if (pendingValidationAfterDrag) {
+        pendingValidationAfterDrag = false;
+        scheduleRealtimeValidation();
+    }
+
+    if (pendingMockRepoPersistAfterDrag) {
+        pendingMockRepoPersistAfterDrag = false;
+        persistCurrentMockRepoScriptToLocal();
+    }
+
+    if (pendingEdgeStyleAfterDrag) {
+        pendingEdgeStyleAfterDrag = false;
+        applyEdgeVisualStyles();
+    }
+
+    markAutoSaveDirty();
 }
 
 function isDeepEqual(a, b) {
     return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function hasNodePositionChanged(nextNodes, currentNodes) {
+    if (nextNodes.length !== currentNodes.length) return true;
+
+    const byId = new Map();
+    currentNodes.forEach((node) => {
+        byId.set(node.id, node);
+    });
+
+    for (const nextNode of nextNodes) {
+        const currentNode = byId.get(nextNode.id);
+        if (!currentNode) return true;
+        if (nextNode.type !== currentNode.type) return true;
+
+        const nextPos = nextNode.position || {};
+        const curPos = currentNode.position || {};
+        if (nextPos.x !== curPos.x || nextPos.y !== curPos.y) return true;
+    }
+
+    return false;
 }
 
 function normalizeEdge(edge) {
@@ -973,18 +1030,30 @@ function handleEdgeClick(event) {
 function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
     const nextNodes = Array.isArray(nextNodesInput) ? nextNodesInput : [];
     const nextEdgesRaw = Array.isArray(nextEdgesInput) ? nextEdgesInput : [];
-    const sanitizedEdges = sanitizeEdges(nextEdgesRaw, nextNodes);
+    const isDragging = isNodeDragInProgress.value;
+    const sanitizedEdges = isDragging
+        ? edges.value
+        : sanitizeEdges(nextEdgesRaw, nextNodes);
 
-    const shouldUpdateNodes = !isDeepEqual(nextNodes, nodes.value);
-    const shouldUpdateEdges = !isDeepEqual(sanitizedEdges, edges.value);
+    const shouldUpdateNodes = isDragging
+        ? hasNodePositionChanged(nextNodes, nodes.value)
+        : !isDeepEqual(nextNodes, nodes.value);
+    const shouldUpdateEdges = isDragging
+        ? false
+        : !isDeepEqual(sanitizedEdges, edges.value);
 
     if (shouldUpdateNodes || shouldUpdateEdges) {
-        if (!isNodeDragInProgress.value) {
+        if (!isDragging) {
             pushHistorySnapshot();
         }
 
         if (shouldUpdateNodes) {
-            nodes.value = safeClone(nextNodes);
+            nodes.value = isDragging
+                ? nextNodes.map((node) => ({
+                      ...node,
+                      position: { ...(node.position || {}) },
+                  }))
+                : safeClone(nextNodes);
         }
 
         if (shouldUpdateEdges) {
@@ -992,14 +1061,14 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
         }
     }
 
-    if (selectedNode.value) {
+    if (!isDragging && selectedNode.value) {
         const latestNode = nodes.value.find(
             (n) => n.id === selectedNode.value.id,
         );
         selectedNode.value = latestNode ? safeClone(latestNode) : null;
     }
 
-    if (selectedEdge.value) {
+    if (!isDragging && selectedEdge.value) {
         const latestEdge = edges.value.find(
             (e) => e.id === selectedEdge.value.id,
         );
@@ -1009,7 +1078,11 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
         syncEdgeDraftFromSelection();
     }
 
-    applyEdgeVisualStyles();
+    if (isDragging) {
+        pendingEdgeStyleAfterDrag = true;
+    } else {
+        applyEdgeVisualStyles();
+    }
 }
 
 function handleNodesChange(event) {
@@ -1789,8 +1862,6 @@ onMounted(() => {
 
     window.addEventListener("node-click", handleNodeClick);
     window.addEventListener("edge-click", handleEdgeClick);
-    window.addEventListener("nodes-change", handleNodesChange);
-    window.addEventListener("edges-change", handleEdgesChange);
     window.addEventListener("graph-state-change", handleGraphStateChange);
     window.addEventListener("node-drag-start", handleNodeDragStart);
     window.addEventListener("node-drag-stop", handleNodeDragStop);
@@ -1812,8 +1883,6 @@ onUnmounted(() => {
     }
     window.removeEventListener("node-click", handleNodeClick);
     window.removeEventListener("edge-click", handleEdgeClick);
-    window.removeEventListener("nodes-change", handleNodesChange);
-    window.removeEventListener("edges-change", handleEdgesChange);
     window.removeEventListener("graph-state-change", handleGraphStateChange);
     window.removeEventListener("node-drag-start", handleNodeDragStart);
     window.removeEventListener("node-drag-stop", handleNodeDragStop);
@@ -1822,7 +1891,13 @@ onUnmounted(() => {
 
 watch(
     () => [nodes.value, edges.value, storyMeta.value.entryNodeId],
-    () => scheduleRealtimeValidation(),
+    () => {
+        if (isNodeDragInProgress.value) {
+            pendingValidationAfterDrag = true;
+            return;
+        }
+        scheduleRealtimeValidation();
+    },
     { deep: true, immediate: true },
 );
 
@@ -1847,6 +1922,7 @@ watch(
         presetSpeakers.value,
     ],
     () => {
+        if (isNodeDragInProgress.value) return;
         markAutoSaveDirty();
     },
     { deep: true },
@@ -1862,19 +1938,11 @@ watch(
         edges.value,
     ],
     () => {
-        const entry = selectedScriptEntry.value;
-        if (!entry || entry.source !== "mock-repository") return;
-
-        const storageKey =
-            entry.localStorageKey || getLocalScriptStorageKeyByPath(entry.path);
-        if (!storageKey) return;
-
-        saveLocalScriptContent(storageKey, {
-            meta: safeClone(storyMeta.value),
-            variables: safeClone(variables.value),
-            nodes: safeClone(nodes.value),
-            edges: safeClone(edges.value),
-        });
+        if (isNodeDragInProgress.value) {
+            pendingMockRepoPersistAfterDrag = true;
+            return;
+        }
+        persistCurrentMockRepoScriptToLocal();
     },
     { deep: true },
 );
