@@ -63,6 +63,27 @@ npm run dev -- --host 127.0.0.1
 - `node_modules/.bin/vite: Permission denied`（macOS/Linux）：
   执行 `chmod +x node_modules/.bin/vite` 后重试
 
+性能基线（本地开发）：
+
+1. 启动本地服务并打开编辑器页面
+2. 在浏览器 Console 执行：
+
+```js
+await window.__narrrailBench.runGraphSyncBenchmark()
+```
+
+可选参数：
+
+```js
+await window.__narrrailBench.runGraphSyncBenchmark({
+  iterations: 300,
+  moveEvery: 3,
+  shiftPx: 1.5
+})
+```
+
+输出项包含 `averageMs / p95Ms / p99Ms`，可用于优化前后对比。
+
 生产构建：
 
 ```bash

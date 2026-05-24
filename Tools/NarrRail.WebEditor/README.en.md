@@ -63,6 +63,27 @@ Common issues:
 - `node_modules/.bin/vite: Permission denied` (macOS/Linux):
   run `chmod +x node_modules/.bin/vite` and retry
 
+Performance baseline (local dev):
+
+1. Start the local dev server and open the editor page
+2. Run in browser console:
+
+```js
+await window.__narrrailBench.runGraphSyncBenchmark()
+```
+
+Optional parameters:
+
+```js
+await window.__narrrailBench.runGraphSyncBenchmark({
+  iterations: 300,
+  moveEvery: 3,
+  shiftPx: 1.5
+})
+```
+
+The output includes `averageMs / p95Ms / p99Ms` for before/after optimization comparisons.
+
 ### Build
 
 ```bash

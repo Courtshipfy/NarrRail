@@ -395,6 +395,11 @@ const VALID_LOGICS = new Set(["All", "Any", "Not"]);
 let autoSaveTimer = null;
 let autoSaveDirty = false;
 let globalConfigSyncTimer = null;
+let pendingValidationAfterDrag = false;
+let pendingMockRepoPersistAfterDrag = false;
+let pendingEdgeStyleAfterDrag = false;
+let pendingDragGraphStateDetail = null;
+let dragGraphStateRafId = 0;
 
 function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -427,6 +432,116 @@ function saveLocalScriptContent(storageKey, payload) {
     } catch {
         // ignore local storage failures
     }
+}
+
+function persistCurrentMockRepoScriptToLocal() {
+    const entry = selectedScriptEntry.value;
+    if (!entry || entry.source !== "mock-repository") return;
+
+    const storageKey =
+        entry.localStorageKey || getLocalScriptStorageKeyByPath(entry.path);
+    if (!storageKey) return;
+
+    saveLocalScriptContent(storageKey, {
+        meta: safeClone(storyMeta.value),
+        variables: safeClone(variables.value),
+        nodes: safeClone(nodes.value),
+        edges: safeClone(edges.value),
+    });
+}
+
+function percentile(sortedValues, ratio) {
+    if (!Array.isArray(sortedValues) || sortedValues.length === 0) return 0;
+    const clamped = Math.min(Math.max(ratio, 0), 1);
+    const index = Math.floor((sortedValues.length - 1) * clamped);
+    return sortedValues[index];
+}
+
+async function runGraphSyncBenchmark(options = {}) {
+    const iterations = Math.max(30, Number(options.iterations || 240));
+    const moveEvery = Math.max(1, Number(options.moveEvery || 3));
+    const shiftPx = Number(options.shiftPx || 1.5);
+
+    const originalNodes = safeClone(nodes.value);
+    const originalEdges = safeClone(edges.value);
+    const previousDragState = isNodeDragInProgress.value;
+
+    const samples = [];
+    isNodeDragInProgress.value = true;
+    clearPendingDragGraphStateFlush();
+    pendingDragGraphStateDetail = null;
+
+    try {
+        for (let i = 0; i < iterations; i++) {
+            const direction = i % 2 === 0 ? 1 : -1;
+            const nextNodes = nodes.value.map((node, index) => {
+                if (index % moveEvery !== 0) return node;
+                const pos = node.position || { x: 0, y: 0 };
+                return {
+                    ...node,
+                    position: {
+                        x: Number(pos.x || 0) + shiftPx * direction,
+                        y: Number(pos.y || 0),
+                    },
+                };
+            });
+
+            const start = performance.now();
+            applyGraphStateSnapshot(nextNodes, edges.value);
+            const end = performance.now();
+            samples.push(end - start);
+
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+    } finally {
+        isNodeDragInProgress.value = previousDragState;
+        clearPendingDragGraphStateFlush();
+        pendingDragGraphStateDetail = null;
+        pendingValidationAfterDrag = false;
+        pendingMockRepoPersistAfterDrag = false;
+        pendingEdgeStyleAfterDrag = false;
+
+        nodes.value = originalNodes;
+        edges.value = originalEdges;
+        scheduleRealtimeValidation();
+        applyEdgeVisualStyles();
+    }
+
+    const sorted = [...samples].sort((a, b) => a - b);
+    const total = samples.reduce((sum, value) => sum + value, 0);
+    const result = {
+        iterations,
+        averageMs: total / samples.length,
+        p95Ms: percentile(sorted, 0.95),
+        p99Ms: percentile(sorted, 0.99),
+        minMs: sorted[0] || 0,
+        maxMs: sorted[sorted.length - 1] || 0,
+    };
+
+    if (typeof window !== "undefined") {
+        console.table(result);
+    }
+
+    return result;
+}
+
+function clearPendingDragGraphStateFlush() {
+    if (dragGraphStateRafId) {
+        cancelAnimationFrame(dragGraphStateRafId);
+        dragGraphStateRafId = 0;
+    }
+}
+
+function scheduleDragGraphStateFlush() {
+    if (dragGraphStateRafId) return;
+
+    dragGraphStateRafId = requestAnimationFrame(() => {
+        dragGraphStateRafId = 0;
+        const detail = pendingDragGraphStateDetail;
+        pendingDragGraphStateDetail = null;
+        if (!detail) return;
+        applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
+    });
 }
 
 function createStateSnapshot() {
@@ -485,15 +600,135 @@ function handleNodeDragStart() {
     if (isNodeDragInProgress.value) return;
     isNodeDragInProgress.value = true;
     pushHistorySnapshot();
+    pendingDragGraphStateDetail = null;
+    clearPendingDragGraphStateFlush();
 }
 
 function handleNodeDragStop() {
     isNodeDragInProgress.value = false;
     recentDragSuppressUntil.value = Date.now() + 280;
+
+    clearPendingDragGraphStateFlush();
+    if (pendingDragGraphStateDetail) {
+        const detail = pendingDragGraphStateDetail;
+        pendingDragGraphStateDetail = null;
+        applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
+    }
+
+    if (pendingValidationAfterDrag) {
+        pendingValidationAfterDrag = false;
+        scheduleRealtimeValidation();
+    }
+
+    if (pendingMockRepoPersistAfterDrag) {
+        pendingMockRepoPersistAfterDrag = false;
+        persistCurrentMockRepoScriptToLocal();
+    }
+
+    if (pendingEdgeStyleAfterDrag) {
+        pendingEdgeStyleAfterDrag = false;
+        applyEdgeVisualStyles();
+    }
+
+    markAutoSaveDirty();
+}
+
+function isObjectLike(value) {
+    return value !== null && typeof value === "object";
+}
+
+function isPlainObject(value) {
+    if (!isObjectLike(value)) return false;
+    const proto = Object.getPrototypeOf(value);
+    return proto === Object.prototype || proto === null;
 }
 
 function isDeepEqual(a, b) {
-    return JSON.stringify(a) === JSON.stringify(b);
+    if (Object.is(a, b)) return true;
+
+    if (Array.isArray(a) || Array.isArray(b)) {
+        if (!Array.isArray(a) || !Array.isArray(b)) return false;
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (!isDeepEqual(a[i], b[i])) return false;
+        }
+        return true;
+    }
+
+    if (isObjectLike(a) || isObjectLike(b)) {
+        if (!isPlainObject(a) || !isPlainObject(b)) return false;
+
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        if (keysA.length !== keysB.length) return false;
+
+        for (const key of keysA) {
+            if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+            if (!isDeepEqual(a[key], b[key])) return false;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+function hasNodePositionChanged(nextNodes, currentNodes) {
+    if (nextNodes.length !== currentNodes.length) return true;
+
+    const byId = new Map();
+    currentNodes.forEach((node) => {
+        byId.set(node.id, node);
+    });
+
+    for (const nextNode of nextNodes) {
+        const currentNode = byId.get(nextNode.id);
+        if (!currentNode) return true;
+        if (nextNode.type !== currentNode.type) return true;
+
+        const nextPos = nextNode.position || {};
+        const curPos = currentNode.position || {};
+        if (nextPos.x !== curPos.x || nextPos.y !== curPos.y) return true;
+    }
+
+    return false;
+}
+
+function applyDraggingNodePositions(nextNodes) {
+    if (!Array.isArray(nextNodes) || nextNodes.length === 0) return false;
+
+    const indexById = new Map();
+    nodes.value.forEach((node, index) => {
+        indexById.set(node.id, index);
+    });
+
+    const updatedNodes = [...nodes.value];
+    let changed = false;
+
+    for (const nextNode of nextNodes) {
+        const index = indexById.get(nextNode.id);
+        if (index == null) return false;
+
+        const currentNode = updatedNodes[index];
+        if (!currentNode) return false;
+
+        const nextPos = nextNode.position || {};
+        const curPos = currentNode.position || {};
+        if (nextPos.x === curPos.x && nextPos.y === curPos.y) {
+            continue;
+        }
+
+        updatedNodes[index] = {
+            ...currentNode,
+            position: { x: nextPos.x, y: nextPos.y },
+        };
+        changed = true;
+    }
+
+    if (changed) {
+        nodes.value = updatedNodes;
+    }
+
+    return changed;
 }
 
 function normalizeEdge(edge) {
@@ -715,18 +950,47 @@ function applyEdgeVisualStyles() {
             visualOffset,
         );
 
+        const nextPathOptions = isBezier ? pathOptions : undefined;
+        const currentPathOptions = edge.pathOptions;
+        const pathOptionsEqual = isBezier
+            ? !!currentPathOptions &&
+              currentPathOptions.offset === nextPathOptions.offset &&
+              currentPathOptions.borderRadius === nextPathOptions.borderRadius
+            : currentPathOptions == null;
+
+        const unchanged =
+            edge.style === style &&
+            edge.animated === animated &&
+            edge.type === edgeType &&
+            edge.zIndex === zIndex &&
+            pathOptionsEqual;
+
+        if (unchanged) {
+            return edge;
+        }
+
         return {
             ...edge,
             style,
             animated,
             type: edgeType,
-            ...(isBezier ? { pathOptions } : { pathOptions: undefined }),
+            ...(isBezier
+                ? { pathOptions: nextPathOptions }
+                : { pathOptions: undefined }),
             zIndex,
         };
     });
 
-    if (!isDeepEqual(next, edges.value)) {
-        edges.value = safeClone(next);
+    let changed = false;
+    for (let i = 0; i < next.length; i++) {
+        if (next[i] !== edges.value[i]) {
+            changed = true;
+            break;
+        }
+    }
+
+    if (changed) {
+        edges.value = next;
     }
 }
 
@@ -973,18 +1237,35 @@ function handleEdgeClick(event) {
 function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
     const nextNodes = Array.isArray(nextNodesInput) ? nextNodesInput : [];
     const nextEdgesRaw = Array.isArray(nextEdgesInput) ? nextEdgesInput : [];
-    const sanitizedEdges = sanitizeEdges(nextEdgesRaw, nextNodes);
+    const isDragging = isNodeDragInProgress.value;
+    const sanitizedEdges = isDragging
+        ? edges.value
+        : sanitizeEdges(nextEdgesRaw, nextNodes);
 
-    const shouldUpdateNodes = !isDeepEqual(nextNodes, nodes.value);
-    const shouldUpdateEdges = !isDeepEqual(sanitizedEdges, edges.value);
+    const shouldUpdateNodes = isDragging
+        ? hasNodePositionChanged(nextNodes, nodes.value)
+        : !isDeepEqual(nextNodes, nodes.value);
+    const shouldUpdateEdges = isDragging
+        ? false
+        : !isDeepEqual(sanitizedEdges, edges.value);
 
     if (shouldUpdateNodes || shouldUpdateEdges) {
-        if (!isNodeDragInProgress.value) {
+        if (!isDragging) {
             pushHistorySnapshot();
         }
 
         if (shouldUpdateNodes) {
-            nodes.value = safeClone(nextNodes);
+            if (isDragging) {
+                const applied = applyDraggingNodePositions(nextNodes);
+                if (!applied) {
+                    nodes.value = nextNodes.map((node) => ({
+                        ...node,
+                        position: { ...(node.position || {}) },
+                    }));
+                }
+            } else {
+                nodes.value = safeClone(nextNodes);
+            }
         }
 
         if (shouldUpdateEdges) {
@@ -992,14 +1273,14 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
         }
     }
 
-    if (selectedNode.value) {
+    if (!isDragging && selectedNode.value) {
         const latestNode = nodes.value.find(
             (n) => n.id === selectedNode.value.id,
         );
         selectedNode.value = latestNode ? safeClone(latestNode) : null;
     }
 
-    if (selectedEdge.value) {
+    if (!isDragging && selectedEdge.value) {
         const latestEdge = edges.value.find(
             (e) => e.id === selectedEdge.value.id,
         );
@@ -1009,21 +1290,24 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
         syncEdgeDraftFromSelection();
     }
 
-    applyEdgeVisualStyles();
-}
+    if (isDragging) {
+        pendingEdgeStyleAfterDrag = true;
+    } else {
+        applyEdgeVisualStyles();
+    }
 
-function handleNodesChange(event) {
-    const nextNodes = Array.isArray(event.detail) ? event.detail : [];
-    applyGraphStateSnapshot(nextNodes, edges.value);
-}
-
-function handleEdgesChange(event) {
-    const incomingEdges = Array.isArray(event.detail) ? event.detail : [];
-    applyGraphStateSnapshot(nodes.value, incomingEdges);
 }
 
 function handleGraphStateChange(event) {
     const detail = event?.detail || {};
+    if (isNodeDragInProgress.value) {
+        pendingDragGraphStateDetail = detail;
+        scheduleDragGraphStateFlush();
+        return;
+    }
+
+    pendingDragGraphStateDetail = null;
+    clearPendingDragGraphStateFlush();
     applyGraphStateSnapshot(detail.nodes || [], detail.edges || []);
 }
 
@@ -1789,12 +2073,16 @@ onMounted(() => {
 
     window.addEventListener("node-click", handleNodeClick);
     window.addEventListener("edge-click", handleEdgeClick);
-    window.addEventListener("nodes-change", handleNodesChange);
-    window.addEventListener("edges-change", handleEdgesChange);
     window.addEventListener("graph-state-change", handleGraphStateChange);
     window.addEventListener("node-drag-start", handleNodeDragStart);
     window.addEventListener("node-drag-stop", handleNodeDragStop);
     window.addEventListener("keydown", handleGlobalKeyDown);
+
+    if (IS_LOCAL_DEV_HOST && typeof window !== "undefined") {
+        window.__narrrailBench = {
+            runGraphSyncBenchmark,
+        };
+    }
 
     runRealtimeValidation();
     applyEdgeVisualStyles();
@@ -1810,10 +2098,13 @@ onUnmounted(() => {
         clearTimeout(validationDebounceTimer.value);
         validationDebounceTimer.value = null;
     }
+    clearPendingDragGraphStateFlush();
+    pendingDragGraphStateDetail = null;
+    if (IS_LOCAL_DEV_HOST && typeof window !== "undefined") {
+        delete window.__narrrailBench;
+    }
     window.removeEventListener("node-click", handleNodeClick);
     window.removeEventListener("edge-click", handleEdgeClick);
-    window.removeEventListener("nodes-change", handleNodesChange);
-    window.removeEventListener("edges-change", handleEdgesChange);
     window.removeEventListener("graph-state-change", handleGraphStateChange);
     window.removeEventListener("node-drag-start", handleNodeDragStart);
     window.removeEventListener("node-drag-stop", handleNodeDragStop);
@@ -1822,7 +2113,13 @@ onUnmounted(() => {
 
 watch(
     () => [nodes.value, edges.value, storyMeta.value.entryNodeId],
-    () => scheduleRealtimeValidation(),
+    () => {
+        if (isNodeDragInProgress.value) {
+            pendingValidationAfterDrag = true;
+            return;
+        }
+        scheduleRealtimeValidation();
+    },
     { deep: true, immediate: true },
 );
 
@@ -1847,6 +2144,7 @@ watch(
         presetSpeakers.value,
     ],
     () => {
+        if (isNodeDragInProgress.value) return;
         markAutoSaveDirty();
     },
     { deep: true },
@@ -1862,19 +2160,11 @@ watch(
         edges.value,
     ],
     () => {
-        const entry = selectedScriptEntry.value;
-        if (!entry || entry.source !== "mock-repository") return;
-
-        const storageKey =
-            entry.localStorageKey || getLocalScriptStorageKeyByPath(entry.path);
-        if (!storageKey) return;
-
-        saveLocalScriptContent(storageKey, {
-            meta: safeClone(storyMeta.value),
-            variables: safeClone(variables.value),
-            nodes: safeClone(nodes.value),
-            edges: safeClone(edges.value),
-        });
+        if (isNodeDragInProgress.value) {
+            pendingMockRepoPersistAfterDrag = true;
+            return;
+        }
+        persistCurrentMockRepoScriptToLocal();
     },
     { deep: true },
 );

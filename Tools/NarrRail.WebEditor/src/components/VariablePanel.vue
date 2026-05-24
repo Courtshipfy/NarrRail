@@ -227,6 +227,11 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from "vue";
+import {
+    formatSpeakerLabel,
+    validateSpeakerId,
+    validateVariableName,
+} from "../utils/editor-form-utils.js";
 
 const props = defineProps({
     variables: {
@@ -309,23 +314,14 @@ function handleGlobalPointerDown(event) {
 }
 
 function addSpeaker() {
-    const id = String(newSpeaker.id || "").trim();
+    const speakerValidation = validateSpeakerId(props.presetSpeakers, newSpeaker.id);
+    if (!speakerValidation.ok) {
+        alert(speakerValidation.message);
+        return;
+    }
+
+    const id = speakerValidation.value;
     const displayName = String(newSpeaker.displayName || "").trim();
-
-    if (!id) {
-        alert("请输入角色 ID");
-        return;
-    }
-
-    const normalized = props.presetSpeakers.map((speaker) => {
-        if (typeof speaker === "string") return speaker;
-        return String(speaker?.id || "").trim();
-    });
-
-    if (normalized.includes(id)) {
-        alert("该角色 ID 已存在");
-        return;
-    }
 
     const nextSpeaker = displayName ? { id, displayName } : { id };
     const updated = [...props.presetSpeakers, nextSpeaker];
@@ -350,13 +346,18 @@ function cancelAddSpeaker() {
 }
 
 function addVariable() {
-    if (!newVariable.name) {
-        alert("请输入变量名");
+    const variableValidation = validateVariableName(
+        props.variables,
+        newVariable.name,
+        { duplicate: "变量名已存在" },
+    );
+    if (!variableValidation.ok) {
+        alert(variableValidation.message);
         return;
     }
 
     const variable = {
-        name: newVariable.name,
+        name: variableValidation.value,
         type: newVariable.type,
     };
 
@@ -399,14 +400,6 @@ function resetForm() {
 
 function cancelAdd() {
     resetForm();
-}
-
-function formatSpeakerLabel(speaker) {
-    if (typeof speaker === "string") return speaker;
-    const id = String(speaker?.id || "").trim();
-    const displayName = String(speaker?.displayName || "").trim();
-    if (displayName && displayName !== id) return `${displayName} (${id})`;
-    return id || "未命名角色";
 }
 
 function formatValue(variable) {

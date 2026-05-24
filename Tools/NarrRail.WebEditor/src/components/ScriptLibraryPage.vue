@@ -458,6 +458,11 @@ import {
     parseGlobalConfigFromYAML,
     serializeGlobalConfigToYAML,
 } from "../utils/global-config-yaml.js";
+import {
+    formatSpeakerLabel,
+    validateSpeakerId,
+    validateVariableName,
+} from "../utils/editor-form-utils.js";
 
 const props = defineProps({
     isDarkMode: {
@@ -590,22 +595,18 @@ const filteredScripts = computed(() => {
 });
 
 async function addVariable() {
-    const name = String(newVariable.name || "").trim();
-    if (!name) {
-        alert("请输入变量名");
-        return;
-    }
-
-    const exists = props.variables.some(
-        (v) => String(v?.name || "").trim() === name,
+    const variableValidation = validateVariableName(
+        props.variables,
+        newVariable.name,
+        { duplicate: "变量名已存在" },
     );
-    if (exists) {
-        alert("变量名已存在");
+    if (!variableValidation.ok) {
+        alert(variableValidation.message);
         return;
     }
 
     const variable = {
-        name,
+        name: variableValidation.value,
         type: newVariable.type,
     };
 
@@ -647,24 +648,14 @@ function resetVariableForm() {
 }
 
 async function addSpeaker() {
-    const id = String(newSpeaker.id || "").trim();
+    const speakerValidation = validateSpeakerId(props.presetSpeakers, newSpeaker.id);
+    if (!speakerValidation.ok) {
+        alert(speakerValidation.message);
+        return;
+    }
+
+    const id = speakerValidation.value;
     const displayName = String(newSpeaker.displayName || "").trim();
-
-    if (!id) {
-        alert("请输入角色 ID");
-        return;
-    }
-
-    const normalized = props.presetSpeakers.map((speaker) =>
-        typeof speaker === "string"
-            ? speaker
-            : String(speaker?.id || "").trim(),
-    );
-
-    if (normalized.includes(id)) {
-        alert("该角色 ID 已存在");
-        return;
-    }
 
     const payload = displayName ? { id, displayName } : { id };
     const nextSpeakers = [...props.presetSpeakers, payload];
@@ -690,14 +681,6 @@ function resetSpeakerForm() {
     newSpeaker.id = "";
     newSpeaker.displayName = "";
     showAddSpeakerForm.value = false;
-}
-
-function formatSpeakerLabel(speaker) {
-    if (typeof speaker === "string") return speaker;
-    const id = String(speaker?.id || "").trim();
-    const displayName = String(speaker?.displayName || "").trim();
-    if (displayName && displayName !== id) return `${displayName} (${id})`;
-    return id || "未命名角色";
 }
 
 function formatVariableValue(variable) {

@@ -42,15 +42,6 @@ class StoryStorage {
     const key = this.prefix + storyId;
     localStorage.removeItem(key);
   }
-
-  // 自动保存
-  setupAutoSave(storyId, getDataFn, interval = 30000) {
-    return setInterval(() => {
-      const data = getDataFn();
-      this.save(storyId, data);
-      console.log('自动保存成功:', new Date().toLocaleTimeString());
-    }, interval);
-  }
 }
 
 export default new StoryStorage();

@@ -57,16 +57,6 @@
       const nextNodes = pendingNodesDispatch || get(nodesStore);
       const nextEdges = pendingEdgesDispatch || get(edgesStore);
 
-      if (pendingNodesDispatch) {
-        const nodeEvent = new CustomEvent('nodes-change', { detail: pendingNodesDispatch });
-        window.dispatchEvent(nodeEvent);
-      }
-
-      if (pendingEdgesDispatch) {
-        const edgeEvent = new CustomEvent('edges-change', { detail: pendingEdgesDispatch });
-        window.dispatchEvent(edgeEvent);
-      }
-
       const graphEvent = new CustomEvent('graph-state-change', {
         detail: {
           nodes: nextNodes,
@@ -250,8 +240,8 @@
     currentEdgeType = edgeRenderMode === 'bezier' ? 'default' : 'straight';
   }
 
-  // 不再在 store 响应式块里广播事件，避免与外部同步形成回流/重复触发。
-  // 事件只在用户交互处理函数中发出（如 handleNodesChange / handleEdgesChange / handleConnect）。
+  // 不在 store 响应式块里广播事件，避免与外部同步形成回流/重复触发。
+  // 统一仅通过 graph-state-change 对外同步（由交互处理函数触发）。
 
   // 定义节点类型
   const nodeTypes = {
