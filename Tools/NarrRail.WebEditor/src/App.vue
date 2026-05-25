@@ -356,6 +356,7 @@ const GLOBAL_CONFIG_CANDIDATE_PATHS = [
     "globalconfig.nrstory",
     "global-config.nrstory",
 ];
+const LOCAL_GLOBAL_CONFIG_STORAGE_KEY = "narrrail_local_global_config";
 const globalConfigRepoPathFromEditor = ref(GLOBAL_CONFIG_CANDIDATE_PATHS[0]);
 
 const undoStack = ref([]);
@@ -1295,7 +1296,6 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
     } else {
         applyEdgeVisualStyles();
     }
-
 }
 
 function handleGraphStateChange(event) {
@@ -2522,7 +2522,24 @@ function handleSetEntryNode(nodeId) {
     storyMeta.value.entryNodeId = nodeId;
 }
 
+function syncGlobalConfigToLocalFallback() {
+    try {
+        localStorage.setItem(
+            LOCAL_GLOBAL_CONFIG_STORAGE_KEY,
+            JSON.stringify({
+                variables: safeClone(variables.value || []),
+                presetSpeakers: safeClone(presetSpeakers.value || []),
+                updatedAt: new Date().toISOString(),
+            }),
+        );
+    } catch {
+        // ignore local storage failures
+    }
+}
+
 function scheduleGlobalConfigSyncFromEditor() {
+    syncGlobalConfigToLocalFallback();
+
     if (globalConfigSyncTimer) {
         clearTimeout(globalConfigSyncTimer);
         globalConfigSyncTimer = null;

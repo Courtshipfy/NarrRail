@@ -161,12 +161,20 @@
         <section
             v-if="canAccessLibraryContent"
             class="global-config glass-morphism"
+            :class="{ loading: loadingScripts }"
         >
             <div class="global-config-header">
                 <div class="header-main">
                     <h2>全局配置</h2>
                 </div>
                 <div class="header-actions">
+                    <span
+                        v-if="loadingScripts"
+                        class="status-badge loading"
+                        aria-live="polite"
+                    >
+                        全局配置加载中...
+                    </span>
                     <span class="config-file-chip">{{
                         globalConfigFileName
                     }}</span>
@@ -180,18 +188,41 @@
                         <button
                             class="icon-btn add"
                             @click="showAddVariableForm = !showAddVariableForm"
-                            :title="showAddVariableForm ? '收起' : '添加变量'"
+                            :disabled="loadingScripts"
+                            :title="
+                                loadingScripts
+                                    ? '全局配置加载中，请稍候'
+                                    : showAddVariableForm
+                                      ? '收起'
+                                      : '添加变量'
+                            "
                             :aria-label="
-                                showAddVariableForm
-                                    ? '收起添加变量表单'
-                                    : '添加变量'
+                                loadingScripts
+                                    ? '全局配置加载中，请稍候'
+                                    : showAddVariableForm
+                                      ? '收起添加变量表单'
+                                      : '添加变量'
                             "
                         >
                             +
                         </button>
                     </div>
 
-                    <div v-if="variables.length > 0" class="config-list">
+                    <div
+                        v-if="loadingScripts"
+                        class="config-list skeleton-list"
+                    >
+                        <div
+                            v-for="index in 3"
+                            :key="`global-var-skeleton-${index}`"
+                            class="config-item skeleton-item"
+                            aria-hidden="true"
+                        >
+                            <div class="skeleton-line name"></div>
+                            <div class="skeleton-line meta"></div>
+                        </div>
+                    </div>
+                    <div v-else-if="variables.length > 0" class="config-list">
                         <div
                             v-for="(variable, index) in variables"
                             :key="`global-var-${index}`"
@@ -276,18 +307,44 @@
                         <button
                             class="icon-btn add"
                             @click="showAddSpeakerForm = !showAddSpeakerForm"
-                            :title="showAddSpeakerForm ? '收起' : '添加角色'"
+                            :disabled="loadingScripts"
+                            :title="
+                                loadingScripts
+                                    ? '全局配置加载中，请稍候'
+                                    : showAddSpeakerForm
+                                      ? '收起'
+                                      : '添加角色'
+                            "
                             :aria-label="
-                                showAddSpeakerForm
-                                    ? '收起添加角色表单'
-                                    : '添加角色'
+                                loadingScripts
+                                    ? '全局配置加载中，请稍候'
+                                    : showAddSpeakerForm
+                                      ? '收起添加角色表单'
+                                      : '添加角色'
                             "
                         >
                             +
                         </button>
                     </div>
 
-                    <div v-if="presetSpeakers.length > 0" class="config-list">
+                    <div
+                        v-if="loadingScripts"
+                        class="config-list skeleton-list"
+                    >
+                        <div
+                            v-for="index in 3"
+                            :key="`global-speaker-skeleton-${index}`"
+                            class="config-item skeleton-item"
+                            aria-hidden="true"
+                        >
+                            <div class="skeleton-line name"></div>
+                            <div class="skeleton-line short"></div>
+                        </div>
+                    </div>
+                    <div
+                        v-else-if="presetSpeakers.length > 0"
+                        class="config-list"
+                    >
                         <div
                             v-for="(speaker, index) in presetSpeakers"
                             :key="`global-speaker-${index}`"
@@ -648,7 +705,10 @@ function resetVariableForm() {
 }
 
 async function addSpeaker() {
-    const speakerValidation = validateSpeakerId(props.presetSpeakers, newSpeaker.id);
+    const speakerValidation = validateSpeakerId(
+        props.presetSpeakers,
+        newSpeaker.id,
+    );
     if (!speakerValidation.ok) {
         alert(speakerValidation.message);
         return;
@@ -1457,8 +1517,6 @@ watch(
         if (!fullName) return;
         localStorage.setItem(REPO_SELECTION_STORAGE_KEY, fullName);
 
-        emit("update-variables", []);
-        emit("update-speakers", []);
         globalConfigRepoPath.value = GLOBAL_CONFIG_CANDIDATE_PATHS[0];
         globalConfigRepoSha.value = "";
 
@@ -1586,6 +1644,12 @@ watch(
     border-color: rgba(244, 63, 94, 0.36);
 }
 
+.status-badge.loading {
+    color: #1d4ed8;
+    background: rgba(59, 130, 246, 0.14);
+    border-color: rgba(59, 130, 246, 0.34);
+}
+
 .filters {
     display: grid;
     grid-template-columns: minmax(540px, 2.4fr) minmax(220px, 1.2fr) minmax(
@@ -1650,6 +1714,15 @@ watch(
     margin-bottom: 14px;
     padding: 14px;
     border-radius: 14px;
+    transition: opacity 0.2s ease;
+}
+
+.global-config.loading {
+    opacity: 0.88;
+}
+
+.global-config.loading .config-card {
+    pointer-events: none;
 }
 
 .global-config-header {
@@ -1825,6 +1898,54 @@ watch(
     pointer-events: auto;
     margin-left: 2px;
     transform: scale(1);
+}
+
+.skeleton-list {
+    flex-direction: column;
+}
+
+.skeleton-item {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.skeleton-line {
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--nr-text) 10%, transparent) 0%,
+        color-mix(in srgb, var(--nr-text) 18%, transparent) 45%,
+        color-mix(in srgb, var(--nr-text) 10%, transparent) 100%
+    );
+    background-size: 220% 100%;
+    animation: nrSkeletonShimmer 1.25s ease-in-out infinite;
+}
+
+.skeleton-line.name {
+    width: 46%;
+}
+
+.skeleton-line.meta {
+    width: 72%;
+}
+
+.skeleton-line.short {
+    width: 38%;
+}
+
+@keyframes nrSkeletonShimmer {
+    0% {
+        background-position: 120% 0;
+    }
+    100% {
+        background-position: -120% 0;
+    }
 }
 
 .config-empty {
