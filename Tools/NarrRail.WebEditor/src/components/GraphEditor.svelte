@@ -564,7 +564,9 @@
     elementsSelectable={true}
     selectionOnDrag={true}
     panOnDrag={[1]}
-    panOnScroll={true}
+    panOnScroll={false}
+    zoomOnScroll={true}
+    zoomOnPinch={true}
     fitView
     minZoom={0.2}
     maxZoom={2}
