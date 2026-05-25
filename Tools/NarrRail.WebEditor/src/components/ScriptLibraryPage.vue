@@ -161,7 +161,6 @@
         <section
             v-if="canAccessLibraryContent"
             class="global-config glass-morphism"
-            :class="{ loading: loadingScripts }"
         >
             <div class="global-config-header">
                 <div class="header-main">
@@ -170,11 +169,11 @@
                 <div class="header-actions">
                     <span
                         v-if="loadingScripts"
-                        class="status-badge loading"
+                        class="subtle-loading-dot"
                         aria-live="polite"
-                    >
-                        全局配置加载中...
-                    </span>
+                        title="全局配置加载中"
+                        aria-label="全局配置加载中"
+                    ></span>
                     <span class="config-file-chip">{{
                         globalConfigFileName
                     }}</span>
@@ -208,21 +207,7 @@
                         </button>
                     </div>
 
-                    <div
-                        v-if="loadingScripts"
-                        class="config-list skeleton-list"
-                    >
-                        <div
-                            v-for="index in 3"
-                            :key="`global-var-skeleton-${index}`"
-                            class="config-item skeleton-item"
-                            aria-hidden="true"
-                        >
-                            <div class="skeleton-line name"></div>
-                            <div class="skeleton-line meta"></div>
-                        </div>
-                    </div>
-                    <div v-else-if="variables.length > 0" class="config-list">
+                    <div v-if="variables.length > 0" class="config-list">
                         <div
                             v-for="(variable, index) in variables"
                             :key="`global-var-${index}`"
@@ -327,24 +312,7 @@
                         </button>
                     </div>
 
-                    <div
-                        v-if="loadingScripts"
-                        class="config-list skeleton-list"
-                    >
-                        <div
-                            v-for="index in 3"
-                            :key="`global-speaker-skeleton-${index}`"
-                            class="config-item skeleton-item"
-                            aria-hidden="true"
-                        >
-                            <div class="skeleton-line name"></div>
-                            <div class="skeleton-line short"></div>
-                        </div>
-                    </div>
-                    <div
-                        v-else-if="presetSpeakers.length > 0"
-                        class="config-list"
-                    >
+                    <div v-if="presetSpeakers.length > 0" class="config-list">
                         <div
                             v-for="(speaker, index) in presetSpeakers"
                             :key="`global-speaker-${index}`"
@@ -1644,10 +1612,13 @@ watch(
     border-color: rgba(244, 63, 94, 0.36);
 }
 
-.status-badge.loading {
-    color: #1d4ed8;
-    background: rgba(59, 130, 246, 0.14);
-    border-color: rgba(59, 130, 246, 0.34);
+.subtle-loading-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #3b82f6 70%, var(--nr-text) 30%);
+    opacity: 0.6;
+    animation: subtleDotPulse 1.2s ease-in-out infinite;
 }
 
 .filters {
@@ -1714,15 +1685,6 @@ watch(
     margin-bottom: 14px;
     padding: 14px;
     border-radius: 14px;
-    transition: opacity 0.2s ease;
-}
-
-.global-config.loading {
-    opacity: 0.88;
-}
-
-.global-config.loading .config-card {
-    pointer-events: none;
 }
 
 .global-config-header {
@@ -1900,51 +1862,15 @@ watch(
     transform: scale(1);
 }
 
-.skeleton-list {
-    flex-direction: column;
-}
-
-.skeleton-item {
-    width: 100%;
-    min-height: 40px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 8px;
-}
-
-.skeleton-line {
-    height: 10px;
-    border-radius: 999px;
-    background: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--nr-text) 10%, transparent) 0%,
-        color-mix(in srgb, var(--nr-text) 18%, transparent) 45%,
-        color-mix(in srgb, var(--nr-text) 10%, transparent) 100%
-    );
-    background-size: 220% 100%;
-    animation: nrSkeletonShimmer 1.25s ease-in-out infinite;
-}
-
-.skeleton-line.name {
-    width: 46%;
-}
-
-.skeleton-line.meta {
-    width: 72%;
-}
-
-.skeleton-line.short {
-    width: 38%;
-}
-
-@keyframes nrSkeletonShimmer {
-    0% {
-        background-position: 120% 0;
-    }
+@keyframes subtleDotPulse {
+    0%,
     100% {
-        background-position: -120% 0;
+        opacity: 0.35;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.75;
+        transform: scale(1.08);
     }
 }
 
