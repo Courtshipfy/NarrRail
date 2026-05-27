@@ -3,7 +3,7 @@
         <div class="panel-hotzone" @mouseenter="handleMouseEnter"></div>
 
         <div class="panel-trigger" :class="{ hidden: isExpanded }">
-            <span class="material-symbols-outlined">chevron_right</span>
+            <IconGlyph name="chevron_right" />
         </div>
 
         <div
@@ -37,17 +37,13 @@
                                 class="delete-btn"
                                 @click="removeSpeaker(index)"
                             >
-                                <span class="material-symbols-outlined"
-                                    >delete</span
-                                >
+                                <IconGlyph name="delete" />
                             </button>
                         </div>
                     </div>
                 </div>
                 <div v-else class="speaker-panel-empty">
-                    <span class="material-symbols-outlined empty-icon"
-                        >record_voice_over</span
-                    >
+                    <IconGlyph name="record_voice_over" class="empty-icon" />
                     <p>暂无预设角色</p>
                 </div>
 
@@ -56,9 +52,7 @@
                         class="add-speaker-btn"
                         @click="showAddSpeakerForm = !showAddSpeakerForm"
                     >
-                        <span class="material-symbols-outlined"
-                            >person_add</span
-                        >
+                        <IconGlyph name="person_add" />
                         <span>添加预设角色</span>
                     </button>
 
@@ -85,18 +79,14 @@
 
                         <div class="form-actions">
                             <button class="confirm-btn" @click="addSpeaker">
-                                <span class="material-symbols-outlined"
-                                    >check</span
-                                >
+                                <IconGlyph name="check" />
                                 <span>确认</span>
                             </button>
                             <button
                                 class="cancel-btn"
                                 @click="cancelAddSpeaker"
                             >
-                                <span class="material-symbols-outlined"
-                                    >close</span
-                                >
+                                <IconGlyph name="close" />
                                 <span>取消</span>
                             </button>
                         </div>
@@ -120,9 +110,7 @@
                                 class="delete-btn"
                                 @click="removeVariable(index)"
                             >
-                                <span class="material-symbols-outlined"
-                                    >delete</span
-                                >
+                                <IconGlyph name="delete" />
                             </button>
                         </div>
                         <div class="variable-details">
@@ -136,9 +124,7 @@
                     </div>
                 </div>
                 <div v-else class="variable-panel-empty">
-                    <span class="material-symbols-outlined empty-icon"
-                        >data_object</span
-                    >
+                    <IconGlyph name="data_object" class="empty-icon" />
                     <p>暂无变量</p>
                 </div>
 
@@ -147,7 +133,7 @@
                         class="add-variable-btn"
                         @click="showAddForm = !showAddForm"
                     >
-                        <span class="material-symbols-outlined">add</span>
+                        <IconGlyph name="add" />
                         <span>添加变量</span>
                     </button>
 
@@ -206,15 +192,11 @@
 
                         <div class="form-actions">
                             <button class="confirm-btn" @click="addVariable">
-                                <span class="material-symbols-outlined"
-                                    >check</span
-                                >
+                                <IconGlyph name="check" />
                                 <span>确认</span>
                             </button>
                             <button class="cancel-btn" @click="cancelAdd">
-                                <span class="material-symbols-outlined"
-                                    >close</span
-                                >
+                                <IconGlyph name="close" />
                                 <span>取消</span>
                             </button>
                         </div>
@@ -476,7 +458,7 @@ onUnmounted(() => {
     width: 56px;
 }
 
-.panel-trigger .material-symbols-outlined {
+.panel-trigger :deep(.icon-glyph) {
     font-size: 28px;
     color: #af52de;
     animation: pulse-arrow 2s ease-in-out infinite;
@@ -633,7 +615,7 @@ onUnmounted(() => {
     background: rgba(239, 68, 68, 0.2);
 }
 
-.delete-btn .material-symbols-outlined {
+.delete-btn :deep(.icon-glyph) {
     font-size: 18px;
     color: #ef4444;
 }
@@ -693,8 +675,8 @@ onUnmounted(() => {
     transform: scale(1.02);
 }
 
-.add-speaker-btn .material-symbols-outlined,
-.add-variable-btn .material-symbols-outlined {
+.add-speaker-btn :deep(.icon-glyph),
+.add-variable-btn :deep(.icon-glyph) {
     font-size: 20px;
 }
 
@@ -789,8 +771,8 @@ onUnmounted(() => {
     background: rgba(148, 163, 184, 0.5);
 }
 
-.confirm-btn .material-symbols-outlined,
-.cancel-btn .material-symbols-outlined {
+.confirm-btn :deep(.icon-glyph),
+.cancel-btn :deep(.icon-glyph) {
     font-size: 18px;
 }
 </style>

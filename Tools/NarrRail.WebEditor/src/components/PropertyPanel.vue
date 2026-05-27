@@ -75,9 +75,7 @@
                                     title="弹窗编辑对话"
                                     aria-label="弹窗编辑对话"
                                 >
-                                    <span class="material-symbols-outlined"
-                                        >open_in_full</span
-                                    >
+                                    <IconGlyph name="open_in_full" />
                                 </button>
                             </div>
                             <textarea
@@ -152,9 +150,7 @@
                                     title="全屏编辑多行对话"
                                     aria-label="全屏编辑多行对话"
                                 >
-                                    <span class="material-symbols-outlined"
-                                        >open_in_full</span
-                                    >
+                                    <IconGlyph name="open_in_full" />
                                 </button>
                             </div>
                             <div
@@ -205,9 +201,7 @@
                                         "
                                         @dragend="onDialogueLineDragEnd"
                                     >
-                                        <span class="material-symbols-outlined"
-                                            >drag_indicator</span
-                                        >
+                                        <IconGlyph name="drag_indicator" />
                                     </button>
                                     <input
                                         :ref="
@@ -253,9 +247,7 @@
                                         title="删除该行"
                                         aria-label="删除该行"
                                     >
-                                        <span class="material-symbols-outlined"
-                                            >close</span
-                                        >
+                                        <IconGlyph name="close" />
                                     </button>
                                 </div>
                             </div>
@@ -303,9 +295,7 @@
                                     title="弹窗编辑选项"
                                     aria-label="弹窗编辑选项"
                                 >
-                                    <span class="material-symbols-outlined"
-                                        >open_in_full</span
-                                    >
+                                    <IconGlyph name="open_in_full" />
                                 </button>
                             </div>
                             <div
@@ -330,15 +320,11 @@
                                     class="remove-choice-btn"
                                     @click="removeChoice(index)"
                                 >
-                                    <span class="material-symbols-outlined"
-                                        >close</span
-                                    >
+                                    <IconGlyph name="close" />
                                 </button>
                             </div>
                             <button class="add-choice-btn" @click="addChoice">
-                                <span class="material-symbols-outlined"
-                                    >add</span
-                                >
+                                <IconGlyph name="add" />
                                 <span>添加选项</span>
                             </button>
                             <p class="choice-hint">
@@ -434,9 +420,7 @@
                                     class="remove-choice-btn"
                                     @click="removeConditionTerm(index)"
                                 >
-                                    <span class="material-symbols-outlined"
-                                        >close</span
-                                    >
+                                    <IconGlyph name="close" />
                                 </button>
                             </div>
 
@@ -444,9 +428,7 @@
                                 class="add-choice-btn"
                                 @click="addConditionTerm"
                             >
-                                <span class="material-symbols-outlined"
-                                    >add</span
-                                >
+                                <IconGlyph name="add" />
                                 <span>添加条件项</span>
                             </button>
                             <p class="choice-hint">
@@ -537,9 +519,7 @@
                         class="update-button bouncy-feedback spring-animation"
                         @click="handleUpdate"
                     >
-                        <span class="material-symbols-outlined"
-                            >check_circle</span
-                        >
+                        <IconGlyph name="check_circle" />
                         <span>更新属性</span>
                     </button>
 
@@ -549,22 +529,20 @@
                         @click="handleSetEntryNode"
                         :disabled="isEntryNode"
                     >
-                        <span class="material-symbols-outlined">
-                            {{
+                        <IconGlyph
+                            :name="
                                 isEntryNode
-                                    ? "check_circle"
-                                    : "radio_button_unchecked"
-                            }}
-                        </span>
+                                    ? 'check_circle'
+                                    : 'radio_button_unchecked'
+                            "
+                        />
                         <span>{{
                             isEntryNode ? "当前入口节点" : "设置为入口节点"
                         }}</span>
                     </button>
                 </div>
                 <div v-else class="property-panel-empty">
-                    <span class="material-symbols-outlined empty-icon"
-                        >touch_app</span
-                    >
+                    <IconGlyph name="touch_app" class="empty-icon" />
                     <p>点击节点以编辑属性</p>
                 </div>
             </div>
@@ -638,9 +616,7 @@
                                 "
                                 @dragend="onDialogueLineDragEnd"
                             >
-                                <span class="material-symbols-outlined"
-                                    >drag_indicator</span
-                                >
+                                <IconGlyph name="drag_indicator" />
                             </button>
 
                             <textarea
@@ -674,9 +650,7 @@
                                 title="删除该行"
                                 aria-label="删除该行"
                             >
-                                <span class="material-symbols-outlined"
-                                    >close</span
-                                >
+                                <IconGlyph name="close" />
                             </button>
                         </div>
                     </div>
@@ -748,9 +722,7 @@
                                 @dragstart="onChoiceDragStart(index, $event)"
                                 @dragend="onChoiceDragEnd"
                             >
-                                <span class="material-symbols-outlined"
-                                    >drag_indicator</span
-                                >
+                                <IconGlyph name="drag_indicator" />
                             </button>
 
                             <textarea
@@ -780,9 +752,7 @@
                                 title="删除该选项"
                                 aria-label="删除该选项"
                             >
-                                <span class="material-symbols-outlined"
-                                    >close</span
-                                >
+                                <IconGlyph name="close" />
                             </button>
                         </div>
                     </div>
@@ -2078,7 +2048,7 @@ onUnmounted(() => {
     transform: scale(1.02);
 }
 
-.update-button .material-symbols-outlined {
+.update-button :deep(.icon-glyph) {
     font-size: 20px;
 }
 
@@ -2123,7 +2093,7 @@ onUnmounted(() => {
     opacity: 0.9;
 }
 
-.entry-node-button .material-symbols-outlined {
+.entry-node-button :deep(.icon-glyph) {
     font-size: 20px;
 }
 
@@ -2167,7 +2137,7 @@ onUnmounted(() => {
     transform: scale(1.1);
 }
 
-.remove-choice-btn .material-symbols-outlined {
+.remove-choice-btn :deep(.icon-glyph) {
     font-size: 16px;
     color: white;
 }
@@ -2194,7 +2164,7 @@ onUnmounted(() => {
     border-color: rgba(59, 130, 246, 0.6);
 }
 
-.add-choice-btn .material-symbols-outlined {
+.add-choice-btn :deep(.icon-glyph) {
     font-size: 18px;
 }
 
@@ -2226,7 +2196,7 @@ onUnmounted(() => {
     cursor: pointer;
 }
 
-.open-dialogue-modal-btn .material-symbols-outlined {
+.open-dialogue-modal-btn :deep(.icon-glyph) {
     font-size: 18px;
 }
 
@@ -2321,7 +2291,7 @@ onUnmounted(() => {
     color: rgba(30, 58, 138, 0.82);
 }
 
-.line-drag-handle .material-symbols-outlined {
+.line-drag-handle :deep(.icon-glyph) {
     font-size: 16px;
     line-height: 1;
 }

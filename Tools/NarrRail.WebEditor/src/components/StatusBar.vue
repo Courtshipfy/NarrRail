@@ -2,28 +2,28 @@
     <div class="status-bar glass-morphism">
         <div class="status-left">
             <div class="status-item">
-                <span class="material-symbols-outlined">account_tree</span>
+                <IconGlyph name="account_tree" />
                 <span>节点: {{ nodeCount }}</span>
             </div>
 
             <div class="status-item">
-                <span class="material-symbols-outlined">share</span>
+                <IconGlyph name="share" />
                 <span>边: {{ edgeCount }}</span>
             </div>
 
             <div class="status-item" :class="{ warning: !entryNodeId }">
-                <span class="material-symbols-outlined">flag</span>
+                <IconGlyph name="flag" />
                 <span>入口: {{ entryNodeId || "未设置" }}</span>
             </div>
 
             <div class="status-item">
-                <span class="material-symbols-outlined">label</span>
+                <IconGlyph name="label" />
                 <span>{{ storyId }}</span>
             </div>
         </div>
 
         <div class="status-item status-right">
-            <span class="material-symbols-outlined">schedule</span>
+            <IconGlyph name="schedule" />
             <span>{{ lastSavedText }}</span>
         </div>
     </div>
@@ -107,7 +107,7 @@ const lastSavedText = computed(() => {
         sans-serif;
 }
 
-.status-item .material-symbols-outlined {
+.status-item :deep(.icon-glyph) {
     font-size: 18px;
     line-height: 1;
     display: inline-flex;
@@ -122,7 +122,7 @@ const lastSavedText = computed(() => {
     opacity: 1;
 }
 
-.status-item.warning .material-symbols-outlined {
+.status-item.warning :deep(.icon-glyph) {
     color: #ff9500;
     opacity: 1;
 }

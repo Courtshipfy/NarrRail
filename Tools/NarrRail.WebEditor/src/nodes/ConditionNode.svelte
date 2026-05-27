@@ -1,4 +1,5 @@
 <script>
+  import IconGlyph from '../components/IconGlyph.svelte';
   import { Handle, Position } from '@xyflow/svelte';
 
   export let data;
@@ -22,7 +23,7 @@
   <Handle type="target" position={Position.Left} />
 
   <div class="node-header">
-    <span class="material-symbols-outlined node-icon">rule</span>
+    <span class="node-icon"><IconGlyph name="rule" /></span>
     <span class="node-type">条件</span>
   </div>
 

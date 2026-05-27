@@ -1,4 +1,5 @@
 <script>
+  import IconGlyph from '../components/IconGlyph.svelte';
   import { Handle, Position } from '@xyflow/svelte';
 
   export let data;
@@ -9,7 +10,7 @@
   <Handle type="target" position={Position.Left} />
 
   <div class="node-header">
-    <span class="material-symbols-outlined node-icon">arrow_forward</span>
+    <span class="node-icon"><IconGlyph name="arrow_forward" /></span>
     <span class="node-type">跳转</span>
   </div>
   <div class="node-content">

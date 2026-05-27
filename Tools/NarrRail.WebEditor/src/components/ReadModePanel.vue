@@ -7,7 +7,7 @@
         <div class="preview-mode-body">
             <div class="preview-header">
                 <div class="preview-title-wrap">
-                    <span class="material-symbols-outlined">smart_toy</span>
+                    <IconGlyph name="smart_toy" />
                     <h3>预览模式</h3>
                 </div>
                 <div class="preview-actions">

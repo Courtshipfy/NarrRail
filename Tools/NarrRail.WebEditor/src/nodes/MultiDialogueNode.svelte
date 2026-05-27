@@ -1,4 +1,5 @@
 <script>
+  import IconGlyph from '../components/IconGlyph.svelte';
   import { Handle, Position } from '@xyflow/svelte';
 
   export let data;
@@ -19,7 +20,7 @@
   <Handle type="target" position={Position.Left} />
 
   <div class="node-header">
-    <span class="material-symbols-outlined node-icon">speaker_notes</span>
+    <span class="node-icon"><IconGlyph name="speaker_notes" /></span>
     <span class="node-type">多行对话</span>
   </div>
 

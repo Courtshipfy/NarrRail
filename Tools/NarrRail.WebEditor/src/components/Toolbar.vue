@@ -145,8 +145,6 @@
 </template>
 
 <script setup>
-import IconGlyph from "./IconGlyph.vue";
-
 defineProps({
     focusModeEnabled: {
         type: Boolean,

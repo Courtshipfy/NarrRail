@@ -36,7 +36,7 @@
                     title="产品介绍"
                     aria-label="产品介绍"
                 >
-                    <span class="material-symbols-outlined">info</span>
+                    <IconGlyph name="info" />
                 </button>
 
                 <button
@@ -45,9 +45,7 @@
                     :title="isDarkMode ? '切换浅色' : '切换深色'"
                     :aria-label="isDarkMode ? '切换浅色' : '切换深色'"
                 >
-                    <span class="material-symbols-outlined">{{
-                        isDarkMode ? "light_mode" : "dark_mode"
-                    }}</span>
+                    <IconGlyph :name="isDarkMode ? 'light_mode' : 'dark_mode'" />
                 </button>
                 <button
                     class="btn secondary top-icon-btn"
@@ -75,9 +73,13 @@
                                 : '新建脚本'
                     "
                 >
-                    <span class="material-symbols-outlined">{{
-                        isCreatingScript ? "progress_activity" : "add_circle"
-                    }}</span>
+                    <IconGlyph
+                        :name="
+                            isCreatingScript
+                                ? 'progress_activity'
+                                : 'add_circle'
+                        "
+                    />
                 </button>
 
                 <button
@@ -103,9 +105,9 @@
                               : 'GitHub 登录'
                     "
                 >
-                    <span class="material-symbols-outlined">{{
-                        authState?.authenticated ? "logout" : "login"
-                    }}</span>
+                    <IconGlyph
+                        :name="authState?.authenticated ? 'logout' : 'login'"
+                    />
                 </button>
             </div>
         </header>
@@ -1574,7 +1576,7 @@ watch(
     color: color-mix(in srgb, var(--nr-text) 72%, transparent);
 }
 
-.top-icon-btn .material-symbols-outlined {
+.top-icon-btn :deep(.icon-glyph) {
     font-size: 20px;
     opacity: 0.9;
 }

@@ -1,4 +1,5 @@
 <script>
+  import IconGlyph from './IconGlyph.svelte';
   import { get, writable } from 'svelte/store';
   import { onMount } from 'svelte';
   import { SvelteFlow, Controls, Background } from '@xyflow/svelte';
@@ -593,35 +594,35 @@
     <div bind:this={contextMenuRef} class="context-menu" style="left: {contextMenu.x}px; top: {contextMenu.y}px;">
       <div class="context-menu-header">添加节点</div>
       <button class="context-menu-item" on:click={() => createNode('dialogue')}>
-        <span class="material-symbols-outlined">chat</span>
+        <IconGlyph name="chat" />
         <span>对话节点</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('multidialogue')}>
-        <span class="material-symbols-outlined">speaker_notes</span>
+        <IconGlyph name="speaker_notes" />
         <span>多行对话</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('choice')}>
-        <span class="material-symbols-outlined">fork_right</span>
+        <IconGlyph name="fork_right" />
         <span>选择节点</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('jump')}>
-        <span class="material-symbols-outlined">arrow_forward</span>
+        <IconGlyph name="arrow_forward" />
         <span>跳转节点</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('setvariable')}>
-        <span class="material-symbols-outlined">edit_square</span>
+        <IconGlyph name="edit_square" />
         <span>设置变量</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('emitevent')}>
-        <span class="material-symbols-outlined">notifications_active</span>
+        <IconGlyph name="notifications_active" />
         <span>触发事件</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('condition')}>
-        <span class="material-symbols-outlined">rule</span>
+        <IconGlyph name="rule" />
         <span>条件判断</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('end')}>
-        <span class="material-symbols-outlined">stop_circle</span>
+        <IconGlyph name="stop_circle" />
         <span>结束节点</span>
       </button>
     </div>
@@ -777,12 +778,12 @@
     color: #a855f7;
   }
 
-  .context-menu-item .material-symbols-outlined {
+  .context-menu-item :global(.icon-glyph) {
     font-size: 18px;
     color: #86868b;
   }
 
-  .context-menu-item:hover .material-symbols-outlined {
+  .context-menu-item:hover :global(.icon-glyph) {
     color: #a855f7;
   }
 </style>
