@@ -2,7 +2,7 @@
   import IconGlyph from './IconGlyph.svelte';
   import { get, writable } from 'svelte/store';
   import { onMount } from 'svelte';
-  import { SvelteFlow, Controls, Background } from '@xyflow/svelte';
+  import { SvelteFlow, Controls, Background, PanOnScrollMode } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
 
   import DialogueNode from '../nodes/DialogueNode.svelte';
@@ -573,8 +573,9 @@
     elementsSelectable={true}
     selectionOnDrag={true}
     panOnDrag={[1]}
-    panOnScroll={false}
-    zoomOnScroll={true}
+    panOnScroll={true}
+    panOnScrollMode={PanOnScrollMode.Free}
+    zoomOnScroll={false}
     zoomOnPinch={true}
     fitView
     minZoom={0.2}
