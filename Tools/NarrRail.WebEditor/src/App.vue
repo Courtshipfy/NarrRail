@@ -237,7 +237,7 @@ const EVER_LOGGED_IN_STORAGE_KEY = "narrrail_ever_logged_in";
 const LOCAL_SCRIPT_CONTENT_PREFIX = "narrrail_local_script_content_";
 
 const authState = ref({
-    loading: false,
+    loading: true,
     authenticated: false,
     user: null,
 });

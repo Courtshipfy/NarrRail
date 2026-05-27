@@ -1438,6 +1438,10 @@ onMounted(async () => {
     window.addEventListener("offline", syncOfflineState);
 
     loadScriptListFromStorage();
+    if (props.authState?.loading) {
+        return;
+    }
+
     if (props.authState?.authenticated) {
         await loadRepos();
         if (selectedRepoFullName.value) {
@@ -1462,8 +1466,10 @@ watch(
 );
 
 watch(
-    () => props.authState?.authenticated,
-    async (authed) => {
+    () => [props.authState?.loading, props.authState?.authenticated],
+    async ([loading, authed]) => {
+        if (loading) return;
+
         if (authed) {
             await loadRepos();
             if (selectedRepoFullName.value) {
