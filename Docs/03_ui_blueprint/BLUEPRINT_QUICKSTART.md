@@ -579,10 +579,13 @@ Make Node Action:
 
 注意：Value 使用字符串 "-5" 表示减少 5 点好感度。
 
-### 6.6 添加条件边
+### 6.6 添加 Condition 条件节点
 
 ```
-节点：Add Edge With Condition
+边不再承载条件判断；不要使用 Add Edge With Condition。
+条件分支统一建模为 Condition 节点，并为它连接两个出口：
+- condition-true
+- condition-false
 
 边 1: Start -> B_Reply1 (无条件)
   使用普通的 Add Edge
@@ -593,47 +596,37 @@ Make Node Action:
 边 3: A_Question -> B_Choice (无条件)
   使用普通的 Add Edge
 
-边 4: A_Happy -> A_SpecialEnding (条件: Affinity >= 10)
-  - Story Asset: (你的剧情资产)
-  - Source Node Id: "A_Happy"
-  - Target Node Id: "A_SpecialEnding"
+节点 4: A_CheckAffinity (Condition)
+  - Condition: Affinity >= 10
+  - Logic: All
+  - Terms: Make Array，包含一个 Make Condition Term
+
+  Make Condition Term:
+    - Variable: Make Variable Ref
+      - Variable Name: "Affinity"
+      - Variable Type: Int
+      - Global Scope: false
+    - Operator: >= (GreaterOrEqual)
+    - Compare Value: "10"
+
+边 4: A_Happy -> A_CheckAffinity (无条件)
+  使用普通的 Add Edge
+
+边 5: A_CheckAffinity -> A_SpecialEnding
+  - Source Handle: "condition-true"
   - Priority: 0
-  - Condition: (使用 Make Condition Expression 创建)
-    - Logic: All
-    - Terms: (Make Array，包含一个 Make Condition Term)
-      
-      Make Condition Term:
-        - Variable: Make Variable Ref
-          - Variable Name: "Affinity"
-          - Variable Type: Int
-          - Global Scope: false
-        - Operator: >= (GreaterOrEqual)
-        - Compare Value: "10"
 
-边 5: A_Happy -> A_NormalEnding (条件: Affinity < 10)
-  - Story Asset: (你的剧情资产)
-  - Source Node Id: "A_Happy"
-  - Target Node Id: "A_NormalEnding"
-  - Priority: 1
-  - Condition: (使用 Make Condition Expression 创建)
-    - Logic: All
-    - Terms: (Make Array，包含一个 Make Condition Term)
-      
-      Make Condition Term:
-        - Variable: Make Variable Ref
-          - Variable Name: "Affinity"
-          - Variable Type: Int
-          - Global Scope: false
-        - Operator: < (Less)
-        - Compare Value: "10"
+边 6: A_CheckAffinity -> A_NormalEnding
+  - Source Handle: "condition-false"
+  - Priority: 0
 
-边 6: A_Sad -> A_NormalEnding (无条件)
+边 7: A_Sad -> A_NormalEnding (无条件)
   使用普通的 Add Edge
 
-边 7: A_SpecialEnding -> End (无条件)
+边 8: A_SpecialEnding -> End (无条件)
   使用普通的 Add Edge
 
-边 8: A_NormalEnding -> End (无条件)
+边 9: A_NormalEnding -> End (无条件)
   使用普通的 Add Edge
 ```
 

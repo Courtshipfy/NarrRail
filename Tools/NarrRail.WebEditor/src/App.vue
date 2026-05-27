@@ -125,102 +125,6 @@
                 />
             </div>
 
-            <div class="form-group">
-                <label>条件逻辑 (condition.logic)</label>
-                <select class="form-input" v-model="edgeDraft.logic">
-                    <option value="All">All</option>
-                    <option value="Any">Any</option>
-                    <option value="Not">Not</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>条件项 (condition.terms)</label>
-                <div class="condition-editor">
-                    <div
-                        v-if="edgeDraft.terms.length === 0"
-                        class="condition-empty"
-                    >
-                        暂无条件项（空数组表示恒真条件）
-                    </div>
-
-                    <div
-                        v-for="(term, index) in edgeDraft.terms"
-                        :key="`term-${index}`"
-                        class="condition-term-card"
-                    >
-                        <div class="condition-term-header">
-                            <span>Term #{{ index + 1 }}</span>
-                            <button
-                                class="mini-btn danger"
-                                @click="removeEdgeConditionTerm(index)"
-                            >
-                                删除
-                            </button>
-                        </div>
-
-                        <div class="condition-grid">
-                            <input
-                                class="form-input"
-                                v-model="term.variable.name"
-                                placeholder="变量名 (variable.name)"
-                            />
-                            <select
-                                class="form-input"
-                                v-model="term.variable.type"
-                            >
-                                <option
-                                    v-for="type in conditionVariableTypes"
-                                    :key="type"
-                                    :value="type"
-                                >
-                                    {{ type }}
-                                </option>
-                            </select>
-                            <select
-                                class="form-input"
-                                v-model="term.variable.scope"
-                            >
-                                <option
-                                    v-for="scope in conditionVariableScopes"
-                                    :key="scope"
-                                    :value="scope"
-                                >
-                                    {{ scope }}
-                                </option>
-                            </select>
-                            <select class="form-input" v-model="term.operator">
-                                <option
-                                    v-for="op in conditionOperators"
-                                    :key="op"
-                                    :value="op"
-                                >
-                                    {{ op }}
-                                </option>
-                            </select>
-                            <input
-                                class="form-input"
-                                v-model="term.compareValue"
-                                placeholder="比较值 (compareValue)"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="condition-actions">
-                        <button
-                            class="mini-btn primary"
-                            @click="addEdgeConditionTerm"
-                        >
-                            + 添加条件项
-                        </button>
-                    </div>
-
-                    <p v-if="edgeDraftError" class="condition-error">
-                        {{ edgeDraftError }}
-                    </p>
-                </div>
-            </div>
-
             <div class="edge-editor-actions">
                 <button class="action-btn primary" @click="applyEdgeDraft">
                     应用
@@ -295,7 +199,7 @@ const edges = ref([
         target: "node-2",
         type: "straight",
         animated: false,
-        data: { priority: 0, condition: { logic: "All", terms: [] } },
+        data: { priority: 0 },
     },
     {
         id: "e2-3",
@@ -304,7 +208,7 @@ const edges = ref([
         target: "node-3",
         type: "straight",
         animated: false,
-        data: { priority: 0, condition: { logic: "All", terms: [] } },
+        data: { priority: 0 },
     },
     {
         id: "e2-4",
@@ -313,7 +217,7 @@ const edges = ref([
         target: "node-4",
         type: "straight",
         animated: false,
-        data: { priority: 0, condition: { logic: "All", terms: [] } },
+        data: { priority: 0 },
     },
 ]);
 
@@ -382,16 +286,9 @@ const hasWarnings = computed(() => validationResult.value.warnings.length > 0);
 
 const edgeDraft = reactive({
     priority: 0,
-    logic: "All",
-    terms: [],
 });
 
-const edgeDraftError = ref("");
 const validationDebounceTimer = ref(null);
-const conditionOperators = ["==", "!=", ">", ">=", "<", "<="];
-const conditionVariableTypes = ["Bool", "Int", "Float", "String"];
-const conditionVariableScopes = ["Session", "Global"];
-const VALID_LOGICS = new Set(["All", "Any", "Not"]);
 
 let autoSaveTimer = null;
 let autoSaveDirty = false;
@@ -742,12 +639,6 @@ function normalizeEdge(edge) {
             "stroke: rgba(168, 85, 247, 0.55); stroke-width: 2px;",
         data: {
             priority: edge?.data?.priority ?? 0,
-            condition: {
-                logic: edge?.data?.condition?.logic || "All",
-                terms: Array.isArray(edge?.data?.condition?.terms)
-                    ? edge.data.condition.terms
-                    : [],
-            },
         },
     };
 }
@@ -769,6 +660,14 @@ function isValidChoiceHandle(node, sourceHandle) {
     return Number.isInteger(index) && index >= 0 && index < count;
 }
 
+function isValidConditionHandle(node, sourceHandle) {
+    if (!node || node.type !== "condition") return true;
+    if (!sourceHandle) return false;
+    return (
+        sourceHandle === "condition-true" || sourceHandle === "condition-false"
+    );
+}
+
 function sanitizeEdges(rawEdges, nodeList = nodes.value) {
     const seenIds = new Set();
     const nodeMap = new Map((nodeList || []).map((n) => [n.id, n]));
@@ -781,7 +680,10 @@ function sanitizeEdges(rawEdges, nodeList = nodes.value) {
         const targetNode = nodeMap.get(edge.target);
         if (!sourceNode || !targetNode) return false;
 
-        return isValidChoiceHandle(sourceNode, edge.sourceHandle);
+        return (
+            isValidChoiceHandle(sourceNode, edge.sourceHandle) &&
+            isValidConditionHandle(sourceNode, edge.sourceHandle)
+        );
     });
 }
 
@@ -825,6 +727,15 @@ function syncChoiceEdgesForNode(choiceNode, currentEdges) {
     return (currentEdges || []).filter((edge) => {
         if (edge.source !== choiceNode.id) return true;
         return isValidChoiceHandle(choiceNode, edge.sourceHandle);
+    });
+}
+
+function syncConditionEdgesForNode(conditionNode, currentEdges) {
+    if (!conditionNode || conditionNode.type !== "condition")
+        return currentEdges;
+    return (currentEdges || []).filter((edge) => {
+        if (edge.source !== conditionNode.id) return true;
+        return isValidConditionHandle(conditionNode, edge.sourceHandle);
     });
 }
 
@@ -1078,61 +989,14 @@ function persistDarkModePreference() {
     );
 }
 
-function normalizeConditionTerm(term = {}) {
-    return {
-        variable: {
-            name: String(term?.variable?.name || ""),
-            type: conditionVariableTypes.includes(term?.variable?.type)
-                ? term.variable.type
-                : "String",
-            scope: conditionVariableScopes.includes(term?.variable?.scope)
-                ? term.variable.scope
-                : "Session",
-        },
-        operator: conditionOperators.includes(term?.operator)
-            ? term.operator
-            : "==",
-        compareValue:
-            term?.compareValue == null ? "" : String(term.compareValue),
-    };
-}
-
-function normalizeConditionTerms(terms) {
-    if (!Array.isArray(terms)) return [];
-    return terms.map((term) => normalizeConditionTerm(term));
-}
-
 function syncEdgeDraftFromSelection() {
     if (!selectedEdge.value) return;
     edgeDraft.priority = selectedEdge.value.data?.priority ?? 0;
-    edgeDraft.logic = selectedEdge.value.data?.condition?.logic || "All";
-    edgeDraft.terms = normalizeConditionTerms(
-        selectedEdge.value.data?.condition?.terms || [],
-    );
-    edgeDraftError.value = "";
 }
 
 function applyEdgeDraft() {
     if (!selectedEdge.value) return;
 
-    const logic = VALID_LOGICS.has(edgeDraft.logic) ? edgeDraft.logic : "All";
-    const parsedTerms = normalizeConditionTerms(edgeDraft.terms);
-
-    for (let i = 0; i < parsedTerms.length; i++) {
-        const term = parsedTerms[i];
-        if (!term.variable.name.trim()) {
-            edgeDraftError.value = `Term #${i + 1} 的 variable.name 不能为空`;
-            return;
-        }
-    }
-
-    if (logic === "Not" && parsedTerms.length !== 1) {
-        edgeDraftError.value =
-            "logic=Not 时 condition.terms 建议且通常应为 1 项";
-        return;
-    }
-
-    edgeDraftError.value = "";
     handleEdgeUpdate({
         ...selectedEdge.value,
         data: {
@@ -1140,25 +1004,8 @@ function applyEdgeDraft() {
             priority: Number.isFinite(edgeDraft.priority)
                 ? edgeDraft.priority
                 : 0,
-            condition: { logic, terms: parsedTerms },
         },
     });
-}
-
-function addEdgeConditionTerm() {
-    edgeDraft.terms.push(
-        normalizeConditionTerm({
-            variable: { name: "", type: "String", scope: "Session" },
-            operator: "==",
-            compareValue: "",
-        }),
-    );
-    edgeDraftError.value = "";
-}
-
-function removeEdgeConditionTerm(index) {
-    edgeDraft.terms.splice(index, 1);
-    edgeDraftError.value = "";
 }
 
 function resetEdgeDraft() {
@@ -2464,6 +2311,7 @@ function handleNodeUpdate(updatedNode) {
     }
 
     nextEdges = syncChoiceEdgesForNode(nextNode, nextEdges);
+    nextEdges = syncConditionEdgesForNode(nextNode, nextEdges);
     edges.value = safeClone(sanitizeEdges(nextEdges));
 
     if (selectedEdge.value) {
@@ -2743,81 +2591,6 @@ function handlePresetSpeakersUpdate(updatedSpeakers) {
 .form-textarea {
     min-height: 100px;
     resize: vertical;
-}
-
-.condition-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.condition-empty {
-    font-size: 12px;
-    color: #64748b;
-    background: rgba(148, 163, 184, 0.12);
-    border: 1px dashed rgba(148, 163, 184, 0.35);
-    border-radius: 8px;
-    padding: 8px 10px;
-}
-
-.condition-term-card {
-    background: rgba(255, 255, 255, 0.42);
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    border-radius: 10px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.condition-term-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    font-weight: 700;
-    color: #334155;
-}
-
-.condition-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-}
-
-.condition-actions {
-    display: flex;
-    justify-content: flex-start;
-}
-
-.mini-btn {
-    border: none;
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    background: rgba(15, 23, 42, 0.08);
-    color: #1e293b;
-}
-
-.mini-btn.primary {
-    background: rgba(59, 130, 246, 0.2);
-    color: #1d4ed8;
-}
-
-.mini-btn.danger {
-    background: rgba(239, 68, 68, 0.14);
-    color: #b91c1c;
-}
-
-.condition-error {
-    margin: 0;
-    font-size: 12px;
-    color: #b91c1c;
-    background: rgba(254, 226, 226, 0.9);
-    border-radius: 8px;
-    padding: 6px 8px;
 }
 
 .edge-editor-actions {

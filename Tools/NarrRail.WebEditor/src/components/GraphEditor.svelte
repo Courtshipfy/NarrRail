@@ -11,6 +11,7 @@
   import JumpNode from '../nodes/JumpNode.svelte';
   import SetVariableNode from '../nodes/SetVariableNode.svelte';
   import EmitEventNode from '../nodes/EmitEventNode.svelte';
+  import ConditionNode from '../nodes/ConditionNode.svelte';
 
   export let nodes = [];
   export let edges = [];
@@ -251,7 +252,8 @@
     end: EndNode,
     jump: JumpNode,
     setvariable: SetVariableNode,
-    emitevent: EmitEventNode
+    emitevent: EmitEventNode,
+    condition: ConditionNode
   };
 
   // 处理节点变化
@@ -336,8 +338,7 @@
       animated: false,
       style: 'stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;',
       data: {
-        priority: 0,
-        condition: { logic: 'All', terms: [] }
+        priority: 0
       }
     };
 
@@ -523,6 +524,13 @@
         return { variableName: '', operation: 'Set', value: '' };
       case 'emitevent':
         return { eventId: '', parameters: {} };
+      case 'condition':
+        return {
+          condition: {
+            logic: 'All',
+            terms: []
+          }
+        };
       case 'end':
         return {};
       default:
@@ -607,6 +615,10 @@
       <button class="context-menu-item" on:click={() => createNode('emitevent')}>
         <span class="material-symbols-outlined">notifications_active</span>
         <span>触发事件</span>
+      </button>
+      <button class="context-menu-item" on:click={() => createNode('condition')}>
+        <span class="material-symbols-outlined">rule</span>
+        <span>条件判断</span>
       </button>
       <button class="context-menu-item" on:click={() => createNode('end')}>
         <span class="material-symbols-outlined">stop_circle</span>

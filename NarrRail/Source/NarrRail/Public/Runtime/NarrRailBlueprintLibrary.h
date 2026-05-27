@@ -68,18 +68,6 @@ public:
     static bool AddEdge(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName TargetNodeId, int32 Priority = 0);
 
     /**
-     * 添加带条件的边
-     * @param StoryAsset 剧情资产
-     * @param SourceNodeId 源节点 ID
-     * @param TargetNodeId 目标节点 ID
-     * @param Priority 优先级（数字越小优先级越高）
-     * @param Condition 条件表达式
-     * @return 是否添加成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
-    static bool AddEdgeWithCondition(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName TargetNodeId, int32 Priority, const FNarrRailConditionExpression& Condition);
-
-    /**
      * 添加变量定义到剧情资产
      * @param StoryAsset 剧情资产
      * @param VariableName 变量名

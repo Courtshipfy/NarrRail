@@ -1,4 +1,4 @@
-meta:
+﻿meta:
   schemaVersion: 1
   storyId: NewStory
   entryNodeId: node-1776933658447
@@ -75,48 +75,24 @@ edges:
   - sourceNodeId: node-1776933658447
     targetNodeId: node-1776933828193
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776933828193
     targetNodeId: node-1776933918740
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776933973501
     targetNodeId: node-1776934009798
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776934009798
     targetNodeId: node-1776934076571
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776934076571
     targetNodeId: node-1776934112144
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776934112144
     targetNodeId: node-1776934155631
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776934155631
     targetNodeId: node-1776934177734
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1776933918740
     targetNodeId: node-1777009101423
     priority: 0
-    condition:
-      logic: All
-      terms: []

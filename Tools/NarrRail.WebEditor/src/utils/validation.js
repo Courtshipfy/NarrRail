@@ -1,4 +1,4 @@
-const VALID_LOGICS = new Set(["All", "Any", "Not"]);
+const VALID_LOGICS = new Set(["All", "Any"]);
 const VALID_OPERATORS = new Set(["==", "!=", ">", ">=", "<", "<="]);
 const VALID_VAR_TYPES = new Set(["Bool", "Int", "Float", "String"]);
 const VALID_SCOPES = new Set(["Session", "Global"]);
@@ -44,7 +44,7 @@ export function validateStory(nodes, edges, meta) {
     addError(`入口节点不存在: ${safeMeta.entryNodeId}`);
   }
 
-  // 3) Edge references + condition schema
+  // 3) Edge references
   for (let i = 0; i < safeEdges.length; i++) {
     const edge = safeEdges[i];
     const edgeLabel = edge?.id || `#${i}`;
@@ -68,7 +68,17 @@ export function validateStory(nodes, edges, meta) {
       );
     }
 
-    validateEdgeCondition(edge, edgeLabel, addError, addWarning);
+    if (edge?.data?.priority != null && !Number.isInteger(edge.data.priority)) {
+      addWarning(
+        `边 ${edgeLabel}: priority 建议为整数，当前值=${edge.data.priority}`,
+      );
+    }
+
+    if (edge?.data?.condition != null || edge?.condition != null) {
+      addError(
+        `边 ${edgeLabel}: 边条件已废弃，请改用 Condition 节点进行条件分支`,
+      );
+    }
   }
 
   // 4) Required fields per node type + choice-edge mapping
@@ -122,17 +132,26 @@ export function validateStory(nodes, edges, meta) {
         addError,
         addWarning,
       );
+    } else if (nodeType === "condition") {
+      validateConditionNodeEdgeMapping(
+        node,
+        safeEdges,
+        nodeMap,
+        addError,
+        addWarning,
+      );
     } else {
-      // 非 choice 节点不应使用 choice-* 句柄
+      // 非 choice/condition 节点不应使用专用句柄
       const badEdges = safeEdges.filter(
         (e) =>
           e?.source === node.id &&
           typeof e?.sourceHandle === "string" &&
-          e.sourceHandle.startsWith("choice-"),
+          (e.sourceHandle.startsWith("choice-") ||
+            e.sourceHandle.startsWith("condition-")),
       );
       for (const bad of badEdges) {
         addError(
-          `边 ${bad.id || "(无ID)"}: 非 Choice 节点 ${node.id} 不应使用 sourceHandle=${bad.sourceHandle}`,
+          `边 ${bad.id || "(无ID)"}: 节点 ${node.id} 不应使用 sourceHandle=${bad.sourceHandle}`,
         );
       }
     }
@@ -207,6 +226,13 @@ function validateChoiceNodeEdgeMapping(
       });
     }
 
+    if (c.availability != null || c.condition != null) {
+      addError(
+        `节点 ${node.id}: 选项 #${i + 1} 的条件字段已废弃，请改用 Condition 节点`,
+        { nodeId: node.id },
+      );
+    }
+
     const expectedHandle = `choice-${i}`;
     const mappedEdges = sourceEdges.filter(
       (e) => e?.sourceHandle === expectedHandle,
@@ -271,74 +297,77 @@ function validateChoiceNodeEdgeMapping(
   }
 }
 
-function validateEdgeCondition(edge, edgeLabel, addError, addWarning) {
-  const data = edge?.data ?? {};
-  const condition = data.condition;
+function validateConditionNodeEdgeMapping(
+  node,
+  edges,
+  nodeMap,
+  addError,
+  addWarning,
+) {
+  const sourceEdges = edges.filter((e) => e?.source === node.id);
+  const trueEdges = sourceEdges.filter(
+    (e) => e?.sourceHandle === "condition-true",
+  );
+  const falseEdges = sourceEdges.filter(
+    (e) => e?.sourceHandle === "condition-false",
+  );
 
-  if (data.priority != null && !Number.isInteger(data.priority)) {
-    addWarning(`边 ${edgeLabel}: priority 建议为整数，当前值=${data.priority}`);
+  if (trueEdges.length !== 1) {
+    addError(`节点 ${node.id}: condition-true 出边必须且只能有 1 条`, {
+      nodeId: node.id,
+    });
   }
 
-  // condition 可省略；省略则视为恒真
-  if (condition == null) return;
+  if (falseEdges.length !== 1) {
+    addError(`节点 ${node.id}: condition-false 出边必须且只能有 1 条`, {
+      nodeId: node.id,
+    });
+  }
 
-  if (typeof condition !== "object" || Array.isArray(condition)) {
-    addError(`边 ${edgeLabel}: condition 必须是对象`);
+  for (const edge of [...trueEdges, ...falseEdges]) {
+    if (!nodeMap.has(edge.target)) {
+      addError(`节点 ${node.id}: 分支目标不存在: ${edge.target || "(空)"}`, {
+        nodeId: node.id,
+      });
+    }
+  }
+
+  for (const edge of sourceEdges) {
+    const sh = String(edge?.sourceHandle || "");
+    if (sh !== "condition-true" && sh !== "condition-false") {
+      addError(
+        `节点 ${node.id}: 非法 sourceHandle=${sh || "(空)"}，仅允许 condition-true / condition-false`,
+        { nodeId: node.id },
+      );
+    }
+  }
+
+  const condition = node?.data?.condition;
+  if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
+    addError(`节点 ${node.id}: condition 节点缺少 data.condition`, {
+      nodeId: node.id,
+    });
     return;
   }
 
   const logic = condition.logic ?? "All";
   if (!VALID_LOGICS.has(logic)) {
-    addError(
-      `边 ${edgeLabel}: condition.logic 非法（允许: All/Any/Not），当前=${logic}`,
-    );
+    addError(`节点 ${node.id}: condition.logic 非法（允许: All/Any）`, {
+      nodeId: node.id,
+    });
   }
 
-  if (!Array.isArray(condition.terms)) {
-    addError(`边 ${edgeLabel}: condition.terms 必须是数组`);
+  const terms = Array.isArray(condition.terms) ? condition.terms : null;
+  if (!terms) {
+    addError(`节点 ${node.id}: condition.terms 必须是数组`, {
+      nodeId: node.id,
+    });
     return;
   }
 
-  if (logic === "Not" && condition.terms.length !== 1) {
-    addWarning(`边 ${edgeLabel}: logic=Not 时建议且通常应只有 1 个 term`);
+  if (terms.length === 0) {
+    addWarning(`节点 ${node.id}: condition.terms 为空，条件将恒真`, {
+      nodeId: node.id,
+    });
   }
-
-  condition.terms.forEach((term, idx) => {
-    if (!term || typeof term !== "object" || Array.isArray(term)) {
-      addError(`边 ${edgeLabel}: term[${idx}] 必须是对象`);
-      return;
-    }
-
-    const variable = term.variable;
-    const operator = term.operator;
-    const compareValue = term.compareValue;
-
-    if (!variable || typeof variable !== "object" || Array.isArray(variable)) {
-      addError(`边 ${edgeLabel}: term[${idx}].variable 必须是对象`);
-    } else {
-      if (!variable.name || !String(variable.name).trim()) {
-        addError(`边 ${edgeLabel}: term[${idx}].variable.name 不能为空`);
-      }
-      if (!VALID_VAR_TYPES.has(variable.type)) {
-        addError(
-          `边 ${edgeLabel}: term[${idx}].variable.type 非法（允许: Bool/Int/Float/String），当前=${variable.type}`,
-        );
-      }
-      if (variable.scope != null && !VALID_SCOPES.has(variable.scope)) {
-        addError(
-          `边 ${edgeLabel}: term[${idx}].variable.scope 非法（允许: Session/Global），当前=${variable.scope}`,
-        );
-      }
-    }
-
-    if (!VALID_OPERATORS.has(operator)) {
-      addError(
-        `边 ${edgeLabel}: term[${idx}].operator 非法（允许: == != > >= < <=），当前=${operator}`,
-      );
-    }
-
-    if (compareValue == null) {
-      addWarning(`边 ${edgeLabel}: term[${idx}].compareValue 为空`);
-    }
-  });
 }

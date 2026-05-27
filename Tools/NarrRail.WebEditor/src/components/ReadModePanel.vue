@@ -71,6 +71,26 @@
                                     </div>
                                 </template>
 
+                                <template v-else-if="item.kind === 'condition'">
+                                    <div
+                                        class="line-row meta-row meta-row--condition"
+                                    >
+                                        <span class="speaker"></span>
+                                        <span
+                                            class="sep meta-arrow meta-arrow--condition"
+                                        ></span>
+                                        <span class="text meta-content">
+                                            <span
+                                                class="meta-type meta-type--condition"
+                                                >[条件]</span
+                                            >
+                                            <span class="meta-text">{{
+                                                item.text
+                                            }}</span>
+                                        </span>
+                                    </div>
+                                </template>
+
                                 <template
                                     v-else-if="item.kind === 'setvariable'"
                                 >
@@ -344,9 +364,7 @@ function evaluateCondition(condition) {
 
 function firstNextTarget(nodeId) {
     const outgoing = getOutgoingEdges(nodeId);
-    const next = outgoing.find((edge) =>
-        evaluateCondition(edge?.data?.condition),
-    );
+    const next = outgoing[0];
     return next?.target ? String(next.target) : "";
 }
 
@@ -373,9 +391,7 @@ function markChoiceHandleSelected(nodeId, handle) {
 }
 
 function resolveChoiceCompleteTarget(nodeId) {
-    const edge = getChoiceEdges(nodeId, "choice-complete").find((e) =>
-        evaluateCondition(e?.data?.condition),
-    );
+    const edge = getChoiceEdges(nodeId, "choice-complete")[0];
     return edge?.target ? String(edge.target) : "";
 }
 
@@ -595,10 +611,7 @@ function advanceUntilPause(maxSteps = 4000) {
                         return false;
                     }
 
-                    const edges = getChoiceEdges(node.id, choice.handle);
-                    return edges.some((edge) =>
-                        evaluateCondition(edge?.data?.condition),
-                    );
+                    return getChoiceEdges(node.id, choice.handle).length > 0;
                 });
 
             if (pending.length <= 0) {
@@ -628,6 +641,28 @@ function advanceUntilPause(maxSteps = 4000) {
             state.pendingChoices = pending;
             state.status = "await-choice";
             return;
+        }
+
+        if (kind === "condition") {
+            const passed = evaluateCondition(node?.data?.condition);
+            const handle = passed ? "condition-true" : "condition-false";
+            const targetEdge = getChoiceEdges(node.id, handle)[0];
+
+            pushTimeline({
+                kind: "condition",
+                nodeId: node.id,
+                text: `${node.id} => ${passed ? "True" : "False"}`,
+            });
+
+            if (!targetEdge?.target) {
+                setEnded(
+                    `Condition 节点 ${node.id} 缺少 ${handle} 出口。`,
+                );
+                return;
+            }
+
+            state.currentNodeId = String(targetEdge.target);
+            continue;
         }
 
         if (kind === "setvariable") {
@@ -743,9 +778,7 @@ function handleChoose(handle) {
             ? toText(currentNode?.data?.choices?.[choiceIndex]?.textKey)
             : "";
 
-    const targetEdge = getChoiceEdges(currentNode.id, handle).find((edge) =>
-        evaluateCondition(edge?.data?.condition),
-    );
+    const targetEdge = getChoiceEdges(currentNode.id, handle)[0];
 
     if (!targetEdge?.target) {
         setEnded("所选分支没有可用目标节点");
@@ -1028,6 +1061,11 @@ watch(
     color: #ffcc00 !important;
 }
 
+.preview-mode-root.is-dark-mode .meta-arrow--condition,
+.preview-mode-root.is-dark-mode .meta-type--condition {
+    color: #38bdf8 !important;
+}
+
 .preview-mode-root.is-dark-mode .meta-arrow--setvariable,
 .preview-mode-root.is-dark-mode .meta-type--setvariable {
     color: #af52de !important;
@@ -1079,6 +1117,13 @@ watch(
 :global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--choice,
 :global(body[data-theme="dark"]) .preview-mode-root .meta-type--choice {
     color: #ffcc00 !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-arrow--condition,
+:global(body.dark-theme) .preview-mode-root .meta-type--condition,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-arrow--condition,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-type--condition {
+    color: #38bdf8 !important;
 }
 
 :global(body.dark-theme) .preview-mode-root .meta-arrow--setvariable,
@@ -1149,6 +1194,11 @@ watch(
 .meta-arrow--choice,
 .meta-type--choice {
     color: #ffcc00;
+}
+
+.meta-arrow--condition,
+.meta-type--condition {
+    color: #0ea5e9;
 }
 
 .meta-arrow--setvariable,

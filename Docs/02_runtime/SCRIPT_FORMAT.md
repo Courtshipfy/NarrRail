@@ -1,4 +1,4 @@
-# NarrRail 脚本格式规范 v1
+﻿# NarrRail 脚本格式规范 v1
 
 ## 1. 适用范围
 
@@ -71,13 +71,14 @@ edges: []
 | 字段 | 类型 | 必需 | 说明 |
 |---|---|---|---|
 | `nodeId` | string | 是 | 唯一的节点 ID |
-| `nodeType` | 枚举 | 是 | `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `End` |
+| `nodeType` | 枚举 | 是 | `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End` |
 | `dialogue` | 对象 | 否 | 用于 `Dialogue` 类型 |
 | `multiDialogue` | 对象 | 否 | 用于 `MultiDialogue` 类型 |
 | `choices` | 数组 | 否 | 用于 `Choice` 类型 |
 | `choiceMode` | 枚举 | 否 | 用于 `Choice` 类型，`SinglePass`（默认）/ `ExhaustiveUntilComplete` |
 | `choiceCompletionTargetNodeId` | string | 否 | 用于 `Choice` 类型；当 `choiceMode=ExhaustiveUntilComplete` 时必填 |
 | `jumpTargetNodeId` | string | 否 | 用于 `Jump` 类型 |
+| `condition` | 对象 | 否 | 用于 `Condition` 类型；条件表达式本体 |
 | `enterActions` | 数组 | 否 | 节点主体执行前的动作 |
 | `exitActions` | 数组 | 否 | 离开节点前的动作 |
 
@@ -110,10 +111,9 @@ lines:
 ```yaml
 - textKey: option_yes
   targetNodeId: N_Yes
-  availability:
-    logic: All
-    terms: []
 ```
+
+选项不再支持 `availability` 条件。需要按条件控制是否进入某个选择集合时，在 `Choice` 节点前放置 `Condition` 节点。
 
 ## 6. 边（Edges）
 
@@ -121,9 +121,7 @@ lines:
 - sourceNodeId: N_Start
   targetNodeId: N_Choice
   priority: 0
-  condition:
-    logic: All
-    terms: []
+  sourceHandle: ""
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -131,7 +129,35 @@ lines:
 | `sourceNodeId` | string | 是 | 必须存在 |
 | `targetNodeId` | string | 是 | 必须存在 |
 | `priority` | int | 否 | 数值越小优先级越高 |
-| `condition` | 对象 | 否 | 空 terms 表示始终为真 |
+| `sourceHandle` | string | 否 | Choice/Condition 专用出口句柄；普通边为空 |
+
+边不再承载条件判断。旧的 `edges[].condition` 已废弃，导入和校验应拒绝该字段。所有条件分支必须建模为 `Condition` 节点：
+
+```yaml
+- nodeId: N_CheckAffinity
+  nodeType: Condition
+  condition:
+    logic: All
+    terms:
+      - variable:
+          name: Affinity
+          type: Int
+          scope: Session
+        operator: ">="
+        compareValue: "10"
+
+edges:
+  - sourceNodeId: N_CheckAffinity
+    sourceHandle: condition-true
+    targetNodeId: N_SpecialEnding
+    priority: 0
+  - sourceNodeId: N_CheckAffinity
+    sourceHandle: condition-false
+    targetNodeId: N_NormalEnding
+    priority: 0
+```
+
+`Condition` 节点必须且只能有一条 `sourceHandle: condition-true` 出边和一条 `sourceHandle: condition-false` 出边。
 
 ## 7. 条件（Conditions）
 
@@ -247,16 +273,10 @@ edges:
   - sourceNodeId: N_Start
     targetNodeId: N_Block
     priority: 0
-    condition:
-      logic: All
-      terms: []
 
   - sourceNodeId: N_Block
     targetNodeId: N_End
     priority: 0
-    condition:
-      logic: All
-      terms: []
 ```
 
 ## 12. 全局配置文件约定（WebEditor）
@@ -335,12 +355,10 @@ variables:
       eventId: ""
 ```
 
-**条件边（优先级）：**
+**Condition 节点分支：**
 ```yaml
-# 优先级 0：先检查 >= 10
-- sourceNodeId: N_A_Happy
-  targetNodeId: N_A_SpecialEnding
-  priority: 0
+- nodeId: N_CheckAffinity
+  nodeType: Condition
   condition:
     logic: All
     terms:
@@ -351,19 +369,15 @@ variables:
         operator: ">="
         compareValue: "10"
 
-# 优先级 1：再检查 < 10
-- sourceNodeId: N_A_Happy
+- sourceNodeId: N_CheckAffinity
+  sourceHandle: condition-true
+  targetNodeId: N_A_SpecialEnding
+  priority: 0
+
+- sourceNodeId: N_CheckAffinity
+  sourceHandle: condition-false
   targetNodeId: N_A_NormalEnding
-  priority: 1
-  condition:
-    logic: All
-    terms:
-      - variable:
-          name: Affinity
-          type: Int
-          scope: Session
-        operator: "<"
-        compareValue: "10"
+  priority: 0
 ```
 
 **选项节点：**
@@ -373,14 +387,8 @@ variables:
   choices:
     - textKey: "好啊，我很乐意！"
       targetNodeId: N_A_Happy
-      availability:
-        logic: All
-        terms: []
     - textKey: "不了，我还有事。"
       targetNodeId: N_A_Sad
-      availability:
-        logic: All
-        terms: []
 ```
 
 ### 运行结果
@@ -401,6 +409,6 @@ variables:
 4. 变量名建议使用驼峰命名法
 5. 条件表达式支持嵌套逻辑（All/Any）
 6. 动作按数组顺序依次执行
-7. 边的优先级在多个条件满足时生效（数值越小越优先）
+7. 普通边不承载条件；需要条件分支时使用 `Condition` 节点
 8. 负数值使用字符串表示（如 `"-5"`）
-9. 条件边的优先级很重要：确保互斥条件按正确顺序检查
+9. `Condition` 节点必须同时连接 `condition-true` 与 `condition-false`

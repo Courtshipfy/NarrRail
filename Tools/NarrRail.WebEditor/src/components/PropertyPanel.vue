@@ -361,6 +361,100 @@
                         </div>
                     </template>
 
+                    <template v-else-if="localNode.type === 'condition'">
+                        <div class="form-group glass-input">
+                            <label class="form-label">条件逻辑</label>
+                            <select
+                                class="form-input"
+                                v-model="localNode.data.condition.logic"
+                                @change="handleUpdate"
+                            >
+                                <option value="All">All（全部满足）</option>
+                                <option value="Any">Any（任一满足）</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group glass-input">
+                            <label class="form-label">条件项</label>
+                            <div
+                                v-for="(term, index) in localNode.data.condition
+                                    .terms"
+                                :key="`cond-term-${index}`"
+                                class="choice-item"
+                            >
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    v-model="term.variable.name"
+                                    placeholder="变量名"
+                                    @compositionstart="handleCompositionStart"
+                                    @compositionend="handleCompositionEnd"
+                                    @blur="handleInputChange"
+                                />
+                                <select
+                                    class="form-input"
+                                    v-model="term.variable.type"
+                                    @change="handleUpdate"
+                                >
+                                    <option value="Bool">Bool</option>
+                                    <option value="Int">Int</option>
+                                    <option value="Float">Float</option>
+                                    <option value="String">String</option>
+                                </select>
+                                <select
+                                    class="form-input"
+                                    v-model="term.variable.scope"
+                                    @change="handleUpdate"
+                                >
+                                    <option value="Session">Session</option>
+                                    <option value="Global">Global</option>
+                                </select>
+                                <select
+                                    class="form-input"
+                                    v-model="term.operator"
+                                    @change="handleUpdate"
+                                >
+                                    <option value="==">==</option>
+                                    <option value="!=">!=</option>
+                                    <option value=">">&gt;</option>
+                                    <option value=">=">&gt;=</option>
+                                    <option value="<">&lt;</option>
+                                    <option value="<=">&lt;=</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    v-model="term.compareValue"
+                                    placeholder="比较值"
+                                    @compositionstart="handleCompositionStart"
+                                    @compositionend="handleCompositionEnd"
+                                    @blur="handleInputChange"
+                                />
+                                <button
+                                    class="remove-choice-btn"
+                                    @click="removeConditionTerm(index)"
+                                >
+                                    <span class="material-symbols-outlined"
+                                        >close</span
+                                    >
+                                </button>
+                            </div>
+
+                            <button
+                                class="add-choice-btn"
+                                @click="addConditionTerm"
+                            >
+                                <span class="material-symbols-outlined"
+                                    >add</span
+                                >
+                                <span>添加条件项</span>
+                            </button>
+                            <p class="choice-hint">
+                                输出句柄固定为 condition-true / condition-false
+                            </p>
+                        </div>
+                    </template>
+
                     <template v-else-if="localNode.type === 'setvariable'">
                         <div class="form-group glass-input">
                             <label class="form-label">变量名</label>
@@ -852,6 +946,17 @@ watch(
                 ) {
                     localNode.value.data.choiceMode = "SinglePass";
                 }
+            }
+            if (localNode.value.type === "condition") {
+                localNode.value.data = localNode.value.data || {};
+                const condition = localNode.value.data.condition || {};
+                if (condition.logic !== "Any") {
+                    condition.logic = "All";
+                }
+                if (!Array.isArray(condition.terms)) {
+                    condition.terms = [];
+                }
+                localNode.value.data.condition = condition;
             }
             isExpanded.value = true; // 选中节点时自动展开
         } else {
@@ -1655,6 +1760,38 @@ function updateParameters(jsonString) {
     } catch (e) {
         // 忽略无效的 JSON
     }
+}
+
+function addConditionTerm() {
+    if (!localNode.value || localNode.value.type !== "condition") return;
+    const terms = Array.isArray(localNode.value.data?.condition?.terms)
+        ? [...localNode.value.data.condition.terms]
+        : [];
+
+    terms.push({
+        variable: { name: "", type: "String", scope: "Session" },
+        operator: "==",
+        compareValue: "",
+    });
+
+    if (!localNode.value.data.condition) {
+        localNode.value.data.condition = { logic: "All", terms: [] };
+    }
+    localNode.value.data.condition.terms = terms;
+    handleUpdate();
+}
+
+function removeConditionTerm(index) {
+    if (!localNode.value || localNode.value.type !== "condition") return;
+    const terms = Array.isArray(localNode.value.data?.condition?.terms)
+        ? [...localNode.value.data.condition.terms]
+        : [];
+    terms.splice(index, 1);
+    if (!localNode.value.data.condition) {
+        localNode.value.data.condition = { logic: "All", terms: [] };
+    }
+    localNode.value.data.condition.terms = terms;
+    handleUpdate();
 }
 
 async function openMultiDialogueModal() {

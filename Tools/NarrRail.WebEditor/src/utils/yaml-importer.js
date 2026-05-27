@@ -5,14 +5,25 @@ const reverseNodeTypeMap = {
   MultiDialogue: "multidialogue",
   Choice: "choice",
   Jump: "jump",
-  SetVariable: "setVariable",
-  EmitEvent: "emitEvent",
+  SetVariable: "setvariable",
+  EmitEvent: "emitevent",
+  Condition: "condition",
   End: "end",
 };
 
 export function importFromYAML(yamlString) {
   // 解析 YAML
   const data = YAML.parse(yamlString);
+  if (Array.isArray(data?.edges)) {
+    const deprecatedEdgeIndex = data.edges.findIndex(
+      (edge) => edge?.condition != null,
+    );
+    if (deprecatedEdgeIndex !== -1) {
+      throw new Error(
+        `edges[${deprecatedEdgeIndex}].condition 已废弃，请改用 Condition 节点控制条件分支`,
+      );
+    }
+  }
 
   // 兼容 Choice 节点两种格式：
   // 1) 新格式：choices: []
@@ -37,6 +48,11 @@ export function importFromYAML(yamlString) {
     if (node.nodeType === "Choice" || node.choice || node.choices) {
       // Choice 节点：兼容新旧格式，只保存选项文本，不保存 targetNodeId（通过边表示）
       const choiceArray = getChoiceArray(node);
+      if (choiceArray.some((choice) => choice?.availability != null)) {
+        throw new Error(
+          `节点 ${node.nodeId}: choices[].availability 已废弃，请改用 Condition 节点控制条件分支`,
+        );
+      }
       const choiceMode =
         node.choiceMode === "ExhaustiveUntilComplete"
           ? "ExhaustiveUntilComplete"
@@ -59,12 +75,23 @@ export function importFromYAML(yamlString) {
         speakerId: md.speakerId || "",
         lines: lines.length > 0 ? lines : [{ textKey: "" }],
       };
+    } else if (node.nodeType === "Condition" || node.condition) {
+      base.data = {
+        condition: node.condition || { logic: "All", terms: [] },
+      };
     } else if (node.dialogue) {
       base.data = { ...node.dialogue };
     } else if (node.jump) {
       base.data = { ...node.jump };
     } else if (node.actions) {
-      base.data = { actions: node.actions };
+      const firstAction = Array.isArray(node.actions)
+        ? node.actions[0] || {}
+        : {};
+      base.data = {
+        variableName: firstAction?.variable?.variableName || "",
+        operation: firstAction?.actionType || "Set",
+        value: firstAction?.value || "",
+      };
     } else if (node.emitEvent) {
       base.data = { ...node.emitEvent };
     }
@@ -81,13 +108,13 @@ export function importFromYAML(yamlString) {
     edges.push({
       id: `e${edgeIndex++}`,
       source: edge.sourceNodeId,
+      sourceHandle: edge.sourceHandle || undefined,
       target: edge.targetNodeId,
       type: "default",
       animated: false,
       style: "stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;",
       data: {
         priority: edge.priority,
-        condition: edge.condition,
       },
     });
   });
@@ -112,7 +139,6 @@ export function importFromYAML(yamlString) {
           if (!existing.data) {
             existing.data = {
               priority: 0,
-              condition: { logic: "All", terms: [] },
             };
           }
           return;
@@ -128,7 +154,6 @@ export function importFromYAML(yamlString) {
           style: "stroke: rgba(168, 85, 247, 0.6); stroke-width: 2px;",
           data: {
             priority: 0,
-            condition: { logic: "All", terms: [] },
           },
         });
       });
@@ -168,7 +193,6 @@ export function importFromYAML(yamlString) {
             style: "stroke: rgba(124, 58, 237, 0.72); stroke-width: 2px;",
             data: {
               priority: 0,
-              condition: { logic: "All", terms: [] },
             },
           });
         }

@@ -1,4 +1,4 @@
-meta:
+﻿meta:
   schemaVersion: 1
   storyId: kiminoshiranaimonogatari
   entryNodeId: node-1778315640680
@@ -74,54 +74,27 @@ edges:
   - sourceNodeId: node-1778315640680
     targetNodeId: node-1778315655335
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778315655335
     targetNodeId: node-1778315668436
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778315668436
     targetNodeId: node-1778315730527
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778315730527
     targetNodeId: node-1778315740441
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778315788681
     targetNodeId: node-1778315805142
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778315740441
     targetNodeId: node-1778480381925
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778480381925
     targetNodeId: node-1778315788681
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778480381925
     targetNodeId: node-1778315805142
     priority: 0
-    condition:
-      logic: All
-      terms: []
   - sourceNodeId: node-1778480381925
     targetNodeId: node-1778315867738
     priority: 0
-    condition:
-      logic: All
-      terms: []

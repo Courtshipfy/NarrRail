@@ -24,8 +24,9 @@ const nodeTypeMap = {
   multidialogue: "MultiDialogue",
   choice: "Choice",
   jump: "Jump",
-  setVariable: "SetVariable",
-  emitEvent: "EmitEvent",
+  setvariable: "SetVariable",
+  emitevent: "EmitEvent",
+  condition: "Condition",
   end: "End",
 };
 
@@ -81,12 +82,24 @@ export function buildYAMLString(nodes, edges, variables, meta) {
       base.jump = {
         targetNodeId: node.data.targetNodeId || "",
       };
-    } else if (node.type === "setVariable") {
-      base.actions = node.data.actions || [];
-    } else if (node.type === "emitEvent") {
+    } else if (node.type === "setvariable") {
+      base.actions = [
+        {
+          actionType: node.data.operation || "Set",
+          variable: {
+            variableName: node.data.variableName || "",
+            variableType: "String",
+            bGlobalScope: false,
+          },
+          value: node.data.value || "",
+        },
+      ];
+    } else if (node.type === "emitevent") {
       base.emitEvent = {
         eventId: node.data.eventId || "",
       };
+    } else if (node.type === "condition") {
+      base.condition = node.data?.condition || { logic: "All", terms: [] };
     }
 
     return base;
@@ -95,9 +108,9 @@ export function buildYAMLString(nodes, edges, variables, meta) {
   // 转换边 - 导出全部边（包括 Choice 分支边）
   const yamlEdges = edges.map((edge) => ({
     sourceNodeId: edge.source,
+    sourceHandle: edge.sourceHandle || "",
     targetNodeId: edge.target,
     priority: edge.data?.priority || 0,
-    condition: edge.data?.condition || { logic: "All", terms: [] },
   }));
 
   // 构建完整结构

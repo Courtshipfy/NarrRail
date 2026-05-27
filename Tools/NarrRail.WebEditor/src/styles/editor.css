@@ -541,12 +541,14 @@ body.dark-theme .choice-node,
 body.dark-theme .jump-node,
 body.dark-theme .setvariable-node,
 body.dark-theme .emitevent-node,
+body.dark-theme .condition-node,
 body.dark-theme .end-node,
 body[data-theme="dark"] .dialogue-node,
 body[data-theme="dark"] .choice-node,
 body[data-theme="dark"] .jump-node,
 body[data-theme="dark"] .setvariable-node,
 body[data-theme="dark"] .emitevent-node,
+body[data-theme="dark"] .condition-node,
 body[data-theme="dark"] .end-node {
     background: rgba(15, 23, 42, 0.95) !important;
     border-color: rgba(148, 163, 184, 0.45) !important;
@@ -572,12 +574,16 @@ body.dark-theme .choice-item,
 body.dark-theme .choice-text,
 body.dark-theme .end-message,
 body.dark-theme .no-choices,
+body.dark-theme .condition-summary,
+body.dark-theme .branch-label,
 body[data-theme="dark"] .field-label,
 body[data-theme="dark"] .field-value,
 body[data-theme="dark"] .choice-item,
 body[data-theme="dark"] .choice-text,
 body[data-theme="dark"] .end-message,
-body[data-theme="dark"] .no-choices {
+body[data-theme="dark"] .no-choices,
+body[data-theme="dark"] .condition-summary,
+body[data-theme="dark"] .branch-label {
     color: #e2e8f0 !important;
 }
 
@@ -593,12 +599,14 @@ body.dark-theme .choice-node.selected,
 body.dark-theme .jump-node.selected,
 body.dark-theme .setvariable-node.selected,
 body.dark-theme .emitevent-node.selected,
+body.dark-theme .condition-node.selected,
 body.dark-theme .end-node.selected,
 body[data-theme="dark"] .dialogue-node.selected,
 body[data-theme="dark"] .choice-node.selected,
 body[data-theme="dark"] .jump-node.selected,
 body[data-theme="dark"] .setvariable-node.selected,
 body[data-theme="dark"] .emitevent-node.selected,
+body[data-theme="dark"] .condition-node.selected,
 body[data-theme="dark"] .end-node.selected {
     box-shadow:
         0 12px 30px rgba(0, 0, 0, 0.55),

@@ -734,12 +734,6 @@ TArray<int32> UNarrRailStorySession::BuildAvailableChoiceIndices(const FNarrRail
             continue;
         }
 
-        const FNarrRailChoiceOption& Option = ChoiceNode.Choices[Index];
-        if (!EvaluateConditionExpression(Option.Availability))
-        {
-            continue;
-        }
-
         Available.Add(Index);
     }
 
@@ -754,12 +748,6 @@ TArray<int32> UNarrRailStorySession::BuildVisibleChoiceIndices(const FNarrRailNo
 
     for (int32 Index = 0; Index < ChoiceNode.Choices.Num(); ++Index)
     {
-        const FNarrRailChoiceOption& Option = ChoiceNode.Choices[Index];
-        if (!EvaluateConditionExpression(Option.Availability))
-        {
-            continue;
-        }
-
         // SinglePass: 仅显示当前可选项；Exhaustive: 显示所有可见项，并通过 bHasBeenSelected 标记已选状态。
         if (!bExhaustiveMode && Selected != nullptr && Selected->Contains(Index))
         {
@@ -814,18 +802,44 @@ FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailN
 
     Algo::SortBy(CandidateEdges, [](const FNarrRailNodeEdge* Edge) { return Edge->Priority; });
 
-    for (const FNarrRailNodeEdge* Edge : CandidateEdges)
+    if (FromNode.NodeType == ENarrRailNodeType::Condition)
     {
-        if (!EvaluateConditionExpression(Edge->Condition))
+        const bool bConditionResult = EvaluateConditionExpression(FromNode.Condition);
+        const FName ExpectedHandle = bConditionResult
+            ? FName(TEXT("condition-true"))
+            : FName(TEXT("condition-false"));
+
+        for (const FNarrRailNodeEdge* Edge : CandidateEdges)
         {
-            continue;
+            if (Edge->SourceHandle != ExpectedHandle)
+            {
+                continue;
+            }
+
+            OutNextNodeId = Edge->TargetNodeId;
+            return FNarrRailRuntimeResult::Make(
+                ENarrRailRuntimeResultCode::Success,
+                bConditionResult
+                    ? TEXT("Resolved condition-true branch.")
+                    : TEXT("Resolved condition-false branch."),
+                OutNextNodeId);
         }
 
+        return FNarrRailRuntimeResult::Make(
+            ENarrRailRuntimeResultCode::InvalidInput,
+            bConditionResult
+                ? TEXT("Condition node missing condition-true outgoing edge.")
+                : TEXT("Condition node missing condition-false outgoing edge."),
+            FromNode.NodeId);
+    }
+
+    for (const FNarrRailNodeEdge* Edge : CandidateEdges)
+    {
         OutNextNodeId = Edge->TargetNodeId;
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Resolved next node by edge."), OutNextNodeId);
     }
 
-    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("No satisfied outgoing edge. Session completed."), FromNode.NodeId);
+    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Completed, TEXT("No outgoing edge. Session completed."), FromNode.NodeId);
 }
 
 const FNarrRailNode* UNarrRailStorySession::FindNode(const FName NodeId) const

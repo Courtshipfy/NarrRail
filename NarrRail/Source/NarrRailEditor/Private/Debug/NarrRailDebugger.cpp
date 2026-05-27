@@ -288,12 +288,12 @@ void UNarrRailDebugger::PrintStoryStructure(const UNarrRailStoryAsset* StoryAsse
         UE_LOG(LogNarrRailDebug, Log, TEXT("\nEdges:"));
         for (const FNarrRailNodeEdge& Edge : StoryAsset->Edges)
         {
-            FString ConditionStr = (Edge.Condition.Terms.Num() > 0) ? FString::Printf(TEXT(" [%d conditions]"), Edge.Condition.Terms.Num()) : TEXT("");
+            FString HandleStr = (Edge.SourceHandle != NAME_None) ? FString::Printf(TEXT(" [%s]"), *Edge.SourceHandle.ToString()) : TEXT("");
             UE_LOG(LogNarrRailDebug, Log, TEXT("  %s -> %s (Priority: %d)%s"),
                 *Edge.SourceNodeId.ToString(),
                 *Edge.TargetNodeId.ToString(),
                 Edge.Priority,
-                *ConditionStr);
+                *HandleStr);
         }
     }
 

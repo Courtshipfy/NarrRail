@@ -9,7 +9,7 @@ public class ScriptValidator
 {
     private static readonly HashSet<string> ValidNodeTypes = new()
     {
-        "Dialogue", "Choice", "Jump", "SetVariable", "EmitEvent", "End"
+        "Dialogue", "MultiDialogue", "Choice", "Jump", "SetVariable", "EmitEvent", "Condition", "End"
     };
 
     private static readonly HashSet<string> ValidVariableTypes = new()
@@ -35,6 +35,11 @@ public class ScriptValidator
     private static readonly HashSet<string> ValidLogicTypes = new()
     {
         "All", "Any"
+    };
+
+    private static readonly HashSet<string> ValidChoiceModes = new()
+    {
+        "SinglePass", "ExhaustiveUntilComplete"
     };
 
     /// <summary>
@@ -168,6 +173,28 @@ public class ScriptValidator
                 }
                 break;
 
+            case "MultiDialogue":
+                if (node.MultiDialogue == null)
+                {
+                    result.AddError($"MultiDialogue node '{node.NodeId}' missing multiDialogue payload", $"nodes[{node.NodeId}].multiDialogue");
+                }
+                else if (node.MultiDialogue.Lines == null || node.MultiDialogue.Lines.Count == 0)
+                {
+                    result.AddError($"MultiDialogue node '{node.NodeId}' has no lines", $"nodes[{node.NodeId}].multiDialogue.lines");
+                }
+                else
+                {
+                    for (var i = 0; i < node.MultiDialogue.Lines.Count; i++)
+                    {
+                        if (string.IsNullOrWhiteSpace(node.MultiDialogue.Lines[i].TextKey))
+                        {
+                            result.AddWarning($"MultiDialogue node '{node.NodeId}' has empty textKey at line {i + 1}",
+                                $"nodes[{node.NodeId}].multiDialogue.lines[{i}].textKey");
+                        }
+                    }
+                }
+                break;
+
             case "Choice":
                 if (node.Choices == null || node.Choices.Count == 0)
                 {
@@ -184,6 +211,18 @@ public class ScriptValidator
                         }
                     }
                 }
+
+                if (!string.IsNullOrWhiteSpace(node.ChoiceMode) && !ValidChoiceModes.Contains(node.ChoiceMode))
+                {
+                    result.AddError($"Choice node '{node.NodeId}' has invalid choiceMode: '{node.ChoiceMode}'. Valid modes: {string.Join(", ", ValidChoiceModes)}",
+                        $"nodes[{node.NodeId}].choiceMode");
+                }
+
+                if (node.ChoiceMode == "ExhaustiveUntilComplete" && string.IsNullOrWhiteSpace(node.ChoiceCompletionTargetNodeId))
+                {
+                    result.AddError($"Choice node '{node.NodeId}' requires choiceCompletionTargetNodeId in ExhaustiveUntilComplete mode",
+                        $"nodes[{node.NodeId}].choiceCompletionTargetNodeId");
+                }
                 break;
 
             case "Jump":
@@ -191,6 +230,17 @@ public class ScriptValidator
                 {
                     result.AddError($"Jump node '{node.NodeId}' has empty jumpTargetNodeId",
                         $"nodes[{node.NodeId}].jumpTargetNodeId");
+                }
+                break;
+
+            case "Condition":
+                if (node.Condition == null)
+                {
+                    result.AddError($"Condition node '{node.NodeId}' missing condition expression", $"nodes[{node.NodeId}].condition");
+                }
+                else
+                {
+                    ValidateCondition(node.Condition, $"nodes[{node.NodeId}].condition", result);
                 }
                 break;
         }
@@ -209,11 +259,6 @@ public class ScriptValidator
             {
                 result.AddError("Edge has empty targetNodeId", "edges[]");
             }
-
-            if (edge.Condition != null)
-            {
-                ValidateCondition(edge.Condition, $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].condition", result);
-            }
         }
     }
 
@@ -223,6 +268,12 @@ public class ScriptValidator
         {
             result.AddError($"Invalid logic type: '{condition.Logic}'. Valid types: {string.Join(", ", ValidLogicTypes)}",
                 $"{location}.logic");
+        }
+
+        if (condition.Terms == null)
+        {
+            result.AddError("Condition terms must be an array", $"{location}.terms");
+            return;
         }
 
         foreach (var term in condition.Terms)
@@ -267,6 +318,7 @@ public class ScriptValidator
     {
         var nodeIds = new HashSet<string>(script.Nodes.Select(n => n.NodeId));
         var variableNames = new HashSet<string>(script.Variables.Select(v => v.Name));
+        var nodeById = script.Nodes.ToDictionary(n => n.NodeId, n => n);
 
         // Check entry node exists
         if (!nodeIds.Contains(script.Meta.EntryNodeId))
@@ -288,6 +340,8 @@ public class ScriptValidator
                 result.AddError($"Edge references non-existent target node: '{edge.TargetNodeId}'",
                     $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}]");
             }
+
+            ValidateEdgeSourceHandle(edge, nodeById, result);
         }
 
         // Check choice target references
@@ -300,6 +354,14 @@ public class ScriptValidator
                     result.AddError($"Choice in node '{node.NodeId}' references non-existent target: '{choice.TargetNodeId}'",
                         $"nodes[{node.NodeId}].choices[]");
                 }
+
+            }
+
+            if (!string.IsNullOrWhiteSpace(node.ChoiceCompletionTargetNodeId) &&
+                !nodeIds.Contains(node.ChoiceCompletionTargetNodeId))
+            {
+                result.AddError($"Choice node '{node.NodeId}' references non-existent completion target: '{node.ChoiceCompletionTargetNodeId}'",
+                    $"nodes[{node.NodeId}].choiceCompletionTargetNodeId");
             }
         }
 
@@ -313,6 +375,23 @@ public class ScriptValidator
             }
         }
 
+        // Check condition node branch completeness and variable references
+        foreach (var node in script.Nodes.Where(n => n.NodeType == "Condition"))
+        {
+            ValidateConditionNodeBranches(node, script.Edges, nodeIds, result);
+
+            if (node.Condition != null)
+            {
+                ValidateConditionVariables(node.Condition, variableNames, $"nodes[{node.NodeId}].condition", result);
+            }
+        }
+
+        foreach (var node in script.Nodes)
+        {
+            ValidateActionsVariables(node.EnterActions, variableNames, $"nodes[{node.NodeId}].enterActions", result);
+            ValidateActionsVariables(node.ExitActions, variableNames, $"nodes[{node.NodeId}].exitActions", result);
+        }
+
         // Check for orphaned nodes (warning)
         var referencedNodes = new HashSet<string> { script.Meta.EntryNodeId };
         foreach (var edge in script.Edges)
@@ -324,6 +403,11 @@ public class ScriptValidator
             foreach (var choice in node.Choices)
             {
                 referencedNodes.Add(choice.TargetNodeId);
+            }
+
+            if (!string.IsNullOrEmpty(node.ChoiceCompletionTargetNodeId))
+            {
+                referencedNodes.Add(node.ChoiceCompletionTargetNodeId);
             }
         }
         foreach (var node in script.Nodes.Where(n => n.NodeType == "Jump"))
@@ -344,6 +428,165 @@ public class ScriptValidator
 
         // Check for cycles (simple detection)
         DetectCycles(script, result);
+    }
+
+    private void ValidateEdgeSourceHandle(StoryEdge edge, Dictionary<string, StoryNode> nodeById, ValidationResult result)
+    {
+        if (!nodeById.TryGetValue(edge.SourceNodeId, out var sourceNode))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(edge.SourceHandle))
+        {
+            if (sourceNode.NodeType == "Condition")
+            {
+                result.AddError($"Condition edge from '{edge.SourceNodeId}' missing sourceHandle; expected condition-true or condition-false",
+                    $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+            }
+
+            return;
+        }
+
+        if (sourceNode.NodeType == "Condition")
+        {
+            if (edge.SourceHandle != "condition-true" && edge.SourceHandle != "condition-false")
+            {
+                result.AddError($"Condition edge from '{edge.SourceNodeId}' has invalid sourceHandle '{edge.SourceHandle}'. Expected condition-true or condition-false",
+                    $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+            }
+
+            return;
+        }
+
+        if (edge.SourceHandle.StartsWith("condition-", StringComparison.Ordinal))
+        {
+            result.AddError($"Non-Condition node '{edge.SourceNodeId}' cannot use condition sourceHandle '{edge.SourceHandle}'",
+                $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+            return;
+        }
+
+        if (sourceNode.NodeType == "Choice")
+        {
+            ValidateChoiceSourceHandle(edge, sourceNode, result);
+            return;
+        }
+
+        if (edge.SourceHandle.StartsWith("choice-", StringComparison.Ordinal))
+        {
+            result.AddError($"Non-Choice node '{edge.SourceNodeId}' cannot use choice sourceHandle '{edge.SourceHandle}'",
+                $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+        }
+    }
+
+    private void ValidateChoiceSourceHandle(StoryEdge edge, StoryNode sourceNode, ValidationResult result)
+    {
+        if (edge.SourceHandle == "choice-complete")
+        {
+            if (sourceNode.ChoiceMode != "ExhaustiveUntilComplete")
+            {
+                result.AddWarning($"Choice node '{sourceNode.NodeId}' uses choice-complete outside ExhaustiveUntilComplete mode",
+                    $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+            }
+
+            return;
+        }
+
+        if (!edge.SourceHandle.StartsWith("choice-", StringComparison.Ordinal))
+        {
+            result.AddWarning($"Choice edge from '{edge.SourceNodeId}' uses non-standard sourceHandle '{edge.SourceHandle}'",
+                $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+            return;
+        }
+
+        var indexText = edge.SourceHandle["choice-".Length..];
+        if (!int.TryParse(indexText, out var index) || index < 0 || index >= sourceNode.Choices.Count)
+        {
+            result.AddError($"Choice edge from '{edge.SourceNodeId}' has out-of-range sourceHandle '{edge.SourceHandle}'",
+                $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}].sourceHandle");
+        }
+    }
+
+    private void ValidateConditionNodeBranches(StoryNode node, List<StoryEdge> edges, HashSet<string> nodeIds, ValidationResult result)
+    {
+        var outgoing = edges.Where(e => e.SourceNodeId == node.NodeId).ToList();
+        var trueEdges = outgoing.Where(e => e.SourceHandle == "condition-true").ToList();
+        var falseEdges = outgoing.Where(e => e.SourceHandle == "condition-false").ToList();
+
+        if (trueEdges.Count != 1)
+        {
+            result.AddError($"Condition node '{node.NodeId}' must have exactly one condition-true outgoing edge",
+                $"nodes[{node.NodeId}].condition-true");
+        }
+
+        if (falseEdges.Count != 1)
+        {
+            result.AddError($"Condition node '{node.NodeId}' must have exactly one condition-false outgoing edge",
+                $"nodes[{node.NodeId}].condition-false");
+        }
+
+        foreach (var edge in trueEdges.Concat(falseEdges))
+        {
+            if (!nodeIds.Contains(edge.TargetNodeId))
+            {
+                result.AddError($"Condition node '{node.NodeId}' branch target does not exist: '{edge.TargetNodeId}'",
+                    $"edges[{edge.SourceNodeId}->{edge.TargetNodeId}]");
+            }
+        }
+    }
+
+    private void ValidateConditionVariables(ConditionExpression condition, HashSet<string> variableNames, string location, ValidationResult result)
+    {
+        if (condition.Terms == null)
+        {
+            return;
+        }
+
+        foreach (var term in condition.Terms)
+        {
+            if (term.Variable == null)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(term.Variable.Name))
+            {
+                result.AddError("Condition term has empty variable name", $"{location}.terms[].variable.name");
+            }
+            else if (!variableNames.Contains(term.Variable.Name))
+            {
+                result.AddError($"Condition references undefined variable: '{term.Variable.Name}'", $"{location}.terms[].variable.name");
+            }
+
+            if (!string.IsNullOrEmpty(term.Variable.Type) && !ValidVariableTypes.Contains(term.Variable.Type))
+            {
+                result.AddError($"Invalid condition variable type: '{term.Variable.Type}'. Valid types: {string.Join(", ", ValidVariableTypes)}",
+                    $"{location}.terms[].variable.type");
+            }
+
+            if (!string.IsNullOrEmpty(term.Variable.Scope) && !ValidScopes.Contains(term.Variable.Scope))
+            {
+                result.AddError($"Invalid condition variable scope: '{term.Variable.Scope}'. Valid scopes: {string.Join(", ", ValidScopes)}",
+                    $"{location}.terms[].variable.scope");
+            }
+        }
+    }
+
+    private void ValidateActionsVariables(List<NodeAction> actions, HashSet<string> variableNames, string location, ValidationResult result)
+    {
+        for (var i = 0; i < actions.Count; i++)
+        {
+            var action = actions[i];
+            if (action.ActionType == "EmitEvent" || action.Variable == null)
+            {
+                continue;
+            }
+
+            if (!variableNames.Contains(action.Variable.Name))
+            {
+                result.AddError($"Action references undefined variable: '{action.Variable.Name}'", $"{location}[{i}].variable.name");
+            }
+        }
     }
 
     private void DetectCycles(StoryScript script, ValidationResult result)

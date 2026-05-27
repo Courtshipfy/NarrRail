@@ -12,6 +12,7 @@ enum class ENarrRailNodeType : uint8
     Jump UMETA(DisplayName = "Jump"),
     SetVariable UMETA(DisplayName = "Set Variable"),
     EmitEvent UMETA(DisplayName = "Emit Event"),
+    Condition UMETA(DisplayName = "Condition"),
     End UMETA(DisplayName = "End")
 };
 
@@ -151,9 +152,6 @@ struct NARRRAIL_API FNarrRailChoiceOption
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     FName TargetNodeId = NAME_None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
-    FNarrRailConditionExpression Availability;
-
     // 运行时标记：该选项是否在当前会话中被选择过（主要用于 ExhaustiveUntilComplete UI 呈现）
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "NarrRail|Runtime")
     bool bHasBeenSelected = false;
@@ -212,6 +210,9 @@ struct NARRRAIL_API FNarrRailNode
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     TArray<FNarrRailNodeAction> ExitActions;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FNarrRailConditionExpression Condition;
 };
 
 USTRUCT(BlueprintType)
@@ -226,10 +227,10 @@ struct NARRRAIL_API FNarrRailNodeEdge
     FName TargetNodeId = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
-    int32 Priority = 0;
+    FName SourceHandle = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
-    FNarrRailConditionExpression Condition;
+    int32 Priority = 0;
 };
 
 // 最后一次选择的信息

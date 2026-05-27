@@ -83,23 +83,6 @@ bool UNarrRailBlueprintLibrary::AddEdge(UNarrRailStoryAsset* StoryAsset, FName S
     return true;
 }
 
-bool UNarrRailBlueprintLibrary::AddEdgeWithCondition(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName TargetNodeId, int32 Priority, const FNarrRailConditionExpression& Condition)
-{
-    if (StoryAsset == nullptr || SourceNodeId == NAME_None || TargetNodeId == NAME_None)
-    {
-        return false;
-    }
-
-    FNarrRailNodeEdge NewEdge;
-    NewEdge.SourceNodeId = SourceNodeId;
-    NewEdge.TargetNodeId = TargetNodeId;
-    NewEdge.Priority = Priority;
-    NewEdge.Condition = Condition;
-
-    StoryAsset->Edges.Add(NewEdge);
-    return true;
-}
-
 bool UNarrRailBlueprintLibrary::AddVariableDefinition(UNarrRailStoryAsset* StoryAsset, FName VariableName, ENarrRailVariableType VariableType, bool bGlobalScope, const FString& DefaultValue)
 {
     if (StoryAsset == nullptr || VariableName == NAME_None)

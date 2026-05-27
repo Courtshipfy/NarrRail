@@ -24,7 +24,7 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 
 static bool ParseDialogue(const YAML::Node& DialogueNode, FNarrRailDialoguePayload& OutDialogue);
 static bool ParseMultiDialogue(const YAML::Node& MultiDialogueNode, FNarrRailMultiDialoguePayload& OutMultiDialogue);
-static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOption>& OutChoices);
+static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOption>& OutChoices, FString& OutError);
 static bool ParseActions(const YAML::Node& ActionsNode, TArray<FNarrRailNodeAction>& OutActions);
 static bool ParseCondition(const YAML::Node& ConditionNode, FNarrRailConditionExpression& OutCondition);
 static bool ParseVariableRef(const YAML::Node& VarNode, FNarrRailVariableRef& OutVarRef);
@@ -107,6 +107,7 @@ static ENarrRailNodeType ParseNodeType(const FString& TypeStr)
 	if (TypeStr == TEXT("Jump")) return ENarrRailNodeType::Jump;
 	if (TypeStr == TEXT("SetVariable")) return ENarrRailNodeType::SetVariable;
 	if (TypeStr == TEXT("EmitEvent")) return ENarrRailNodeType::EmitEvent;
+	if (TypeStr == TEXT("Condition")) return ENarrRailNodeType::Condition;
 	if (TypeStr == TEXT("End")) return ENarrRailNodeType::End;
 	return ENarrRailNodeType::Dialogue; // Default
 }
@@ -270,7 +271,10 @@ static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData
 		// Parse choices (if present)
 		if (NodeYaml["choices"] && NodeYaml["choices"].IsSequence())
 		{
-			ParseChoices(NodeYaml["choices"], Node.Choices);
+			if (!ParseChoices(NodeYaml["choices"], Node.Choices, OutError))
+			{
+				return false;
+			}
 		}
 
 		// Parse choice mode & completion target (if present)
@@ -306,6 +310,12 @@ static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData
 		if (NodeYaml["exitActions"] && NodeYaml["exitActions"].IsSequence())
 		{
 			ParseActions(NodeYaml["exitActions"], Node.ExitActions);
+		}
+
+		// Parse condition expression (Condition node)
+		if (NodeYaml["condition"] && !NodeYaml["condition"].IsNull())
+		{
+			ParseCondition(NodeYaml["condition"], Node.Condition);
 		}
 
 		OutData.Nodes.Add(Node);
@@ -347,10 +357,19 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 			Edge.Priority = EdgeYaml["priority"].as<int>();
 		}
 
-		// Condition (optional)
-		if (EdgeYaml["condition"] && !EdgeYaml["condition"].IsNull())
+		if (EdgeYaml["condition"])
 		{
-			ParseCondition(EdgeYaml["condition"], Edge.Condition);
+			OutError = FString::Printf(
+				TEXT("Edge '%s' -> '%s' uses deprecated edge condition. Use a Condition node with condition-true / condition-false outputs."),
+				*Edge.SourceNodeId.ToString(),
+				*Edge.TargetNodeId.ToString());
+			return false;
+		}
+
+		// Source handle (optional; used by Choice / Condition dedicated outputs)
+		if (EdgeYaml["sourceHandle"])
+		{
+			Edge.SourceHandle = FName(UTF8_TO_TCHAR(EdgeYaml["sourceHandle"].as<std::string>().c_str()));
 		}
 
 		OutData.Edges.Add(Edge);
@@ -413,7 +432,7 @@ static bool ParseMultiDialogue(const YAML::Node& MultiDialogueNode, FNarrRailMul
 }
 
 // Parse choices
-static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOption>& OutChoices)
+static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOption>& OutChoices, FString& OutError)
 {
 	for (const auto& ChoiceYaml : ChoicesNode)
 	{
@@ -429,9 +448,10 @@ static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOp
 			Choice.TargetNodeId = FName(UTF8_TO_TCHAR(ChoiceYaml["targetNodeId"].as<std::string>().c_str()));
 		}
 
-		if (ChoiceYaml["availability"] && !ChoiceYaml["availability"].IsNull())
+		if (ChoiceYaml["availability"])
 		{
-			ParseCondition(ChoiceYaml["availability"], Choice.Availability);
+			OutError = TEXT("Choice availability is deprecated. Use a Condition node before the Choice node to control conditional flow.");
+			return false;
 		}
 
 		OutChoices.Add(Choice);

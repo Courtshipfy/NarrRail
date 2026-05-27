@@ -1,4 +1,4 @@
-# NarrRail.Tooling
+﻿# NarrRail.Tooling
 
 C# CLI tool for NarrRail script validation, import/export, and processing.
 
@@ -113,9 +113,6 @@ edges:
   - sourceNodeId: N_Start
     targetNodeId: N_End
     priority: 0
-    condition:
-      logic: All
-      terms: []
 ```
 
 ### Output

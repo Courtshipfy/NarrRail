@@ -38,12 +38,16 @@ public class VariableDefinition
 public class StoryNode
 {
     public string NodeId { get; set; } = string.Empty;
-    public string NodeType { get; set; } = string.Empty; // Dialogue, Choice, Jump, SetVariable, EmitEvent, End
+    public string NodeType { get; set; } = string.Empty; // Dialogue, MultiDialogue, Choice, Jump, SetVariable, EmitEvent, Condition, End
     public DialoguePayload? Dialogue { get; set; }
+    public MultiDialoguePayload? MultiDialogue { get; set; }
     public List<ChoiceOption> Choices { get; set; } = new();
+    public string ChoiceMode { get; set; } = "SinglePass";
+    public string ChoiceCompletionTargetNodeId { get; set; } = string.Empty;
     public string JumpTargetNodeId { get; set; } = string.Empty;
     public List<NodeAction> EnterActions { get; set; } = new();
     public List<NodeAction> ExitActions { get; set; } = new();
+    public ConditionExpression? Condition { get; set; }
 }
 
 /// <summary>
@@ -58,13 +62,29 @@ public class DialoguePayload
 }
 
 /// <summary>
+/// Multi-dialogue payload
+/// </summary>
+public class MultiDialoguePayload
+{
+    public string SpeakerId { get; set; } = string.Empty;
+    public List<DialogueLine> Lines { get; set; } = new();
+}
+
+/// <summary>
+/// Dialogue line payload
+/// </summary>
+public class DialogueLine
+{
+    public string TextKey { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Choice option
 /// </summary>
 public class ChoiceOption
 {
     public string TextKey { get; set; } = string.Empty;
     public string TargetNodeId { get; set; } = string.Empty;
-    public ConditionExpression? Availability { get; set; }
 }
 
 /// <summary>
@@ -74,8 +94,8 @@ public class StoryEdge
 {
     public string SourceNodeId { get; set; } = string.Empty;
     public string TargetNodeId { get; set; } = string.Empty;
+    public string SourceHandle { get; set; } = string.Empty;
     public int Priority { get; set; } = 0;
-    public ConditionExpression? Condition { get; set; }
 }
 
 /// <summary>
