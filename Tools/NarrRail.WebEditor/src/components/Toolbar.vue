@@ -19,7 +19,7 @@
             title="新建"
             aria-label="新建"
         >
-            <span class="material-symbols-outlined">add_circle</span>
+            <IconGlyph name="add_circle" />
         </button>
 
         <button
@@ -28,7 +28,7 @@
             title="导入"
             aria-label="导入"
         >
-            <span class="material-symbols-outlined">upload_file</span>
+            <IconGlyph name="upload_file" />
         </button>
 
         <button
@@ -37,7 +37,7 @@
             title="导出"
             aria-label="导出"
         >
-            <span class="material-symbols-outlined">download</span>
+            <IconGlyph name="download" />
         </button>
 
         <button
@@ -46,7 +46,7 @@
             title="撤销 (Ctrl+Z)"
             aria-label="撤销"
         >
-            <span class="material-symbols-outlined">undo</span>
+            <IconGlyph name="undo" />
         </button>
 
         <button
@@ -55,7 +55,7 @@
             title="重做 (Ctrl+Y)"
             aria-label="重做"
         >
-            <span class="material-symbols-outlined">redo</span>
+            <IconGlyph name="redo" />
         </button>
 
         <button
@@ -64,7 +64,7 @@
             title="验证"
             aria-label="验证"
         >
-            <span class="material-symbols-outlined">verified</span>
+            <IconGlyph name="verified" />
         </button>
 
         <button
@@ -73,7 +73,7 @@
             title="自动排布节点（从左到右）"
             aria-label="自动排布"
         >
-            <span class="material-symbols-outlined">account_tree</span>
+            <IconGlyph name="account_tree" />
         </button>
 
         <button
@@ -88,9 +88,9 @@
                 edgeStyle === 'straight' ? '连线直线模式' : '连线曲线模式'
             "
         >
-            <span class="material-symbols-outlined">
-                {{ edgeStyle === "straight" ? "timeline" : "device_hub" }}
-            </span>
+            <IconGlyph
+                :name="edgeStyle === 'straight' ? 'timeline' : 'device_hub'"
+            />
         </button>
 
         <button
@@ -104,13 +104,13 @@
             "
             :aria-label="focusModeEnabled ? '焦点模式已开启' : '焦点模式已关闭'"
         >
-            <span class="material-symbols-outlined">
-                {{
+            <IconGlyph
+                :name="
                     focusModeEnabled
-                        ? "center_focus_strong"
-                        : "center_focus_weak"
-                }}
-            </span>
+                        ? 'center_focus_strong'
+                        : 'center_focus_weak'
+                "
+            />
         </button>
 
         <button
@@ -120,7 +120,7 @@
             :title="readModeEnabled ? '退出阅读模式' : '进入阅读模式'"
             :aria-label="readModeEnabled ? '阅读模式已开启' : '阅读模式已关闭'"
         >
-            <span class="material-symbols-outlined">article</span>
+            <IconGlyph name="article" />
         </button>
 
         <button
@@ -130,9 +130,7 @@
             :title="isDarkMode ? '切换为浅色模式' : '切换为深色模式'"
             :aria-label="isDarkMode ? '切换为浅色模式' : '切换为深色模式'"
         >
-            <span class="material-symbols-outlined">
-                {{ isDarkMode ? "light_mode" : "dark_mode" }}
-            </span>
+            <IconGlyph :name="isDarkMode ? 'light_mode' : 'dark_mode'" />
         </button>
 
         <button
@@ -141,12 +139,14 @@
             title="帮助"
             aria-label="帮助"
         >
-            <span class="material-symbols-outlined">help</span>
+            <IconGlyph name="help" />
         </button>
     </div>
 </template>
 
 <script setup>
+import IconGlyph from "./IconGlyph.vue";
+
 defineProps({
     focusModeEnabled: {
         type: Boolean,
@@ -268,7 +268,7 @@ defineEmits([
         inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
-.toolbar-button .material-symbols-outlined {
+.toolbar-button :deep(.icon-glyph) {
     font-size: 19px;
     opacity: 0.85;
 }
@@ -276,6 +276,8 @@ defineEmits([
 .toolbar-button.compact-icon {
     width: 38px;
     height: 38px;
+    min-width: 38px;
+    flex: 0 0 38px;
     padding: 0;
     justify-content: center;
     gap: 0;
@@ -294,7 +296,7 @@ defineEmits([
         inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.toolbar-button.compact-icon .material-symbols-outlined {
+.toolbar-button.compact-icon :deep(.icon-glyph) {
     font-size: 20px;
 }
 </style>

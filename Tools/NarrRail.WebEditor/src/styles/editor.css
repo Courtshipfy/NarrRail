@@ -48,6 +48,26 @@ body {
         color 0.25s ease;
 }
 
+.material-symbols-outlined {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.material-symbol-fallback-svg {
+    width: 1em;
+    height: 1em;
+    display: block;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 /* Apple Music 风格的 Mesh Gradient */
 body::before {
     content: "";
