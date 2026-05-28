@@ -1,7 +1,7 @@
 <script>
   import IconGlyph from './IconGlyph.svelte';
   import { get, writable } from 'svelte/store';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { SvelteFlow, Controls, Background, PanOnScrollMode } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
 
@@ -31,7 +31,12 @@
   let pointerDownPos = null;
   let didMoveDuringPointerGesture = false;
   let dragGestureResetTimer = null;
+  let panOnScrollEnabled = true;
+  let zoomOnScrollEnabled = false;
+  let wheelModeResetTimer = null;
+  let isReplayingWheelForZoom = false;
   const DRAG_GESTURE_THRESHOLD_PX = 4;
+  const WHEEL_MODE_RESET_MS = 180;
 
   function clearSelectionFromFallback() {
     if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
@@ -215,6 +220,10 @@
       if (dragGestureResetTimer) {
         clearTimeout(dragGestureResetTimer);
         dragGestureResetTimer = null;
+      }
+      if (wheelModeResetTimer) {
+        clearTimeout(wheelModeResetTimer);
+        wheelModeResetTimer = null;
       }
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('pointerdown', handlePointerDown, true);
@@ -436,6 +445,79 @@
     };
   }
 
+  function isLikelyMouseWheel(event) {
+    if (event.ctrlKey) return false;
+    if (event.deltaMode === 1) return true;
+
+    const absX = Math.abs(event.deltaX || 0);
+    const absY = Math.abs(event.deltaY || 0);
+    const wheelDeltaY = Math.abs(event.wheelDeltaY || event.wheelDelta || 0);
+
+    return absX < 1 && absY >= 40 && (wheelDeltaY >= 120 || Number.isInteger(event.deltaY));
+  }
+
+  function scheduleWheelModeReset() {
+    if (wheelModeResetTimer) {
+      clearTimeout(wheelModeResetTimer);
+    }
+
+    wheelModeResetTimer = setTimeout(() => {
+      panOnScrollEnabled = true;
+      zoomOnScrollEnabled = false;
+      wheelModeResetTimer = null;
+    }, WHEEL_MODE_RESET_MS);
+  }
+
+  async function handleWheelCapture(event) {
+    if (isReplayingWheelForZoom) return;
+
+    if (!isLikelyMouseWheel(event)) {
+      if (!panOnScrollEnabled) {
+        panOnScrollEnabled = true;
+        zoomOnScrollEnabled = false;
+      }
+      return;
+    }
+
+    scheduleWheelModeReset();
+
+    if (!panOnScrollEnabled && zoomOnScrollEnabled) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+
+    panOnScrollEnabled = false;
+    zoomOnScrollEnabled = true;
+    await tick();
+
+    const zoomPane = document.querySelector('.graph-editor .svelte-flow__zoom');
+    if (!zoomPane) return;
+
+    isReplayingWheelForZoom = true;
+    zoomPane.dispatchEvent(
+      new WheelEvent('wheel', {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        deltaZ: event.deltaZ,
+        deltaMode: event.deltaMode
+      })
+    );
+    isReplayingWheelForZoom = false;
+  }
+
   function getFlowPositionFromScreen(screenX, screenY) {
     const pane = document.querySelector('.svelte-flow__pane');
     const viewport = document.querySelector('.svelte-flow__viewport');
@@ -550,6 +632,7 @@
   class="graph-editor"
   role="region"
   aria-label="NarrRail Graph Editor Canvas"
+  on:wheel|capture={handleWheelCapture}
   on:contextmenu={handlePaneContextMenu}
 >
   <SvelteFlow
@@ -573,9 +656,9 @@
     elementsSelectable={true}
     selectionOnDrag={true}
     panOnDrag={[1]}
-    panOnScroll={true}
+    panOnScroll={panOnScrollEnabled}
     panOnScrollMode={PanOnScrollMode.Free}
-    zoomOnScroll={false}
+    zoomOnScroll={zoomOnScrollEnabled}
     zoomOnPinch={true}
     fitView
     minZoom={0.2}
