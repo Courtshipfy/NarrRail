@@ -76,6 +76,7 @@
             v-if="editorMode === 'graph'"
             :selected-node="selectedNode"
             :entry-node-id="storyMeta.entryNodeId"
+            :variables="variables"
             :preset-speakers="presetSpeakers"
             :is-dark-mode="darkModeEnabled"
             :open-multi-dialogue-request="multiDialogueOpenRequest"

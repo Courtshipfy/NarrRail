@@ -368,18 +368,50 @@
                                 :key="`cond-term-${index}`"
                                 class="choice-item"
                             >
-                                <input
-                                    type="text"
+                                <select
                                     class="form-input"
-                                    v-model="term.variable.name"
-                                    placeholder="变量名"
-                                    @compositionstart="handleCompositionStart"
-                                    @compositionend="handleCompositionEnd"
-                                    @blur="handleInputChange"
-                                />
+                                    :value="getConditionTermVariableName(term)"
+                                    @change="
+                                        handleConditionVariableSelect(
+                                            term,
+                                            $event.target.value,
+                                        )
+                                    "
+                                >
+                                    <option value="">（选择变量）</option>
+                                    <option
+                                        v-for="variable in availableVariables"
+                                        :key="`condition-variable-${variable.name}`"
+                                        :value="variable.name"
+                                    >
+                                        {{ formatVariableOption(variable) }}
+                                    </option>
+                                    <option
+                                        v-if="
+                                            getConditionTermVariableName(term) &&
+                                            !findVariableByName(
+                                                getConditionTermVariableName(
+                                                    term,
+                                                ),
+                                            )
+                                        "
+                                        :value="
+                                            getConditionTermVariableName(term)
+                                        "
+                                    >
+                                        {{
+                                            `${getConditionTermVariableName(term)}（未在变量管理中）`
+                                        }}
+                                    </option>
+                                </select>
                                 <select
                                     class="form-input"
                                     v-model="term.variable.type"
+                                    :disabled="
+                                        !!findVariableByName(
+                                            getConditionTermVariableName(term),
+                                        )
+                                    "
                                     @change="handleUpdate"
                                 >
                                     <option value="Bool">Bool</option>
@@ -390,6 +422,11 @@
                                 <select
                                     class="form-input"
                                     v-model="term.variable.scope"
+                                    :disabled="
+                                        !!findVariableByName(
+                                            getConditionTermVariableName(term),
+                                        )
+                                    "
                                     @change="handleUpdate"
                                 >
                                     <option value="Session">Session</option>
@@ -434,20 +471,51 @@
                             <p class="choice-hint">
                                 输出句柄固定为 condition-true / condition-false
                             </p>
+                            <p
+                                v-if="availableVariables.length === 0"
+                                class="choice-hint"
+                            >
+                                请先在左侧变量管理中添加变量
+                            </p>
                         </div>
                     </template>
 
                     <template v-else-if="localNode.type === 'setvariable'">
                         <div class="form-group glass-input">
                             <label class="form-label">变量名</label>
-                            <input
-                                type="text"
+                            <select
                                 class="form-input"
                                 v-model="localNode.data.variableName"
-                                @compositionstart="handleCompositionStart"
-                                @compositionend="handleCompositionEnd"
-                                @blur="handleInputChange"
-                            />
+                                @change="handleSetVariableSelect"
+                            >
+                                <option value="">（选择变量）</option>
+                                <option
+                                    v-for="variable in availableVariables"
+                                    :key="`set-variable-${variable.name}`"
+                                    :value="variable.name"
+                                >
+                                    {{ formatVariableOption(variable) }}
+                                </option>
+                                <option
+                                    v-if="
+                                        localNode.data.variableName &&
+                                        !findVariableByName(
+                                            localNode.data.variableName,
+                                        )
+                                    "
+                                    :value="localNode.data.variableName"
+                                >
+                                    {{
+                                        `${localNode.data.variableName}（未在变量管理中）`
+                                    }}
+                                </option>
+                            </select>
+                            <p
+                                v-if="availableVariables.length === 0"
+                                class="choice-hint"
+                            >
+                                请先在左侧变量管理中添加变量
+                            </p>
                         </div>
 
                         <div class="form-group glass-input">
@@ -820,6 +888,10 @@ const props = defineProps({
         type: String,
         default: "",
     },
+    variables: {
+        type: Array,
+        default: () => [],
+    },
     presetSpeakers: {
         type: Array,
         default: () => [],
@@ -845,6 +917,14 @@ const props = defineProps({
 const emit = defineEmits(["update", "set-entry-node"]);
 
 const isDarkMode = computed(() => !!props.isDarkMode);
+const availableVariables = computed(() =>
+    (Array.isArray(props.variables) ? props.variables : [])
+        .map((variable) => ({
+            ...variable,
+            name: String(variable?.name || "").trim(),
+        }))
+        .filter((variable) => variable.name),
+);
 
 const panelWrapperRef = ref(null);
 const isExpanded = ref(false);
@@ -864,6 +944,92 @@ const activeChoiceIndex = ref(-1);
 const draggingChoiceIndex = ref(-1);
 const dragOverChoiceIndex = ref(-1);
 const dragOverChoicePlacement = ref("after");
+
+function getVariableScope(variable) {
+    if (variable?.scope === "Global" || variable?.bGlobalScope === true) {
+        return "Global";
+    }
+    return "Session";
+}
+
+function getVariableType(variable) {
+    const type = String(variable?.type || variable?.variableType || "String");
+    return ["Bool", "Int", "Float", "String"].includes(type) ? type : "String";
+}
+
+function findVariableByName(name) {
+    const normalizedName = String(name || "").trim();
+    if (!normalizedName) return null;
+    return (
+        availableVariables.value.find(
+            (variable) => variable.name === normalizedName,
+        ) || null
+    );
+}
+
+function formatVariableOption(variable) {
+    const name = String(variable?.name || "").trim();
+    const type = getVariableType(variable);
+    const scope = getVariableScope(variable);
+    return `${name} · ${type} · ${scope}`;
+}
+
+function normalizeConditionTerm(term) {
+    if (!term || typeof term !== "object") return;
+    if (!term.variable || typeof term.variable !== "object") {
+        term.variable = { name: "", type: "String", scope: "Session" };
+    }
+
+    const selectedVariable = findVariableByName(term.variable.name);
+    if (selectedVariable) {
+        term.variable.name = selectedVariable.name;
+        term.variable.type = getVariableType(selectedVariable);
+        term.variable.scope = getVariableScope(selectedVariable);
+    } else {
+        term.variable.name = String(term.variable.name || "").trim();
+        term.variable.type = getVariableType(term.variable);
+        term.variable.scope = getVariableScope(term.variable);
+    }
+
+    if (!term.operator) {
+        term.operator = "==";
+    }
+    if (term.compareValue === undefined || term.compareValue === null) {
+        term.compareValue = "";
+    }
+}
+
+function getConditionTermVariableName(term) {
+    return String(term?.variable?.name || "").trim();
+}
+
+function handleConditionVariableSelect(term, variableName) {
+    if (!term || typeof term !== "object") return;
+    if (!term.variable || typeof term.variable !== "object") {
+        term.variable = { name: "", type: "String", scope: "Session" };
+    }
+
+    const selectedVariable = findVariableByName(variableName);
+    term.variable.name = selectedVariable
+        ? selectedVariable.name
+        : String(variableName || "").trim();
+    term.variable.type = selectedVariable
+        ? getVariableType(selectedVariable)
+        : getVariableType(term.variable);
+    term.variable.scope = selectedVariable
+        ? getVariableScope(selectedVariable)
+        : getVariableScope(term.variable);
+    handleUpdate();
+}
+
+function handleSetVariableSelect() {
+    if (!localNode.value || localNode.value.type !== "setvariable") return;
+    localNode.value.data = localNode.value.data || {};
+    localNode.value.data.variableName = String(
+        localNode.value.data.variableName || "",
+    ).trim();
+    handleUpdate();
+}
 
 // 监听 selectedNode 变化，同步到本地副本
 watch(
@@ -926,7 +1092,14 @@ watch(
                 if (!Array.isArray(condition.terms)) {
                     condition.terms = [];
                 }
+                condition.terms.forEach((term) => normalizeConditionTerm(term));
                 localNode.value.data.condition = condition;
+            }
+            if (localNode.value.type === "setvariable") {
+                localNode.value.data = localNode.value.data || {};
+                localNode.value.data.variableName = String(
+                    localNode.value.data.variableName || "",
+                ).trim();
             }
             isExpanded.value = true; // 选中节点时自动展开
         } else {
@@ -948,6 +1121,18 @@ watch(
         }
     },
     { immediate: true },
+);
+
+watch(
+    availableVariables,
+    () => {
+        if (!localNode.value || localNode.value.type !== "condition") return;
+        const terms = Array.isArray(localNode.value.data?.condition?.terms)
+            ? localNode.value.data.condition.terms
+            : [];
+        terms.forEach((term) => normalizeConditionTerm(term));
+    },
+    { deep: true },
 );
 
 // 计算当前节点是否为入口节点
@@ -1737,9 +1922,14 @@ function addConditionTerm() {
     const terms = Array.isArray(localNode.value.data?.condition?.terms)
         ? [...localNode.value.data.condition.terms]
         : [];
+    const firstVariable = availableVariables.value[0] || null;
 
     terms.push({
-        variable: { name: "", type: "String", scope: "Session" },
+        variable: {
+            name: firstVariable?.name || "",
+            type: firstVariable ? getVariableType(firstVariable) : "String",
+            scope: firstVariable ? getVariableScope(firstVariable) : "Session",
+        },
         operator: "==",
         compareValue: "",
     });
