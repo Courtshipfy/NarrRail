@@ -304,6 +304,29 @@ function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
+function mergeVariablesByName(primaryVariables, fallbackVariables) {
+    const merged = [];
+    const seen = new Set();
+
+    [primaryVariables, fallbackVariables].forEach((source) => {
+        (Array.isArray(source) ? source : []).forEach((variable) => {
+            const name = String(variable?.name || "").trim();
+            if (!name || seen.has(name)) return;
+            seen.add(name);
+            merged.push({
+                ...safeClone(variable),
+                name,
+            });
+        });
+    });
+
+    return merged;
+}
+
+function getVariablesForOpenedRepositoryScript(scriptVariables) {
+    return mergeVariablesByName(variables.value, scriptVariables);
+}
+
 function getLocalScriptStorageKeyByPath(path) {
     return `${LOCAL_SCRIPT_CONTENT_PREFIX}${String(path || "")}`;
 }
@@ -1788,7 +1811,9 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
                     "ImportedStory",
                 entryNodeId: imported.meta?.entryNodeId || "",
             };
-            variables.value = safeClone(imported.variables || []);
+            variables.value = getVariablesForOpenedRepositoryScript(
+                imported.variables,
+            );
             selectedNode.value = null;
             selectedEdge.value = null;
 
@@ -1834,7 +1859,9 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
                     "LocalStory",
                 entryNodeId: localData?.meta?.entryNodeId || "",
             };
-            variables.value = safeClone(localData.variables || []);
+            variables.value = getVariablesForOpenedRepositoryScript(
+                localData.variables,
+            );
             selectedNode.value = null;
             selectedEdge.value = null;
         } else if (scriptEntry?.storyId) {
