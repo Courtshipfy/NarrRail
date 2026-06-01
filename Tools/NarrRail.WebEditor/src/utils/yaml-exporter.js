@@ -30,6 +30,53 @@ const nodeTypeMap = {
   end: "End",
 };
 
+function normalizeVariableType(type) {
+  const text = String(type || "").trim();
+  return ["Bool", "Int", "Float", "String"].includes(text) ? text : "String";
+}
+
+function getVariableDefaultValue(variable, type) {
+  if (variable?.defaultValue != null) {
+    return String(variable.defaultValue);
+  }
+
+  if (type === "Bool") {
+    return variable?.boolValue ? "true" : "false";
+  }
+
+  if (type === "Int") {
+    const value = Number(variable?.intValue);
+    return Number.isFinite(value) ? String(Math.trunc(value)) : "0";
+  }
+
+  if (type === "Float") {
+    const value = Number(variable?.floatValue);
+    return Number.isFinite(value) ? String(value) : "0";
+  }
+
+  return String(variable?.stringValue ?? "");
+}
+
+function normalizeVariablesForExport(variables) {
+  return (Array.isArray(variables) ? variables : [])
+    .map((variable) => {
+      const name = String(variable?.name || "").trim();
+      if (!name) return null;
+
+      const type = normalizeVariableType(variable?.type);
+      return {
+        name,
+        type,
+        scope:
+          variable?.scope === "Global" || variable?.bGlobalScope
+            ? "Global"
+            : "Session",
+        defaultValue: getVariableDefaultValue(variable, type),
+      };
+    })
+    .filter(Boolean);
+}
+
 function normalizeConditionForExport(condition) {
   if (condition && Array.isArray(condition.branches)) {
     return {
@@ -65,8 +112,9 @@ function normalizeConditionForExport(condition) {
 }
 
 export function buildYAMLString(nodes, edges, variables, meta) {
+  const yamlVariables = normalizeVariablesForExport(variables);
   const variableByName = new Map(
-    (Array.isArray(variables) ? variables : []).map((variable) => [
+    yamlVariables.map((variable) => [
       variable?.name,
       variable,
     ]),
@@ -165,7 +213,7 @@ export function buildYAMLString(nodes, edges, variables, meta) {
       storyId: meta.storyId,
       entryNodeId: meta.entryNodeId,
     },
-    variables: variables,
+    variables: yamlVariables,
     nodes: yamlNodes,
     edges: yamlEdges,
   };

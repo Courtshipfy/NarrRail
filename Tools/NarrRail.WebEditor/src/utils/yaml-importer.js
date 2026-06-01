@@ -11,6 +11,57 @@ const reverseNodeTypeMap = {
   End: "end",
 };
 
+function normalizeVariableType(type) {
+  const text = String(type || "").trim();
+  return ["Bool", "Int", "Float", "String"].includes(text) ? text : "String";
+}
+
+function readVariableDefaultValue(variable, type) {
+  if (variable?.defaultValue != null) {
+    return String(variable.defaultValue);
+  }
+
+  if (type === "Bool") return variable?.boolValue ? "true" : "false";
+  if (type === "Int") return String(variable?.intValue ?? "0");
+  if (type === "Float") return String(variable?.floatValue ?? "0");
+  return String(variable?.stringValue ?? "");
+}
+
+function normalizeVariablesForEditor(variables) {
+  return (Array.isArray(variables) ? variables : [])
+    .map((variable) => {
+      const name = String(variable?.name || "").trim();
+      if (!name) return null;
+
+      const type = normalizeVariableType(variable?.type);
+      const defaultValue = readVariableDefaultValue(variable, type);
+      const normalized = {
+        name,
+        type,
+        scope:
+          variable?.scope === "Global" || variable?.bGlobalScope
+            ? "Global"
+            : "Session",
+      };
+
+      if (type === "Bool") {
+        normalized.boolValue =
+          defaultValue.toLowerCase() === "true" || defaultValue === "1";
+      } else if (type === "Int") {
+        const value = Number(defaultValue);
+        normalized.intValue = Number.isFinite(value) ? Math.trunc(value) : 0;
+      } else if (type === "Float") {
+        const value = Number(defaultValue);
+        normalized.floatValue = Number.isFinite(value) ? value : 0;
+      } else {
+        normalized.stringValue = defaultValue;
+      }
+
+      return normalized;
+    })
+    .filter(Boolean);
+}
+
 export function importFromYAML(yamlString) {
   // 解析 YAML
   const data = YAML.parse(yamlString);
@@ -202,7 +253,7 @@ export function importFromYAML(yamlString) {
   return {
     nodes,
     edges,
-    variables: data.variables,
+    variables: normalizeVariablesForEditor(data.variables),
     meta: data.meta,
   };
 }
