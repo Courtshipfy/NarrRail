@@ -65,6 +65,13 @@ function normalizeConditionForExport(condition) {
 }
 
 export function buildYAMLString(nodes, edges, variables, meta) {
+  const variableByName = new Map(
+    (Array.isArray(variables) ? variables : []).map((variable) => [
+      variable?.name,
+      variable,
+    ]),
+  );
+
   // 转换节点
   const yamlNodes = nodes.map((node) => {
     const base = {
@@ -117,13 +124,17 @@ export function buildYAMLString(nodes, edges, variables, meta) {
         targetNodeId: node.data.targetNodeId || "",
       };
     } else if (node.type === "setvariable") {
+      const variable = variableByName.get(node.data.variableName);
       base.actions = [
         {
           actionType: node.data.operation || "Set",
           variable: {
             variableName: node.data.variableName || "",
-            variableType: "String",
-            bGlobalScope: false,
+            variableType: variable?.type || node.data.variableType || "String",
+            bGlobalScope:
+              variable?.scope === "Global" ||
+              node.data.scope === "Global" ||
+              Boolean(node.data.bGlobalScope),
           },
           value: node.data.value || "",
         },

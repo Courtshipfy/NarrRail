@@ -44,6 +44,53 @@ static void ValidateConditionTerms(
     }
 }
 
+static void ValidateActions(
+    TArray<FNarrRailValidationIssue>& OutIssues,
+    const FName NodeId,
+    const TArray<FNarrRailNodeAction>& Actions,
+    const TMap<FName, ENarrRailVariableType>& VariableTypes)
+{
+    for (const FNarrRailNodeAction& Action : Actions)
+    {
+        if (Action.ActionType == ENarrRailActionType::EmitEvent)
+        {
+            if (Action.EventId == NAME_None)
+            {
+                AddIssue(OutIssues, ENarrRailValidationSeverity::Warning, NodeId, TEXT("EmitEvent action has empty EventId."));
+            }
+            continue;
+        }
+
+        if (Action.Variable.VariableName == NAME_None)
+        {
+            AddIssue(OutIssues, ENarrRailValidationSeverity::Error, NodeId, TEXT("Variable action has empty variable name."));
+            continue;
+        }
+
+        const ENarrRailVariableType* DefinedType = VariableTypes.Find(Action.Variable.VariableName);
+        if (DefinedType == nullptr)
+        {
+            AddIssue(
+                OutIssues,
+                ENarrRailValidationSeverity::Error,
+                NodeId,
+                FString::Printf(TEXT("Variable action references unknown variable '%s'."), *Action.Variable.VariableName.ToString()));
+            continue;
+        }
+
+        if ((Action.ActionType == ENarrRailActionType::Add || Action.ActionType == ENarrRailActionType::Subtract) &&
+            *DefinedType != ENarrRailVariableType::Int &&
+            *DefinedType != ENarrRailVariableType::Float)
+        {
+            AddIssue(
+                OutIssues,
+                ENarrRailValidationSeverity::Error,
+                NodeId,
+                FString::Printf(TEXT("Variable action '%s' only supports Int/Float variables."), *Action.Variable.VariableName.ToString()));
+        }
+    }
+}
+
 static bool IsModernConditionHandle(const FString& Handle)
 {
     if (Handle == TEXT("condition-fallback"))
@@ -90,6 +137,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
     }
 
     TSet<FName> Variables;
+    TMap<FName, ENarrRailVariableType> VariableTypes;
     for (const FNarrRailVariableDefinition& Var : StoryAsset->Variables)
     {
         if (Var.VariableName == NAME_None)
@@ -105,6 +153,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
         }
 
         Variables.Add(Var.VariableName);
+        VariableTypes.Add(Var.VariableName, Var.VariableType);
     }
 
     TSet<FName> NodeIds;
@@ -160,6 +209,18 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
 
     for (const FNarrRailNode& Node : StoryAsset->Nodes)
     {
+        NarrRailValidation::ValidateActions(Issues, Node.NodeId, Node.EnterActions, VariableTypes);
+        NarrRailValidation::ValidateActions(Issues, Node.NodeId, Node.ExitActions, VariableTypes);
+
+        if (Node.NodeType == ENarrRailNodeType::SetVariable && Node.EnterActions.Num() == 0)
+        {
+            NarrRailValidation::AddIssue(
+                Issues,
+                ENarrRailValidationSeverity::Error,
+                Node.NodeId,
+                TEXT("SetVariable node requires at least one action."));
+        }
+
         if (Node.NodeType == ENarrRailNodeType::Jump && Node.JumpTargetNodeId != NAME_None)
         {
             if (!NarrRailValidation::ContainsNode(NodeIds, Node.JumpTargetNodeId))
@@ -240,15 +301,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
                     HandleCounts.FindOrAdd(Edge->SourceHandle) += 1;
 
                     const FString HandleText = Edge->SourceHandle.ToString();
-                    if (HandleText == TEXT("condition-true") || HandleText == TEXT("condition-false"))
-                    {
-                        NarrRailValidation::AddIssue(
-                            Issues,
-                            ENarrRailValidationSeverity::Warning,
-                            Node.NodeId,
-                            TEXT("Condition node uses deprecated condition-true/condition-false handles."));
-                    }
-                    else if (!NarrRailValidation::IsModernConditionHandle(HandleText))
+                    if (!NarrRailValidation::IsModernConditionHandle(HandleText))
                     {
                         NarrRailValidation::AddIssue(
                             Issues,
@@ -291,10 +344,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
                     NarrRailValidation::ValidateConditionTerms(Issues, Node.NodeId, Branch.Terms, Variables);
 
                     const FName RequiredHandle(*FString::Printf(TEXT("condition-%d"), BranchIndex));
-                    const bool bHasRequiredHandle = HandleCounts.Contains(RequiredHandle) ||
-                        (BranchIndex == 0 && HandleCounts.Contains(FName(TEXT("condition-true"))));
-
-                    if (!bHasRequiredHandle)
+                    if (!HandleCounts.Contains(RequiredHandle))
                     {
                         NarrRailValidation::AddIssue(
                             Issues,
@@ -304,8 +354,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
                     }
                 }
 
-                if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))) &&
-                    !HandleCounts.Contains(FName(TEXT("condition-false"))))
+                if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))))
                 {
                     NarrRailValidation::AddIssue(
                         Issues,
@@ -318,18 +367,16 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
             {
                 NarrRailValidation::ValidateConditionTerms(Issues, Node.NodeId, Node.Condition.Terms, Variables);
 
-                if (!HandleCounts.Contains(FName(TEXT("condition-0"))) &&
-                    !HandleCounts.Contains(FName(TEXT("condition-true"))))
+                if (!HandleCounts.Contains(FName(TEXT("condition-0"))))
                 {
                     NarrRailValidation::AddIssue(
                         Issues,
                         ENarrRailValidationSeverity::Error,
                         Node.NodeId,
-                        TEXT("Legacy Condition node is missing condition-0 or condition-true outgoing edge."));
+                        TEXT("Legacy Condition node is missing condition-0 outgoing edge."));
                 }
 
-                if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))) &&
-                    !HandleCounts.Contains(FName(TEXT("condition-false"))))
+                if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))))
                 {
                     NarrRailValidation::AddIssue(
                         Issues,

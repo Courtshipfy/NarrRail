@@ -79,6 +79,8 @@ export function importFromYAML(yamlString) {
         : {};
       base.data = {
         variableName: firstAction?.variable?.variableName || "",
+        variableType: firstAction?.variable?.variableType || "String",
+        bGlobalScope: Boolean(firstAction?.variable?.bGlobalScope),
         operation: firstAction?.actionType || "Set",
         value: firstAction?.value || "",
       };

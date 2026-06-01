@@ -718,6 +718,11 @@ FNarrRailRuntimeResult UNarrRailStorySession::AdvanceToNode(const FName TargetNo
         SessionState = ENarrRailSessionState::Running;
     }
 
+    if (Node->NodeType == ENarrRailNodeType::SetVariable)
+    {
+        return Next();
+    }
+
     return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("Advanced to node."), Context.CurrentNodeId);
 }
 
@@ -829,10 +834,6 @@ FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailN
 
                 const FName ExpectedHandle(*FString::Printf(TEXT("condition-%d"), BranchIndex));
                 const FNarrRailNodeEdge* MatchedEdge = FindEdgeByHandle(ExpectedHandle);
-                if (MatchedEdge == nullptr && BranchIndex == 0)
-                {
-                    MatchedEdge = FindEdgeByHandle(FName(TEXT("condition-true")));
-                }
 
                 if (MatchedEdge == nullptr)
                 {
@@ -850,10 +851,6 @@ FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailN
             }
 
             const FNarrRailNodeEdge* FallbackEdge = FindEdgeByHandle(FName(TEXT("condition-fallback")));
-            if (FallbackEdge == nullptr)
-            {
-                FallbackEdge = FindEdgeByHandle(FName(TEXT("condition-false")));
-            }
 
             if (FallbackEdge == nullptr)
             {
@@ -872,18 +869,10 @@ FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailN
 
         const bool bConditionResult = EvaluateConditionExpression(FromNode.Condition);
         const FName ExpectedHandle = bConditionResult
-            ? FName(TEXT("condition-true"))
-            : FName(TEXT("condition-false"));
-        const FName ModernHandle = bConditionResult
             ? FName(TEXT("condition-0"))
             : FName(TEXT("condition-fallback"));
 
         const FNarrRailNodeEdge* MatchedEdge = FindEdgeByHandle(ExpectedHandle);
-        if (MatchedEdge == nullptr)
-        {
-            MatchedEdge = FindEdgeByHandle(ModernHandle);
-        }
-
         if (MatchedEdge != nullptr)
         {
             OutNextNodeId = MatchedEdge->TargetNodeId;
@@ -1128,9 +1117,15 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                 OutErrorMessage = TEXT("Action variable name is empty.");
                 return false;
             }
+            if (!VariableContainer->HasVariable(Action.Variable.VariableName))
+            {
+                OutErrorMessage = FString::Printf(TEXT("Variable '%s' not found."), *Action.Variable.VariableName.ToString());
+                return false;
+            }
 
             FNarrRailVariableResult Result;
-            if (Action.Variable.VariableType == ENarrRailVariableType::Int)
+            const ENarrRailVariableType VariableType = VariableContainer->GetVariableType(Action.Variable.VariableName);
+            if (VariableType == ENarrRailVariableType::Int)
             {
                 int32 Delta = 0;
                 if (!NarrRailRuntime::TryParseInt(Action.Value, Delta))
@@ -1140,7 +1135,7 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                 }
                 Result = VariableContainer->AddInt(Action.Variable.VariableName, Delta);
             }
-            else if (Action.Variable.VariableType == ENarrRailVariableType::Float)
+            else if (VariableType == ENarrRailVariableType::Float)
             {
                 float Delta = 0.f;
                 if (!NarrRailRuntime::TryParseFloat(Action.Value, Delta))
@@ -1171,9 +1166,15 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                 OutErrorMessage = TEXT("Action variable name is empty.");
                 return false;
             }
+            if (!VariableContainer->HasVariable(Action.Variable.VariableName))
+            {
+                OutErrorMessage = FString::Printf(TEXT("Variable '%s' not found."), *Action.Variable.VariableName.ToString());
+                return false;
+            }
 
             FNarrRailVariableResult Result;
-            if (Action.Variable.VariableType == ENarrRailVariableType::Int)
+            const ENarrRailVariableType VariableType = VariableContainer->GetVariableType(Action.Variable.VariableName);
+            if (VariableType == ENarrRailVariableType::Int)
             {
                 int32 Delta = 0;
                 if (!NarrRailRuntime::TryParseInt(Action.Value, Delta))
@@ -1183,7 +1184,7 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                 }
                 Result = VariableContainer->SubtractInt(Action.Variable.VariableName, Delta);
             }
-            else if (Action.Variable.VariableType == ENarrRailVariableType::Float)
+            else if (VariableType == ENarrRailVariableType::Float)
             {
                 float Delta = 0.f;
                 if (!NarrRailRuntime::TryParseFloat(Action.Value, Delta))

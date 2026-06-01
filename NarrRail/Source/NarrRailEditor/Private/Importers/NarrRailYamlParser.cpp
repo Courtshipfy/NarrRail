@@ -315,6 +315,11 @@ static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData
 			ParseActions(NodeYaml["enterActions"], Node.EnterActions);
 		}
 
+		if (NodeYaml["actions"] && NodeYaml["actions"].IsSequence())
+		{
+			ParseActions(NodeYaml["actions"], Node.EnterActions);
+		}
+
 		// Parse exit actions (if present)
 		if (NodeYaml["exitActions"] && NodeYaml["exitActions"].IsSequence())
 		{
@@ -381,6 +386,14 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 		if (EdgeYaml["sourceHandle"])
 		{
 			Edge.SourceHandle = FName(UTF8_TO_TCHAR(EdgeYaml["sourceHandle"].as<std::string>().c_str()));
+			if (Edge.SourceHandle == FName(TEXT("condition-true")))
+			{
+				Edge.SourceHandle = FName(TEXT("condition-0"));
+			}
+			else if (Edge.SourceHandle == FName(TEXT("condition-false")))
+			{
+				Edge.SourceHandle = FName(TEXT("condition-fallback"));
+			}
 		}
 
 		ParsedEdges.Add(ParsedEdge);
