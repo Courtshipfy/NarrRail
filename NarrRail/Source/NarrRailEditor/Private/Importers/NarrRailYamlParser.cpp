@@ -27,7 +27,16 @@ static bool ParseMultiDialogue(const YAML::Node& MultiDialogueNode, FNarrRailMul
 static bool ParseChoices(const YAML::Node& ChoicesNode, TArray<FNarrRailChoiceOption>& OutChoices, FString& OutError);
 static bool ParseActions(const YAML::Node& ActionsNode, TArray<FNarrRailNodeAction>& OutActions);
 static bool ParseCondition(const YAML::Node& ConditionNode, FNarrRailConditionExpression& OutCondition);
+static bool ParseConditionTerms(const YAML::Node& TermsNode, TArray<FNarrRailConditionTerm>& OutTerms);
 static bool ParseVariableRef(const YAML::Node& VarNode, FNarrRailVariableRef& OutVarRef);
+
+struct FParsedNarrRailEdge
+{
+	FNarrRailNodeEdge Edge;
+	bool bHasDeprecatedCondition = false;
+	FNarrRailConditionExpression DeprecatedCondition;
+	int32 OriginalIndex = 0;
+};
 
 bool FNarrRailYamlParser::ParseFile(const FString& FilePath, FNarrRailScriptData& OutData, FString& OutErrorMessage)
 {
@@ -333,9 +342,14 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 		return false;
 	}
 
+	TArray<FParsedNarrRailEdge> ParsedEdges;
+	int32 OriginalIndex = 0;
+
 	for (const auto& EdgeYaml : EdgesNode)
 	{
-		FNarrRailNodeEdge Edge;
+		FParsedNarrRailEdge ParsedEdge;
+		FNarrRailNodeEdge& Edge = ParsedEdge.Edge;
+		ParsedEdge.OriginalIndex = OriginalIndex++;
 
 		if (!EdgeYaml["sourceNodeId"])
 		{
@@ -359,11 +373,8 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 
 		if (EdgeYaml["condition"])
 		{
-			OutError = FString::Printf(
-				TEXT("Edge '%s' -> '%s' uses deprecated edge condition. Use a Condition node with condition-true / condition-false outputs."),
-				*Edge.SourceNodeId.ToString(),
-				*Edge.TargetNodeId.ToString());
-			return false;
+			ParsedEdge.bHasDeprecatedCondition = true;
+			ParseCondition(EdgeYaml["condition"], ParsedEdge.DeprecatedCondition);
 		}
 
 		// Source handle (optional; used by Choice / Condition dedicated outputs)
@@ -372,7 +383,107 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 			Edge.SourceHandle = FName(UTF8_TO_TCHAR(EdgeYaml["sourceHandle"].as<std::string>().c_str()));
 		}
 
-		OutData.Edges.Add(Edge);
+		ParsedEdges.Add(ParsedEdge);
+	}
+
+	TMap<FString, TArray<int32>> EdgeGroups;
+	for (int32 EdgeIndex = 0; EdgeIndex < ParsedEdges.Num(); ++EdgeIndex)
+	{
+		const FNarrRailNodeEdge& Edge = ParsedEdges[EdgeIndex].Edge;
+		const FString GroupKey = FString::Printf(TEXT("%s|%s"), *Edge.SourceNodeId.ToString(), *Edge.SourceHandle.ToString());
+		EdgeGroups.FindOrAdd(GroupKey).Add(EdgeIndex);
+	}
+
+	int32 MigratedConditionIndex = 0;
+	for (const TPair<FString, TArray<int32>>& Pair : EdgeGroups)
+	{
+		TArray<int32> GroupIndices = Pair.Value;
+		GroupIndices.Sort([&ParsedEdges](const int32 LeftIndex, const int32 RightIndex)
+		{
+			const FParsedNarrRailEdge& Left = ParsedEdges[LeftIndex];
+			const FParsedNarrRailEdge& Right = ParsedEdges[RightIndex];
+			if (Left.Edge.Priority != Right.Edge.Priority)
+			{
+				return Left.Edge.Priority < Right.Edge.Priority;
+			}
+
+			return Left.OriginalIndex < Right.OriginalIndex;
+		});
+
+		bool bGroupHasDeprecatedCondition = false;
+		for (const int32 EdgeIndex : GroupIndices)
+		{
+			if (ParsedEdges[EdgeIndex].bHasDeprecatedCondition)
+			{
+				bGroupHasDeprecatedCondition = true;
+				break;
+			}
+		}
+
+		if (!bGroupHasDeprecatedCondition)
+		{
+			for (const int32 EdgeIndex : GroupIndices)
+			{
+				OutData.Edges.Add(ParsedEdges[EdgeIndex].Edge);
+			}
+			continue;
+		}
+
+		FName CurrentSourceNodeId = ParsedEdges[GroupIndices[0]].Edge.SourceNodeId;
+		FName CurrentSourceHandle = ParsedEdges[GroupIndices[0]].Edge.SourceHandle;
+		int32 ChainPriority = ParsedEdges[GroupIndices[0]].Edge.Priority;
+
+		for (const int32 EdgeIndex : GroupIndices)
+		{
+			const FParsedNarrRailEdge& ParsedEdge = ParsedEdges[EdgeIndex];
+			const FNarrRailNodeEdge& OriginalEdge = ParsedEdge.Edge;
+
+			if (!ParsedEdge.bHasDeprecatedCondition)
+			{
+				FNarrRailNodeEdge FallbackEdge = OriginalEdge;
+				FallbackEdge.SourceNodeId = CurrentSourceNodeId;
+				FallbackEdge.SourceHandle = CurrentSourceHandle;
+				FallbackEdge.Priority = ChainPriority;
+				OutData.Edges.Add(FallbackEdge);
+				break;
+			}
+
+			FNarrRailNode ConditionNode;
+			ConditionNode.NodeId = FName(*FString::Printf(
+				TEXT("%s__migrated_condition_%d"),
+				*OriginalEdge.SourceNodeId.ToString(),
+				MigratedConditionIndex++));
+			ConditionNode.NodeType = ENarrRailNodeType::Condition;
+			ConditionNode.Condition = ParsedEdge.DeprecatedCondition;
+
+			if (ConditionNode.Condition.Branches.Num() == 0)
+			{
+				FNarrRailConditionBranch Branch;
+				Branch.Label = TEXT("Migrated edge condition");
+				Branch.Logic = ConditionNode.Condition.Logic;
+				Branch.Terms = ConditionNode.Condition.Terms;
+				ConditionNode.Condition.Branches.Add(Branch);
+			}
+
+			OutData.Nodes.Add(ConditionNode);
+
+			FNarrRailNodeEdge ToConditionEdge;
+			ToConditionEdge.SourceNodeId = CurrentSourceNodeId;
+			ToConditionEdge.TargetNodeId = ConditionNode.NodeId;
+			ToConditionEdge.SourceHandle = CurrentSourceHandle;
+			ToConditionEdge.Priority = ChainPriority;
+			OutData.Edges.Add(ToConditionEdge);
+
+			FNarrRailNodeEdge TrueEdge = OriginalEdge;
+			TrueEdge.SourceNodeId = ConditionNode.NodeId;
+			TrueEdge.SourceHandle = FName(TEXT("condition-0"));
+			TrueEdge.Priority = 0;
+			OutData.Edges.Add(TrueEdge);
+
+			CurrentSourceNodeId = ConditionNode.NodeId;
+			CurrentSourceHandle = FName(TEXT("condition-fallback"));
+			ChainPriority = 0;
+		}
 	}
 
 	return true;
@@ -497,36 +608,74 @@ static bool ParseActions(const YAML::Node& ActionsNode, TArray<FNarrRailNodeActi
 // Parse condition expression
 static bool ParseCondition(const YAML::Node& ConditionNode, FNarrRailConditionExpression& OutCondition)
 {
+	OutCondition.Terms.Empty();
+	OutCondition.Branches.Empty();
+
 	if (ConditionNode["logic"])
 	{
 		FString LogicStr = UTF8_TO_TCHAR(ConditionNode["logic"].as<std::string>().c_str());
 		OutCondition.Logic = ParseLogicType(LogicStr);
 	}
 
+	if (ConditionNode["branches"] && ConditionNode["branches"].IsSequence())
+	{
+		for (const auto& BranchYaml : ConditionNode["branches"])
+		{
+			FNarrRailConditionBranch Branch;
+
+			if (BranchYaml["label"])
+			{
+				Branch.Label = UTF8_TO_TCHAR(BranchYaml["label"].as<std::string>().c_str());
+			}
+
+			if (BranchYaml["logic"])
+			{
+				FString LogicStr = UTF8_TO_TCHAR(BranchYaml["logic"].as<std::string>().c_str());
+				Branch.Logic = ParseLogicType(LogicStr);
+			}
+
+			if (BranchYaml["terms"] && BranchYaml["terms"].IsSequence())
+			{
+				ParseConditionTerms(BranchYaml["terms"], Branch.Terms);
+			}
+
+			OutCondition.Branches.Add(Branch);
+		}
+	}
+
 	if (ConditionNode["terms"] && ConditionNode["terms"].IsSequence())
 	{
-		for (const auto& TermYaml : ConditionNode["terms"])
+		ParseConditionTerms(ConditionNode["terms"], OutCondition.Terms);
+	}
+
+	return true;
+}
+
+static bool ParseConditionTerms(const YAML::Node& TermsNode, TArray<FNarrRailConditionTerm>& OutTerms)
+{
+	OutTerms.Empty();
+
+	for (const auto& TermYaml : TermsNode)
+	{
+		FNarrRailConditionTerm Term;
+
+		if (TermYaml["variable"] && !TermYaml["variable"].IsNull())
 		{
-			FNarrRailConditionTerm Term;
-
-			if (TermYaml["variable"] && !TermYaml["variable"].IsNull())
-			{
-				ParseVariableRef(TermYaml["variable"], Term.Variable);
-			}
-
-			if (TermYaml["operator"])
-			{
-				FString OpStr = UTF8_TO_TCHAR(TermYaml["operator"].as<std::string>().c_str());
-				Term.Operator = ParseOperator(OpStr);
-			}
-
-			if (TermYaml["compareValue"])
-			{
-				Term.CompareValue = UTF8_TO_TCHAR(TermYaml["compareValue"].as<std::string>().c_str());
-			}
-
-			OutCondition.Terms.Add(Term);
+			ParseVariableRef(TermYaml["variable"], Term.Variable);
 		}
+
+		if (TermYaml["operator"])
+		{
+			FString OpStr = UTF8_TO_TCHAR(TermYaml["operator"].as<std::string>().c_str());
+			Term.Operator = ParseOperator(OpStr);
+		}
+
+		if (TermYaml["compareValue"])
+		{
+			Term.CompareValue = UTF8_TO_TCHAR(TermYaml["compareValue"].as<std::string>().c_str());
+		}
+
+		OutTerms.Add(Term);
 	}
 
 	return true;
@@ -539,10 +688,19 @@ static bool ParseVariableRef(const YAML::Node& VarNode, FNarrRailVariableRef& Ou
 	{
 		OutVarRef.VariableName = FName(UTF8_TO_TCHAR(VarNode["name"].as<std::string>().c_str()));
 	}
+	else if (VarNode["variableName"])
+	{
+		OutVarRef.VariableName = FName(UTF8_TO_TCHAR(VarNode["variableName"].as<std::string>().c_str()));
+	}
 
 	if (VarNode["type"])
 	{
 		FString TypeStr = UTF8_TO_TCHAR(VarNode["type"].as<std::string>().c_str());
+		OutVarRef.VariableType = ParseVariableType(TypeStr);
+	}
+	else if (VarNode["variableType"])
+	{
+		FString TypeStr = UTF8_TO_TCHAR(VarNode["variableType"].as<std::string>().c_str());
 		OutVarRef.VariableType = ParseVariableType(TypeStr);
 	}
 
@@ -550,6 +708,10 @@ static bool ParseVariableRef(const YAML::Node& VarNode, FNarrRailVariableRef& Ou
 	{
 		FString ScopeStr = UTF8_TO_TCHAR(VarNode["scope"].as<std::string>().c_str());
 		OutVarRef.bGlobalScope = (ScopeStr == TEXT("Global"));
+	}
+	else if (VarNode["bGlobalScope"])
+	{
+		OutVarRef.bGlobalScope = VarNode["bGlobalScope"].as<bool>();
 	}
 
 	return true;

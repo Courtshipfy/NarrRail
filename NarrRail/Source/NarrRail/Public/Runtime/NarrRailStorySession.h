@@ -275,6 +275,7 @@ private:
     const FNarrRailNode* FindNode(FName NodeId) const;
 
     bool EvaluateConditionExpression(const FNarrRailConditionExpression& Condition) const;
+    bool EvaluateConditionBranch(const FNarrRailConditionBranch& Branch) const;
     bool EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const;
     bool ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage);
 

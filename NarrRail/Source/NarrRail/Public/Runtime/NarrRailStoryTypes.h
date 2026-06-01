@@ -130,6 +130,21 @@ struct NARRRAIL_API FNarrRailConditionTerm
 };
 
 USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailConditionBranch
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FString Label;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    ENarrRailConditionLogic Logic = ENarrRailConditionLogic::All;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    TArray<FNarrRailConditionTerm> Terms;
+};
+
+USTRUCT(BlueprintType)
 struct NARRRAIL_API FNarrRailConditionExpression
 {
     GENERATED_BODY()
@@ -139,6 +154,9 @@ struct NARRRAIL_API FNarrRailConditionExpression
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     TArray<FNarrRailConditionTerm> Terms;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    TArray<FNarrRailConditionBranch> Branches;
 };
 
 USTRUCT(BlueprintType)

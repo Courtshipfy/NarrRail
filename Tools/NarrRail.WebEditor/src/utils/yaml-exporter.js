@@ -30,6 +30,40 @@ const nodeTypeMap = {
   end: "End",
 };
 
+function normalizeConditionForExport(condition) {
+  if (condition && Array.isArray(condition.branches)) {
+    return {
+      branches: condition.branches.map((branch, index) => ({
+        label: branch?.label || `条件 ${index + 1}`,
+        logic: branch?.logic || "All",
+        terms: Array.isArray(branch?.terms) ? branch.terms : [],
+      })),
+    };
+  }
+
+  if (condition && Array.isArray(condition.terms)) {
+    return {
+      branches: [
+        {
+          label: "条件 1",
+          logic: condition.logic || "All",
+          terms: condition.terms,
+        },
+      ],
+    };
+  }
+
+  return {
+    branches: [
+      {
+        label: "条件 1",
+        logic: "All",
+        terms: [],
+      },
+    ],
+  };
+}
+
 export function buildYAMLString(nodes, edges, variables, meta) {
   // 转换节点
   const yamlNodes = nodes.map((node) => {
@@ -99,7 +133,7 @@ export function buildYAMLString(nodes, edges, variables, meta) {
         eventId: node.data.eventId || "",
       };
     } else if (node.type === "condition") {
-      base.condition = node.data?.condition || { logic: "All", terms: [] };
+      base.condition = normalizeConditionForExport(node.data?.condition);
     }
 
     return base;

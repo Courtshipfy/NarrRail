@@ -804,32 +804,102 @@ FNarrRailRuntimeResult UNarrRailStorySession::ResolveNextByEdge(const FNarrRailN
 
     if (FromNode.NodeType == ENarrRailNodeType::Condition)
     {
+        auto FindEdgeByHandle = [&CandidateEdges](const FName Handle) -> const FNarrRailNodeEdge*
+        {
+            for (const FNarrRailNodeEdge* Edge : CandidateEdges)
+            {
+                if (Edge->SourceHandle == Handle)
+                {
+                    return Edge;
+                }
+            }
+
+            return nullptr;
+        };
+
+        if (FromNode.Condition.Branches.Num() > 0)
+        {
+            for (int32 BranchIndex = 0; BranchIndex < FromNode.Condition.Branches.Num(); ++BranchIndex)
+            {
+                const FNarrRailConditionBranch& Branch = FromNode.Condition.Branches[BranchIndex];
+                if (!EvaluateConditionBranch(Branch))
+                {
+                    continue;
+                }
+
+                const FName ExpectedHandle(*FString::Printf(TEXT("condition-%d"), BranchIndex));
+                const FNarrRailNodeEdge* MatchedEdge = FindEdgeByHandle(ExpectedHandle);
+                if (MatchedEdge == nullptr && BranchIndex == 0)
+                {
+                    MatchedEdge = FindEdgeByHandle(FName(TEXT("condition-true")));
+                }
+
+                if (MatchedEdge == nullptr)
+                {
+                    return FNarrRailRuntimeResult::Make(
+                        ENarrRailRuntimeResultCode::InvalidInput,
+                        *FString::Printf(TEXT("Condition node missing %s outgoing edge."), *ExpectedHandle.ToString()),
+                        FromNode.NodeId);
+                }
+
+                OutNextNodeId = MatchedEdge->TargetNodeId;
+                return FNarrRailRuntimeResult::Make(
+                    ENarrRailRuntimeResultCode::Success,
+                    *FString::Printf(TEXT("Resolved %s branch."), *ExpectedHandle.ToString()),
+                    OutNextNodeId);
+            }
+
+            const FNarrRailNodeEdge* FallbackEdge = FindEdgeByHandle(FName(TEXT("condition-fallback")));
+            if (FallbackEdge == nullptr)
+            {
+                FallbackEdge = FindEdgeByHandle(FName(TEXT("condition-false")));
+            }
+
+            if (FallbackEdge == nullptr)
+            {
+                return FNarrRailRuntimeResult::Make(
+                    ENarrRailRuntimeResultCode::InvalidInput,
+                    TEXT("Condition node missing condition-fallback outgoing edge."),
+                    FromNode.NodeId);
+            }
+
+            OutNextNodeId = FallbackEdge->TargetNodeId;
+            return FNarrRailRuntimeResult::Make(
+                ENarrRailRuntimeResultCode::Success,
+                TEXT("Resolved condition-fallback branch."),
+                OutNextNodeId);
+        }
+
         const bool bConditionResult = EvaluateConditionExpression(FromNode.Condition);
         const FName ExpectedHandle = bConditionResult
             ? FName(TEXT("condition-true"))
             : FName(TEXT("condition-false"));
+        const FName ModernHandle = bConditionResult
+            ? FName(TEXT("condition-0"))
+            : FName(TEXT("condition-fallback"));
 
-        for (const FNarrRailNodeEdge* Edge : CandidateEdges)
+        const FNarrRailNodeEdge* MatchedEdge = FindEdgeByHandle(ExpectedHandle);
+        if (MatchedEdge == nullptr)
         {
-            if (Edge->SourceHandle != ExpectedHandle)
-            {
-                continue;
-            }
+            MatchedEdge = FindEdgeByHandle(ModernHandle);
+        }
 
-            OutNextNodeId = Edge->TargetNodeId;
+        if (MatchedEdge != nullptr)
+        {
+            OutNextNodeId = MatchedEdge->TargetNodeId;
             return FNarrRailRuntimeResult::Make(
                 ENarrRailRuntimeResultCode::Success,
                 bConditionResult
-                    ? TEXT("Resolved condition-true branch.")
-                    : TEXT("Resolved condition-false branch."),
+                    ? TEXT("Resolved condition true branch.")
+                    : TEXT("Resolved condition false branch."),
                 OutNextNodeId);
         }
 
         return FNarrRailRuntimeResult::Make(
             ENarrRailRuntimeResultCode::InvalidInput,
             bConditionResult
-                ? TEXT("Condition node missing condition-true outgoing edge.")
-                : TEXT("Condition node missing condition-false outgoing edge."),
+                ? TEXT("Condition node missing condition-0 outgoing edge.")
+                : TEXT("Condition node missing condition-fallback outgoing edge."),
             FromNode.NodeId);
     }
 
@@ -881,6 +951,37 @@ bool UNarrRailStorySession::EvaluateConditionExpression(const FNarrRailCondition
     }
 
     for (const FNarrRailConditionTerm& Term : Condition.Terms)
+    {
+        if (EvaluateConditionTerm(Term))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UNarrRailStorySession::EvaluateConditionBranch(const FNarrRailConditionBranch& Branch) const
+{
+    if (Branch.Terms.Num() == 0)
+    {
+        return true;
+    }
+
+    if (Branch.Logic == ENarrRailConditionLogic::All)
+    {
+        for (const FNarrRailConditionTerm& Term : Branch.Terms)
+        {
+            if (!EvaluateConditionTerm(Term))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    for (const FNarrRailConditionTerm& Term : Branch.Terms)
     {
         if (EvaluateConditionTerm(Term))
         {

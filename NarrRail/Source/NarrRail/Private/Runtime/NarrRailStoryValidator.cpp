@@ -6,7 +6,7 @@ static void AddIssue(
     TArray<FNarrRailValidationIssue>& OutIssues,
     const ENarrRailValidationSeverity Severity,
     const FName NodeId,
-    const TCHAR* Message)
+    const FString& Message)
 {
     FNarrRailValidationIssue& Issue = OutIssues.AddDefaulted_GetRef();
     Issue.Severity = Severity;
@@ -17,6 +17,60 @@ static void AddIssue(
 static bool ContainsNode(const TSet<FName>& NodeIds, const FName NodeId)
 {
     return NodeId != NAME_None && NodeIds.Contains(NodeId);
+}
+
+static void ValidateConditionTerms(
+    TArray<FNarrRailValidationIssue>& OutIssues,
+    const FName NodeId,
+    const TArray<FNarrRailConditionTerm>& Terms,
+    const TSet<FName>& Variables)
+{
+    for (const FNarrRailConditionTerm& Term : Terms)
+    {
+        if (Term.Variable.VariableName == NAME_None)
+        {
+            AddIssue(OutIssues, ENarrRailValidationSeverity::Error, NodeId, TEXT("Condition term has empty variable name."));
+            continue;
+        }
+
+        if (!Variables.Contains(Term.Variable.VariableName))
+        {
+            AddIssue(
+                OutIssues,
+                ENarrRailValidationSeverity::Error,
+                NodeId,
+                FString::Printf(TEXT("Condition term references unknown variable '%s'."), *Term.Variable.VariableName.ToString()));
+        }
+    }
+}
+
+static bool IsModernConditionHandle(const FString& Handle)
+{
+    if (Handle == TEXT("condition-fallback"))
+    {
+        return true;
+    }
+
+    if (!Handle.StartsWith(TEXT("condition-")))
+    {
+        return false;
+    }
+
+    const FString IndexText = Handle.RightChop(10);
+    if (IndexText.IsEmpty())
+    {
+        return false;
+    }
+
+    for (int32 Index = 0; Index < IndexText.Len(); ++Index)
+    {
+        if (!FChar::IsDigit(IndexText[Index]))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 }
 
@@ -79,9 +133,12 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
     }
 
     TSet<FName> ReferencedTargets;
+    TMap<FName, TArray<const FNarrRailNodeEdge*>> EdgesBySourceNode;
 
     for (const FNarrRailNodeEdge& Edge : StoryAsset->Edges)
     {
+        EdgesBySourceNode.FindOrAdd(Edge.SourceNodeId).Add(&Edge);
+
         const bool bValidSource = NarrRailValidation::ContainsNode(NodeIds, Edge.SourceNodeId);
         const bool bValidTarget = NarrRailValidation::ContainsNode(NodeIds, Edge.TargetNodeId);
 
@@ -153,6 +210,133 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
             else
             {
                 ReferencedTargets.Add(Node.ChoiceCompletionTargetNodeId);
+            }
+        }
+
+        if (Node.NodeType == ENarrRailNodeType::Condition)
+        {
+            const TArray<const FNarrRailNodeEdge*>* OutgoingEdges = EdgesBySourceNode.Find(Node.NodeId);
+            TMap<FName, int32> HandleCounts;
+
+            if (OutgoingEdges != nullptr)
+            {
+                for (const FNarrRailNodeEdge* Edge : *OutgoingEdges)
+                {
+                    if (Edge == nullptr)
+                    {
+                        continue;
+                    }
+
+                    if (Edge->SourceHandle == NAME_None)
+                    {
+                        NarrRailValidation::AddIssue(
+                            Issues,
+                            ENarrRailValidationSeverity::Error,
+                            Node.NodeId,
+                            TEXT("Condition outgoing edge requires a source handle."));
+                        continue;
+                    }
+
+                    HandleCounts.FindOrAdd(Edge->SourceHandle) += 1;
+
+                    const FString HandleText = Edge->SourceHandle.ToString();
+                    if (HandleText == TEXT("condition-true") || HandleText == TEXT("condition-false"))
+                    {
+                        NarrRailValidation::AddIssue(
+                            Issues,
+                            ENarrRailValidationSeverity::Warning,
+                            Node.NodeId,
+                            TEXT("Condition node uses deprecated condition-true/condition-false handles."));
+                    }
+                    else if (!NarrRailValidation::IsModernConditionHandle(HandleText))
+                    {
+                        NarrRailValidation::AddIssue(
+                            Issues,
+                            ENarrRailValidationSeverity::Error,
+                            Node.NodeId,
+                            FString::Printf(TEXT("Condition node has invalid source handle '%s'."), *HandleText));
+                    }
+                    else if (HandleText != TEXT("condition-fallback") && Node.Condition.Branches.Num() > 0)
+                    {
+                        const int32 BranchIndex = FCString::Atoi(*HandleText.RightChop(10));
+                        if (!Node.Condition.Branches.IsValidIndex(BranchIndex))
+                        {
+                            NarrRailValidation::AddIssue(
+                                Issues,
+                                ENarrRailValidationSeverity::Error,
+                                Node.NodeId,
+                                FString::Printf(TEXT("Condition source handle '%s' has no matching branch."), *HandleText));
+                        }
+                    }
+                }
+            }
+
+            for (const TPair<FName, int32>& Pair : HandleCounts)
+            {
+                if (Pair.Value > 1)
+                {
+                    NarrRailValidation::AddIssue(
+                        Issues,
+                        ENarrRailValidationSeverity::Error,
+                        Node.NodeId,
+                        FString::Printf(TEXT("Condition node has duplicate outgoing handle '%s'."), *Pair.Key.ToString()));
+                }
+            }
+
+            if (Node.Condition.Branches.Num() > 0)
+            {
+                for (int32 BranchIndex = 0; BranchIndex < Node.Condition.Branches.Num(); ++BranchIndex)
+                {
+                    const FNarrRailConditionBranch& Branch = Node.Condition.Branches[BranchIndex];
+                    NarrRailValidation::ValidateConditionTerms(Issues, Node.NodeId, Branch.Terms, Variables);
+
+                    const FName RequiredHandle(*FString::Printf(TEXT("condition-%d"), BranchIndex));
+                    const bool bHasRequiredHandle = HandleCounts.Contains(RequiredHandle) ||
+                        (BranchIndex == 0 && HandleCounts.Contains(FName(TEXT("condition-true"))));
+
+                    if (!bHasRequiredHandle)
+                    {
+                        NarrRailValidation::AddIssue(
+                            Issues,
+                            ENarrRailValidationSeverity::Error,
+                            Node.NodeId,
+                            FString::Printf(TEXT("Condition branch %d is missing outgoing handle '%s'."), BranchIndex, *RequiredHandle.ToString()));
+                    }
+                }
+
+                if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))) &&
+                    !HandleCounts.Contains(FName(TEXT("condition-false"))))
+                {
+                    NarrRailValidation::AddIssue(
+                        Issues,
+                        ENarrRailValidationSeverity::Warning,
+                        Node.NodeId,
+                        TEXT("Condition node has no fallback edge; runtime will error if no branch matches."));
+                }
+            }
+            else
+            {
+                NarrRailValidation::ValidateConditionTerms(Issues, Node.NodeId, Node.Condition.Terms, Variables);
+
+                if (!HandleCounts.Contains(FName(TEXT("condition-0"))) &&
+                    !HandleCounts.Contains(FName(TEXT("condition-true"))))
+                {
+                    NarrRailValidation::AddIssue(
+                        Issues,
+                        ENarrRailValidationSeverity::Error,
+                        Node.NodeId,
+                        TEXT("Legacy Condition node is missing condition-0 or condition-true outgoing edge."));
+                }
+
+                if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))) &&
+                    !HandleCounts.Contains(FName(TEXT("condition-false"))))
+                {
+                    NarrRailValidation::AddIssue(
+                        Issues,
+                        ENarrRailValidationSeverity::Warning,
+                        Node.NodeId,
+                        TEXT("Legacy Condition node has no fallback/false edge; runtime will error when the condition is false."));
+                }
             }
         }
     }

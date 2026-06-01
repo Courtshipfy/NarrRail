@@ -67,7 +67,7 @@ export function importFromYAML(yamlString) {
       };
     } else if (node.nodeType === "Condition" || node.condition) {
       base.data = {
-        condition: node.condition || { logic: "All", terms: [] },
+        condition: normalizeCondition(node.condition),
       };
     } else if (node.dialogue) {
       base.data = { ...node.dialogue };
@@ -277,7 +277,7 @@ function migrateLegacyEdgeConditions(edges, nodes) {
           y: (sourceNode?.position?.y || 0) + conditionIndex * 150,
         },
         data: {
-          condition: edge.condition,
+          condition: normalizeCondition(edge.condition),
         },
       });
 
@@ -325,8 +325,47 @@ function migrateLegacyEdgeConditions(edges, nodes) {
   return migrated;
 }
 
+function normalizeCondition(condition) {
+  if (condition && Array.isArray(condition.branches)) {
+    return {
+      branches: condition.branches.map((branch, index) => ({
+        label: branch?.label || `条件 ${index + 1}`,
+        logic: branch?.logic || "All",
+        terms: Array.isArray(branch?.terms) ? branch.terms : [],
+      })),
+    };
+  }
+
+  if (condition && Array.isArray(condition.terms)) {
+    return {
+      branches: [
+        {
+          label: "条件 1",
+          logic: condition.logic || "All",
+          terms: condition.terms,
+        },
+      ],
+    };
+  }
+
+  return {
+    branches: [
+      {
+        label: "条件 1",
+        logic: "All",
+        terms: [],
+      },
+    ],
+  };
+}
+
 function isMeaningfulCondition(condition) {
   if (condition == null) return false;
+  if (Array.isArray(condition.branches)) {
+    return condition.branches.some((branch) => {
+      return Array.isArray(branch?.terms) && branch.terms.length > 0;
+    });
+  }
   return !Array.isArray(condition.terms) || condition.terms.length > 0;
 }
 
