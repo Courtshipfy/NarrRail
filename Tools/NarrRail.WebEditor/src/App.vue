@@ -306,31 +306,75 @@ function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
-function mergeVariablesByName(primaryVariables, fallbackVariables) {
-    const merged = [];
-    const seen = new Set();
-
-    [primaryVariables, fallbackVariables].forEach((source) => {
-        (Array.isArray(source) ? source : []).forEach((variable) => {
-            const name = String(variable?.name || "").trim();
-            if (!name || seen.has(name)) return;
-            seen.add(name);
-            merged.push({
-                ...safeClone(variable),
-                name,
-            });
-        });
-    });
-
-    return merged;
-}
-
-function getVariablesForOpenedRepositoryScript(scriptVariables) {
-    return mergeVariablesByName(variables.value, scriptVariables);
-}
-
 function getLocalScriptStorageKeyByPath(path) {
     return `${LOCAL_SCRIPT_CONTENT_PREFIX}${String(path || "")}`;
+}
+
+function getVariableNameSet(variableList) {
+    return new Set(
+        (Array.isArray(variableList) ? variableList : [])
+            .map((variable) => String(variable?.name || "").trim())
+            .filter(Boolean),
+    );
+}
+
+function clearDeletedVariableReferencesFromNode(node, deletedVariableNames) {
+    if (!node || deletedVariableNames.size === 0) return node;
+    const nextNode = safeClone(node);
+
+    if (
+        nextNode.type === "setvariable" &&
+        deletedVariableNames.has(String(nextNode.data?.variableName || ""))
+    ) {
+        nextNode.data = nextNode.data || {};
+        nextNode.data.variableName = "";
+    }
+
+    if (nextNode.type === "condition") {
+        const branches = Array.isArray(nextNode.data?.condition?.branches)
+            ? nextNode.data.condition.branches
+            : Array.isArray(nextNode.data?.condition?.terms)
+              ? [nextNode.data.condition]
+              : [];
+
+        branches.forEach((branch) => {
+            const terms = Array.isArray(branch?.terms) ? branch.terms : [];
+            terms.forEach((term) => {
+                const name = String(term?.variable?.name || "").trim();
+                if (deletedVariableNames.has(name)) {
+                    term.variable = {
+                        ...(term.variable || {}),
+                        name: "",
+                    };
+                }
+            });
+        });
+    }
+
+    return nextNode;
+}
+
+function clearDeletedVariableReferences(nextVariables) {
+    const nextNames = getVariableNameSet(nextVariables);
+    const currentNames = getVariableNameSet(variables.value);
+    const deletedNames = new Set(
+        [...currentNames].filter((name) => !nextNames.has(name)),
+    );
+    if (deletedNames.size === 0) return;
+
+    const nextNodes = nodes.value.map((node) =>
+        clearDeletedVariableReferencesFromNode(node, deletedNames),
+    );
+    if (!isDeepEqual(nextNodes, nodes.value)) {
+        nodes.value = nextNodes;
+    }
+
+    if (selectedNode.value) {
+        const latestSelected = nextNodes.find(
+            (node) => node.id === selectedNode.value.id,
+        );
+        selectedNode.value = latestSelected ? safeClone(latestSelected) : null;
+    }
 }
 
 function loadLocalScriptContent(storageKey) {
@@ -1828,9 +1872,6 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
                     "ImportedStory",
                 entryNodeId: imported.meta?.entryNodeId || "",
             };
-            variables.value = getVariablesForOpenedRepositoryScript(
-                imported.variables,
-            );
             selectedNode.value = null;
             selectedEdge.value = null;
 
@@ -1876,9 +1917,6 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
                     "LocalStory",
                 entryNodeId: localData?.meta?.entryNodeId || "",
             };
-            variables.value = getVariablesForOpenedRepositoryScript(
-                localData.variables,
-            );
             selectedNode.value = null;
             selectedEdge.value = null;
         } else if (scriptEntry?.storyId) {
@@ -2531,6 +2569,7 @@ function handleVariablesUpdate(updatedVariables) {
     const nextVariables = safeClone(updatedVariables || []);
     if (isDeepEqual(nextVariables, variables.value)) return;
     pushHistorySnapshot();
+    clearDeletedVariableReferences(nextVariables);
     variables.value = nextVariables;
     scheduleGlobalConfigSyncFromEditor();
 }

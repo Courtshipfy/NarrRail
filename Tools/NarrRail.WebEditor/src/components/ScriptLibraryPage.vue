@@ -567,6 +567,8 @@ const loadingScripts = ref(false);
 const usingMockData = ref(true);
 const isCreatingScript = ref(false);
 const createScriptStatus = ref("");
+let globalConfigMutationVersion = 0;
+let pendingGlobalConfigSync = null;
 
 const isLocalDevHost =
     typeof window !== "undefined" &&
@@ -646,6 +648,7 @@ async function addVariable() {
     else variable.stringValue = String(newVariable.stringValue || "");
 
     const nextVariables = [...props.variables, variable];
+    globalConfigMutationVersion += 1;
     emit("update-variables", nextVariables);
     resetVariableForm();
     await syncGlobalConfigToRepo({
@@ -657,6 +660,7 @@ async function addVariable() {
 async function removeVariable(index) {
     const updated = [...props.variables];
     updated.splice(index, 1);
+    globalConfigMutationVersion += 1;
     emit("update-variables", updated);
     await syncGlobalConfigToRepo({
         variables: updated,
@@ -689,6 +693,7 @@ async function addSpeaker() {
 
     const payload = displayName ? { id, displayName } : { id };
     const nextSpeakers = [...props.presetSpeakers, payload];
+    globalConfigMutationVersion += 1;
     emit("update-speakers", nextSpeakers);
     resetSpeakerForm();
     await syncGlobalConfigToRepo({
@@ -700,6 +705,7 @@ async function addSpeaker() {
 async function removeSpeaker(index) {
     const updated = [...props.presetSpeakers];
     updated.splice(index, 1);
+    globalConfigMutationVersion += 1;
     emit("update-speakers", updated);
     await syncGlobalConfigToRepo({
         variables: props.variables,
@@ -773,25 +779,23 @@ function syncGlobalConfigToLocal(config) {
 }
 
 async function syncGlobalConfigToRepo(overrideConfig = null) {
+    const sourceConfig = overrideConfig || {
+        variables: props.variables,
+        presetSpeakers: props.presetSpeakers,
+    };
+    syncGlobalConfigToLocal(sourceConfig);
+
     if (!props.authState?.authenticated || !hasSelectedGithubRepo()) {
-        syncGlobalConfigToLocal(
-            overrideConfig || {
-                variables: props.variables,
-                presetSpeakers: props.presetSpeakers,
-            },
-        );
         return;
     }
 
-    if (isSyncingGlobalConfig.value) return;
+    if (isSyncingGlobalConfig.value) {
+        pendingGlobalConfigSync = sourceConfig;
+        return;
+    }
 
     isSyncingGlobalConfig.value = true;
     try {
-        const sourceConfig = overrideConfig || {
-            variables: props.variables,
-            presetSpeakers: props.presetSpeakers,
-        };
-
         const content = serializeGlobalConfigToYAML(sourceConfig);
 
         const payload = {
@@ -824,6 +828,11 @@ async function syncGlobalConfigToRepo(overrideConfig = null) {
         alert(`同步全局配置失败: ${error.message}`);
     } finally {
         isSyncingGlobalConfig.value = false;
+        if (pendingGlobalConfigSync) {
+            const nextConfig = pendingGlobalConfigSync;
+            pendingGlobalConfigSync = null;
+            await syncGlobalConfigToRepo(nextConfig);
+        }
     }
 }
 
@@ -953,6 +962,7 @@ async function loadGlobalConfigFromRepo() {
     if (!selectedOwner.value || !selectedRepoName.value) return;
 
     const repoSnapshot = `${selectedOwner.value}/${selectedRepoName.value}@${selectedRepoBranch.value}`;
+    const requestMutationVersion = globalConfigMutationVersion;
 
     try {
         const url = new URL(
@@ -995,6 +1005,9 @@ async function loadGlobalConfigFromRepo() {
         ) {
             return;
         }
+        if (requestMutationVersion !== globalConfigMutationVersion) {
+            return;
+        }
 
         if (!loadedData) {
             const emptyConfig = {
@@ -1012,8 +1025,12 @@ async function loadGlobalConfigFromRepo() {
         const parsed = parseGlobalConfigFromYAML(
             String(loadedData?.content || ""),
         );
+        if (requestMutationVersion !== globalConfigMutationVersion) {
+            return;
+        }
         emit("update-variables", parsed.variables || []);
         emit("update-speakers", parsed.presetSpeakers || []);
+        syncGlobalConfigToLocal(parsed);
         globalConfigRepoPath.value = foundPath;
         globalConfigRepoSha.value = loadedData?.sha || "";
     } catch (error) {
