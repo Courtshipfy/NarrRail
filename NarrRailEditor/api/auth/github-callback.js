@@ -42,7 +42,7 @@ async function fetchGithubUser(accessToken) {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/vnd.github+json",
-      "User-Agent": "NarrRail-WebEditor",
+      "User-Agent": "NarrRail-NarrRailEditor",
     },
   });
 

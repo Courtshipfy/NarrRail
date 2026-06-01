@@ -1,5 +1,9 @@
 import { githubFetchJson, requireGithubToken } from "../auth/_github.js";
 
+function toBase64(input) {
+  return Buffer.from(String(input || ""), "utf-8").toString("base64");
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -10,32 +14,24 @@ export default async function handler(req, res) {
 
     const { accessToken } = requireGithubToken(req);
 
-    const {
-      owner,
-      repo,
-      branch = "main",
-      path,
-      sha,
-      message,
-    } = req.body || {};
+    const { owner, repo, branch = "main", path, content, message, sha } = req.body || {};
 
-    if (!owner || !repo || !path || !sha) {
-      res
-        .status(400)
-        .json({ error: "owner, repo, path and sha are required" });
+    if (!owner || !repo || !path) {
+      res.status(400).json({ error: "owner, repo, path are required" });
       return;
     }
 
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`;
 
     const payload = {
-      message: message || `chore(webeditor): delete ${path}`,
-      sha,
+      message: message || `chore(NarrRailEditor): update ${path}`,
+      content: toBase64(content || ""),
       branch,
+      ...(sha ? { sha } : {}),
     };
 
     const data = await githubFetchJson(url, accessToken, {
-      method: "DELETE",
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
@@ -51,13 +47,11 @@ export default async function handler(req, res) {
       },
       content: {
         path: data?.content?.path || path,
+        sha: data?.content?.sha || "",
       },
     });
   } catch (error) {
     const status = error.status || 500;
-    res.status(status).json({
-      error: error.message || "Failed to delete file",
-      details: error.payload || undefined,
-    });
+    res.status(status).json({ error: error.message || "Failed to commit file" });
   }
 }

@@ -1,4 +1,4 @@
-﻿# Unreal Engine generated files
+# Unreal Engine generated files
 Binaries/
 Build/
 DerivedDataCache/
@@ -36,10 +36,9 @@ HostProject/Build-HostProject.cmd
 .zed/
 HostProject/NarrRailHost.sln
 
-# Web editor build artifacts
-Tools/NarrRail.WebEditor/dist/
+# NarrRailEditor build artifacts
+NarrRailEditor/dist/
 
 # Vite cache
 **/.vite/
-Tools/NarrRail.WebEditor/node_modules/
-Tools/NarrRail.WebEditor/node_modules/.vite/
+node_modules/

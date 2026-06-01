@@ -1,5 +1,5 @@
 {
-  "name": "narrrail-web-editor",
+  "name": "narrrail-editor",
   "version": "0.1.0",
   "description": "NarrRail Story Editor - Visual node-based story editor",
   "type": "module",

@@ -20,7 +20,7 @@ export async function githubFetchJson(url, accessToken, init = {}) {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "NarrRail-WebEditor",
+      "User-Agent": "NarrRail-NarrRailEditor",
       ...(init.headers || {}),
     },
   });

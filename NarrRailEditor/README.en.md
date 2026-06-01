@@ -1,8 +1,8 @@
-# NarrRail WebEditor
+# NarrRailEditor
 
 [中文](./README.md)
 
-NarrRail WebEditor is a **Vue 3 + Svelte Flow** visual story editor for narrative production.
+NarrRailEditor is a **Vue 3 + Svelte Flow** visual story editor for narrative production.
 It supports graph editing, `.nrstory` import/export, validation, autosave, and runtime-like preview.
 
 ## Tech Stack
@@ -41,7 +41,7 @@ Cross-platform rule:
 macOS / Linux:
 
 ```bash
-cd Tools/NarrRail.WebEditor
+cd NarrRailEditor
 npm ci
 npm run dev -- --host 127.0.0.1
 ```
@@ -49,7 +49,7 @@ npm run dev -- --host 127.0.0.1
 Windows (PowerShell / CMD):
 
 ```bash
-cd Tools/NarrRail.WebEditor
+cd NarrRailEditor
 npm ci
 npm run dev -- --host 127.0.0.1
 ```
@@ -111,7 +111,7 @@ npm run build
 - `.nrstory` import
 - `.nrstory` export
 - Auto layout after import
-- Basic bidirectional mapping (graph ↔ script)
+- Basic bidirectional mapping (graph �?script)
 
 ### 4) Validation & Save
 
@@ -145,8 +145,8 @@ npm run build
 ## Related Docs
 
 - Preview mode notes: `README_READING_MODE.md`
-- Intro page spec: `../../Docs/05_webeditor/INTRO_PAGE_CONTENT_STYLE_SPEC.md`
-- Deployment plan: `../../Docs/05_webeditor/WEBEDITOR_DEPLOYMENT_PLAN.md`
+- Intro page spec: `../../Docs/05_narrrail_editor/INTRO_PAGE_CONTENT_STYLE_SPEC.md`
+- Deployment plan: `../../Docs/05_narrrail_editor/NARRRAIL_EDITOR_DEPLOYMENT_PLAN.md`
 
 ## License
 

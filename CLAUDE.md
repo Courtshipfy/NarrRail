@@ -8,7 +8,7 @@ NarrRail is a UE5.7 plugin for AVG (Adventure/Visual Novel) games, providing dia
 
 **Language Strategy (Mandatory):**
 - Primary: C++ for runtime and editor core functionality
-- Tooling: C# for script processing, validation, and CLI tools (planned)
+- NarrRailEditor: Vue/Svelte authoring UI for script editing, validation, import/export, and preview
 - Integration: Blueprint for business integration layer only (NOT for core logic)
 
 **Critical Constraint:** Core execution logic (state machine, condition evaluation, save/load) MUST be implemented in C++. Blueprint is only for calling exposed APIs and event subscription.
@@ -29,12 +29,18 @@ NarrRail/                      # Plugin root
 HostProject/                   # Development host project
   NarrRailHost.uproject       # UE5.7 host project
   Build-HostProject.cmd       # Build script
-  Plugins/NarrRail/           # Junction to ../NarrRail (auto-created)
+  Plugins/NarrRail/           # Junction/symlink/copy of ../NarrRail
 
-docs/
-  TECH_ARCHITECTURE.md        # Technical architecture and design decisions
-  TASK_PLAN.md               # WBS task checklist with completion tracking
-  SCRIPT_FORMAT.md           # YAML script format specification
+NarrRailEditor/                # Web authoring editor
+  src/                         # Vue/Svelte source
+  api/                         # Serverless API routes
+  package.json                 # Vite app scripts
+
+Docs/
+  01_architecture/TECH_ARCHITECTURE.md
+  02_runtime/SCRIPT_FORMAT.md
+  05_narrrail_editor/          # NarrRailEditor docs
+  06_planning/TASK_PLAN.md
 ```
 
 ## Build Commands
@@ -45,10 +51,18 @@ cd HostProject
 ./Build-HostProject.cmd
 ```
 
-This script:
-- Creates a junction from `HostProject/Plugins/NarrRail` to the plugin source
-- Invokes UE5.7's UnrealBuildTool to compile the plugin modules
-- Requires UE5.7 installed at `I:\UE_5.7`
+This script invokes UE5.7's UnrealBuildTool to compile the plugin modules.
+
+Before building, make sure `HostProject/Plugins/NarrRail` points to the repository plugin source at `NarrRail/`. Use a directory junction/symlink or copy the plugin directory.
+
+## NarrRailEditor Commands
+
+```bash
+cd NarrRailEditor
+npm install
+npm run dev
+npm run build
+```
 
 **Open in editor:**
 ```bash
@@ -93,14 +107,6 @@ Currently minimal scaffold. Planned features:
 - Validation UI with problem navigation
 - PIE debugging bridge (runtime node highlighting, variable watching)
 
-### Tooling (Planned)
-
-C# CLI tools for:
-- Script validation (`narrrail validate <script>`)
-- Import/export (`narrrail import/export`)
-- Round-trip consistency checking
-- Localization text extraction
-
 ## Key Design Decisions
 
 **ADR-001: C++ Core, Blueprint Integration Layer**
@@ -113,8 +119,8 @@ C# CLI tools for:
 
 **Script Format:**
 - YAML-based (`.nrstory`)
-- Schema version 1 (see `docs/02_runtime/SCRIPT_FORMAT.md`)
-- Supports nodes (Dialogue/Choice/Jump/SetVariable/EmitEvent/End), edges with conditions, variables (Bool/Int/Float/String)
+- Schema version 1 (see `Docs/02_runtime/SCRIPT_FORMAT.md`)
+- Supports nodes (Dialogue/Choice/Jump/SetVariable/EmitEvent/Condition/End), variables (Bool/Int/Float/String), and Condition-node controlled branching
 
 ## Development Workflow
 
@@ -146,7 +152,7 @@ C# CLI tools for:
 
 ## Task Tracking
 
-All tasks are tracked in `docs/06_planning/TASK_PLAN.md` with unique IDs (e.g., `NR-RUN-001-01`).
+All tasks are tracked in `Docs/06_planning/TASK_PLAN.md` with unique IDs (e.g., `NR-RUN-001-01`).
 
 **Task completion criteria:**
 - DoD (Definition of Done) met
@@ -172,9 +178,10 @@ All tasks are tracked in `docs/06_planning/TASK_PLAN.md` with unique IDs (e.g., 
 ## Documentation
 
 - `README.md`: Quick start and structure overview
-- `docs/01_architecture/TECH_ARCHITECTURE.md`: Detailed architecture, module design, interface contracts
-- `docs/06_planning/TASK_PLAN.md`: WBS with completion tracking and DoD
-- `docs/02_runtime/SCRIPT_FORMAT.md`: YAML script format specification v1
+- `Docs/01_architecture/TECH_ARCHITECTURE.md`: Detailed architecture, module design, interface contracts
+- `Docs/06_planning/TASK_PLAN.md`: WBS with completion tracking and DoD
+- `Docs/02_runtime/SCRIPT_FORMAT.md`: YAML script format specification v1
+- `NarrRailEditor/README.md`: Web editor development guide
 - This file: Development guidance for Claude Code
 
 ## Version Information
