@@ -96,10 +96,16 @@ export function importFromYAML(yamlString) {
 
   // 处理普通边
   yamlEdges.forEach((edge) => {
+    const sourceNode = nodes.find((node) => node.id === edge.sourceNodeId);
+    let sourceHandle = edge.sourceHandle || undefined;
+    if (sourceNode?.type === "condition") {
+      if (sourceHandle === "condition-true") sourceHandle = "condition-0";
+      if (sourceHandle === "condition-false") sourceHandle = "condition-fallback";
+    }
     edges.push({
       id: `e${edgeIndex++}`,
       source: edge.sourceNodeId,
-      sourceHandle: edge.sourceHandle || undefined,
+      sourceHandle,
       target: edge.targetNodeId,
       type: "default",
       animated: false,
@@ -283,13 +289,13 @@ function migrateLegacyEdgeConditions(edges, nodes) {
       });
       migrated.push({
         sourceNodeId: conditionNodeId,
-        sourceHandle: "condition-true",
+        sourceHandle: "condition-0",
         targetNodeId: edge.targetNodeId,
         priority: 0,
       });
 
       pendingSourceNodeId = conditionNodeId;
-      pendingSourceHandle = "condition-false";
+      pendingSourceHandle = "condition-fallback";
     });
 
     if (!fallbackCreated) {

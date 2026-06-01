@@ -12,16 +12,13 @@ export function validateStory(nodes, edges, meta) {
   const safeMeta = meta || {};
 
   const nodeMap = new Map();
-  const nodeIds = [];
   const edgeIdSet = new Set();
 
   const addError = (message, extra = {}) =>
     errors.push({ type: "error", message, ...extra });
-
   const addWarning = (message, extra = {}) =>
     warnings.push({ type: "warning", message, ...extra });
 
-  // 1) Node id uniqueness + map
   for (const node of safeNodes) {
     const nodeId = node?.id;
     if (!nodeId || typeof nodeId !== "string" || !nodeId.trim()) {
@@ -29,7 +26,6 @@ export function validateStory(nodes, edges, meta) {
       continue;
     }
 
-    nodeIds.push(nodeId);
     if (nodeMap.has(nodeId)) {
       addError(`重复的节点 ID: ${nodeId}`, { nodeId });
     } else {
@@ -37,15 +33,13 @@ export function validateStory(nodes, edges, meta) {
     }
   }
 
-  // 2) Entry node check
   if (!safeMeta.entryNodeId) {
     addError("未设置入口节点");
   } else if (!nodeMap.has(safeMeta.entryNodeId)) {
     addError(`入口节点不存在: ${safeMeta.entryNodeId}`);
   }
 
-  // 3) Edge references
-  for (let i = 0; i < safeEdges.length; i++) {
+  for (let i = 0; i < safeEdges.length; i += 1) {
     const edge = safeEdges[i];
     const edgeLabel = edge?.id || `#${i}`;
 
@@ -58,30 +52,21 @@ export function validateStory(nodes, edges, meta) {
     }
 
     if (!edge?.source || !nodeMap.has(edge.source)) {
-      addError(
-        `边 ${edgeLabel} 引用了不存在的源节点: ${edge?.source ?? "(空)"}`,
-      );
+      addError(`边 ${edgeLabel} 引用了不存在的源节点: ${edge?.source ?? "(空)"}`);
     }
     if (!edge?.target || !nodeMap.has(edge.target)) {
-      addError(
-        `边 ${edgeLabel} 引用了不存在的目标节点: ${edge?.target ?? "(空)"}`,
-      );
+      addError(`边 ${edgeLabel} 引用了不存在的目标节点: ${edge?.target ?? "(空)"}`);
     }
 
     if (edge?.data?.priority != null && !Number.isInteger(edge.data.priority)) {
-      addWarning(
-        `边 ${edgeLabel}: priority 建议为整数，当前值=${edge.data.priority}`,
-      );
+      addWarning(`边 ${edgeLabel}: priority 建议为整数，当前值 ${edge.data.priority}`);
     }
 
     if (edge?.data?.condition != null || edge?.condition != null) {
-      addError(
-        `边 ${edgeLabel}: 边条件已废弃，请改用 Condition 节点进行条件分支`,
-      );
+      addError(`边 ${edgeLabel}: 边条件已废弃，请改用 Condition 节点进行条件分支`);
     }
   }
 
-  // 4) Required fields per node type + choice-edge mapping
   for (const node of safeNodes) {
     if (!node?.id) continue;
 
@@ -141,7 +126,6 @@ export function validateStory(nodes, edges, meta) {
         addWarning,
       );
     } else {
-      // 非 choice/condition 节点不应使用专用句柄
       const badEdges = safeEdges.filter(
         (e) =>
           e?.source === node.id &&
@@ -157,7 +141,6 @@ export function validateStory(nodes, edges, meta) {
     }
   }
 
-  // 5) Isolated nodes
   const connected = new Set();
   for (const edge of safeEdges) {
     if (edge?.source) connected.add(edge.source);
@@ -198,7 +181,7 @@ function validateChoiceNodeEdgeMapping(
     );
 
     if (completionEdges.length === 0) {
-      addError(`节点 ${node.id}: 穷举选择模式缺少完成连线（choice-complete）`, {
+      addError(`节点 ${node.id}: 穷举选择模式缺少完成连线 (choice-complete)`, {
         nodeId: node.id,
       });
     } else if (completionEdges.length > 1) {
@@ -209,28 +192,25 @@ function validateChoiceNodeEdgeMapping(
 
     for (const edge of completionEdges) {
       if (!nodeMap.has(edge.target)) {
-        addError(
-          `节点 ${node.id}: 穷举选择完成目标不存在: ${edge.target || "(空)"}`,
-          { nodeId: node.id },
-        );
+        addError(`节点 ${node.id}: 穷举选择完成目标不存在: ${edge.target || "(空)"}`, {
+          nodeId: node.id,
+        });
       }
     }
   }
 
-  // 每个 choice 文本必填 + 每个 index 必须有且只有一条对应边
-  for (let i = 0; i < choices.length; i++) {
-    const c = choices[i] || {};
-    if (!c.textKey || !String(c.textKey).trim()) {
+  for (let i = 0; i < choices.length; i += 1) {
+    const choice = choices[i] || {};
+    if (!choice.textKey || !String(choice.textKey).trim()) {
       addError(`节点 ${node.id}: 选项 #${i + 1} 缺少 textKey`, {
         nodeId: node.id,
       });
     }
 
-    if (c.availability != null || c.condition != null) {
-      addError(
-        `节点 ${node.id}: 选项 #${i + 1} 的条件字段已废弃，请改用 Condition 节点`,
-        { nodeId: node.id },
-      );
+    if (choice.availability != null || choice.condition != null) {
+      addError(`节点 ${node.id}: 选项 #${i + 1} 的条件字段已废弃，请改用 Condition 节点`, {
+        nodeId: node.id,
+      });
     }
 
     const expectedHandle = `choice-${i}`;
@@ -239,22 +219,20 @@ function validateChoiceNodeEdgeMapping(
     );
 
     if (mappedEdges.length === 0) {
-      addError(
-        `节点 ${node.id}: 选项 #${i + 1} 未连接目标边（缺少 sourceHandle=${expectedHandle}）`,
-        { nodeId: node.id },
-      );
+      addError(`节点 ${node.id}: 选项 #${i + 1} 未连接目标边 (${expectedHandle})`, {
+        nodeId: node.id,
+      });
       continue;
     }
 
     if (mappedEdges.length > 1) {
-      addError(
-        `节点 ${node.id}: 选项 #${i + 1} 存在多条边（sourceHandle=${expectedHandle}）`,
-        { nodeId: node.id },
-      );
+      addError(`节点 ${node.id}: 选项 #${i + 1} 存在多条边 (${expectedHandle})`, {
+        nodeId: node.id,
+      });
     }
 
-    for (const e of mappedEdges) {
-      if (!nodeMap.has(e.target)) {
+    for (const edge of mappedEdges) {
+      if (!nodeMap.has(edge.target)) {
         addError(`节点 ${node.id}: 选项 #${i + 1} 连接到了不存在的目标节点`, {
           nodeId: node.id,
         });
@@ -262,29 +240,22 @@ function validateChoiceNodeEdgeMapping(
     }
   }
 
-  // 检查多余/非法 sourceHandle
   for (const edge of sourceEdges) {
     const sh = edge?.sourceHandle;
     if (!sh) {
-      addWarning(
-        `节点 ${node.id}: 存在未绑定选项句柄的边 ${edge.id || "(无ID)"}`,
-      );
+      addWarning(`节点 ${node.id}: 存在未绑定选项句柄的边 ${edge.id || "(无ID)"}`);
       continue;
     }
 
     if (sh === "choice-complete") {
       if (choiceMode !== "ExhaustiveUntilComplete") {
-        addWarning(
-          `节点 ${node.id}: 非穷举模式下不建议存在 choice-complete 连线`,
-        );
+        addWarning(`节点 ${node.id}: 非穷举模式下不建议存在 choice-complete 连线`);
       }
       continue;
     }
 
     if (!sh.startsWith("choice-")) {
-      addWarning(
-        `节点 ${node.id}: 边 ${edge.id || "(无ID)"} 使用了非标准 sourceHandle=${sh}`,
-      );
+      addWarning(`节点 ${node.id}: 边 ${edge.id || "(无ID)"} 使用了非标准 sourceHandle=${sh}`);
       continue;
     }
 
@@ -305,69 +276,296 @@ function validateConditionNodeEdgeMapping(
   addWarning,
 ) {
   const sourceEdges = edges.filter((e) => e?.source === node.id);
-  const trueEdges = sourceEdges.filter(
-    (e) => e?.sourceHandle === "condition-true",
-  );
-  const falseEdges = sourceEdges.filter(
-    (e) => e?.sourceHandle === "condition-false",
-  );
+  const condition = node?.data?.condition;
+  if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
+    addError(`节点 ${node.id}: Condition 节点缺少 data.condition`, {
+      nodeId: node.id,
+    });
+    return;
+  }
 
-  if (trueEdges.length !== 1) {
-    addError(`节点 ${node.id}: condition-true 出边必须且只能有 1 条`, {
+  const branches = getConditionBranches(condition);
+  if (branches.length === 0) {
+    addError(`节点 ${node.id}: Condition 至少需要 1 个条件分支`, {
       nodeId: node.id,
     });
   }
 
-  if (falseEdges.length !== 1) {
-    addError(`节点 ${node.id}: condition-false 出边必须且只能有 1 条`, {
+  for (let i = 0; i < branches.length; i += 1) {
+    const branch = branches[i] || {};
+    const handle = `condition-${i}`;
+    const mappedEdges = sourceEdges.filter((e) => e?.sourceHandle === handle);
+
+    if (mappedEdges.length === 0) {
+      addError(`节点 ${node.id}: 条件分支 #${i + 1} 未连接目标边 (${handle})`, {
+        nodeId: node.id,
+      });
+    } else if (mappedEdges.length > 1) {
+      addError(`节点 ${node.id}: 条件分支 #${i + 1} 存在多条出边 (${handle})`, {
+        nodeId: node.id,
+      });
+    }
+
+    for (const edge of mappedEdges) {
+      if (!nodeMap.has(edge.target)) {
+        addError(`节点 ${node.id}: 条件分支 #${i + 1} 目标不存在: ${edge.target || "(空)"}`, {
+          nodeId: node.id,
+        });
+      }
+    }
+
+    validateConditionBranch(node, branch, i, addError, addWarning);
+  }
+
+  const fallbackEdges = sourceEdges.filter(
+    (e) => e?.sourceHandle === "condition-fallback",
+  );
+  if (fallbackEdges.length > 1) {
+    addError(`节点 ${node.id}: condition-fallback 只能连接 1 条边`, {
       nodeId: node.id,
     });
   }
-
-  for (const edge of [...trueEdges, ...falseEdges]) {
+  for (const edge of fallbackEdges) {
     if (!nodeMap.has(edge.target)) {
-      addError(`节点 ${node.id}: 分支目标不存在: ${edge.target || "(空)"}`, {
+      addError(`节点 ${node.id}: condition-fallback 目标不存在: ${edge.target || "(空)"}`, {
         nodeId: node.id,
       });
     }
   }
+  if (fallbackEdges.length === 0) {
+    addWarning(`节点 ${node.id}: 未连接 condition-fallback，所有条件都不满足时会中断`, {
+      nodeId: node.id,
+    });
+  }
 
   for (const edge of sourceEdges) {
     const sh = String(edge?.sourceHandle || "");
-    if (sh !== "condition-true" && sh !== "condition-false") {
+    if (sh === "condition-fallback") continue;
+
+    const match = /^condition-(\d+)$/.exec(sh);
+    if (!match) {
+      addError(`节点 ${node.id}: 非法 sourceHandle=${sh || "(空)"}`, {
+        nodeId: node.id,
+      });
+      continue;
+    }
+
+    const index = Number(match[1]);
+    if (!Number.isInteger(index) || index < 0 || index >= branches.length) {
       addError(
-        `节点 ${node.id}: 非法 sourceHandle=${sh || "(空)"}，仅允许 condition-true / condition-false`,
+        `节点 ${node.id}: 边 ${edge.id || "(无ID)"} 的 sourceHandle=${sh} 越界（当前条件分支数 ${branches.length}）`,
         { nodeId: node.id },
       );
     }
   }
 
-  const condition = node?.data?.condition;
-  if (!condition || typeof condition !== "object" || Array.isArray(condition)) {
-    addError(`节点 ${node.id}: condition 节点缺少 data.condition`, {
-      nodeId: node.id,
-    });
-    return;
-  }
+  validateConditionBranchUniqueness(node, branches, addError, addWarning);
+}
 
-  const logic = condition.logic ?? "All";
+function getConditionBranches(condition) {
+  if (Array.isArray(condition?.branches)) {
+    return condition.branches;
+  }
+  if (Array.isArray(condition?.terms)) {
+    return [
+      {
+        label: "条件 1",
+        logic: condition?.logic || "All",
+        terms: condition.terms,
+      },
+    ];
+  }
+  return [];
+}
+
+function validateConditionBranch(node, branch, index, addError, addWarning) {
+  const label = `条件分支 #${index + 1}`;
+  const logic = branch?.logic ?? "All";
   if (!VALID_LOGICS.has(logic)) {
-    addError(`节点 ${node.id}: condition.logic 非法（允许: All/Any）`, {
+    addError(`节点 ${node.id}: ${label} logic 非法（允许 All/Any）`, {
       nodeId: node.id,
     });
   }
 
-  const terms = Array.isArray(condition.terms) ? condition.terms : null;
+  const terms = Array.isArray(branch?.terms) ? branch.terms : null;
   if (!terms) {
-    addError(`节点 ${node.id}: condition.terms 必须是数组`, {
-      nodeId: node.id,
-    });
+    addError(`节点 ${node.id}: ${label} terms 必须是数组`, { nodeId: node.id });
     return;
   }
 
   if (terms.length === 0) {
-    addWarning(`节点 ${node.id}: condition.terms 为空，条件将恒真`, {
+    addWarning(`节点 ${node.id}: ${label} 没有条件项，将恒真`, {
       nodeId: node.id,
     });
   }
+
+  terms.forEach((term, termIndex) => {
+    const variableName = String(term?.variable?.name || "").trim();
+    const operator = String(term?.operator || "");
+    const type = String(term?.variable?.type || "String");
+    const scope = String(term?.variable?.scope || "Session");
+
+    if (!variableName) {
+      addError(`节点 ${node.id}: ${label} 条件项 #${termIndex + 1} 缺少变量`, {
+        nodeId: node.id,
+      });
+    }
+    if (!VALID_OPERATORS.has(operator)) {
+      addError(`节点 ${node.id}: ${label} 条件项 #${termIndex + 1} operator 非法`, {
+        nodeId: node.id,
+      });
+    }
+    if (!VALID_VAR_TYPES.has(type)) {
+      addError(`节点 ${node.id}: ${label} 条件项 #${termIndex + 1} 变量类型非法`, {
+        nodeId: node.id,
+      });
+    }
+    if (!VALID_SCOPES.has(scope)) {
+      addError(`节点 ${node.id}: ${label} 条件项 #${termIndex + 1} scope 非法`, {
+        nodeId: node.id,
+      });
+    }
+  });
+
+  const contradiction = findSimpleContradiction(branch);
+  if (contradiction) {
+    addWarning(`节点 ${node.id}: ${label} 条件内部可能互相冲突：${contradiction}`, {
+      nodeId: node.id,
+    });
+  }
+}
+
+function validateConditionBranchUniqueness(node, branches, addError, addWarning) {
+  const seen = new Map();
+
+  branches.forEach((branch, index) => {
+    const signature = getConditionSignature(branch);
+    if (seen.has(signature)) {
+      addError(
+        `节点 ${node.id}: 条件分支 #${seen.get(signature) + 1} 与 #${index + 1} 完全重复`,
+        { nodeId: node.id },
+      );
+    } else {
+      seen.set(signature, index);
+    }
+  });
+
+  for (let i = 0; i < branches.length; i += 1) {
+    for (let j = i + 1; j < branches.length; j += 1) {
+      if (getConditionSignature(branches[i]) === getConditionSignature(branches[j])) {
+        continue;
+      }
+      if (mayConditionsOverlap(branches[i], branches[j])) {
+        addWarning(
+          `节点 ${node.id}: 条件分支 #${i + 1} 与 #${j + 1} 可能同时满足，将按从上到下的第一个分支执行`,
+          { nodeId: node.id },
+        );
+      }
+    }
+  }
+}
+
+function getConditionSignature(branch) {
+  const logic = String(branch?.logic || "All");
+  const terms = Array.isArray(branch?.terms) ? branch.terms : [];
+  const termSignatures = terms
+    .map((term) => {
+      const name = String(term?.variable?.name || "").trim();
+      const op = String(term?.operator || "==");
+      const value = normalizeCompareText(term?.compareValue);
+      return `${name}:${op}:${value}`;
+    })
+    .sort();
+  return `${logic}|${termSignatures.join("|")}`;
+}
+
+function normalizeCompareText(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function findSimpleContradiction(branch) {
+  if (String(branch?.logic || "All") !== "All") return "";
+  const terms = Array.isArray(branch?.terms) ? branch.terms : [];
+  const byVariable = new Map();
+
+  for (const term of terms) {
+    const variableName = String(term?.variable?.name || "").trim();
+    if (!variableName) continue;
+    if (!byVariable.has(variableName)) {
+      byVariable.set(variableName, []);
+    }
+    byVariable.get(variableName).push(term);
+  }
+
+  for (const [variableName, variableTerms] of byVariable.entries()) {
+    const equalityValues = variableTerms
+      .filter((term) => term?.operator === "==")
+      .map((term) => normalizeCompareText(term?.compareValue));
+    const equalitySet = new Set(equalityValues);
+    if (equalitySet.size > 1) {
+      return `${variableName} 同时要求等于多个不同值`;
+    }
+
+    const equalValue = equalityValues[0];
+    if (
+      equalValue != null &&
+      variableTerms.some(
+        (term) =>
+          term?.operator === "!=" &&
+          normalizeCompareText(term?.compareValue) === equalValue,
+      )
+    ) {
+      return `${variableName} 同时要求等于且不等于 ${equalValue}`;
+    }
+
+    const numericConflict = findNumericRangeConflict(variableName, variableTerms);
+    if (numericConflict) return numericConflict;
+  }
+
+  return "";
+}
+
+function findNumericRangeConflict(variableName, terms) {
+  let lower = null;
+  let upper = null;
+
+  for (const term of terms) {
+    const op = String(term?.operator || "");
+    const value = Number(term?.compareValue);
+    if (!Number.isFinite(value)) continue;
+
+    if (op === ">" || op === ">=") {
+      if (!lower || value > lower.value || (value === lower.value && op === ">")) {
+        lower = { value, strict: op === ">" };
+      }
+    }
+    if (op === "<" || op === "<=") {
+      if (!upper || value < upper.value || (value === upper.value && op === "<")) {
+        upper = { value, strict: op === "<" };
+      }
+    }
+  }
+
+  if (!lower || !upper) return "";
+  if (lower.value > upper.value) {
+    return `${variableName} 的数值范围为空`;
+  }
+  if (lower.value === upper.value && (lower.strict || upper.strict)) {
+    return `${variableName} 的数值范围为空`;
+  }
+  return "";
+}
+
+function mayConditionsOverlap(left, right) {
+  const leftTerms = Array.isArray(left?.terms) ? left.terms : [];
+  const rightTerms = Array.isArray(right?.terms) ? right.terms : [];
+  if (leftTerms.length === 0 || rightTerms.length === 0) return true;
+  if (String(left?.logic || "All") !== "All") return false;
+  if (String(right?.logic || "All") !== "All") return false;
+
+  const combined = {
+    logic: "All",
+    terms: [...leftTerms, ...rightTerms],
+  };
+  return !findSimpleContradiction(combined);
 }

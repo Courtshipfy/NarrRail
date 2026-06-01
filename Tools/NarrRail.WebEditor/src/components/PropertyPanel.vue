@@ -349,127 +349,197 @@
 
                     <template v-else-if="localNode.type === 'condition'">
                         <div class="form-group glass-input">
-                            <label class="form-label">条件逻辑</label>
-                            <select
-                                class="form-input"
-                                v-model="localNode.data.condition.logic"
-                                @change="handleUpdate"
-                            >
-                                <option value="All">All（全部满足）</option>
-                                <option value="Any">Any（任一满足）</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group glass-input">
-                            <label class="form-label">条件项</label>
-                            <div
-                                v-for="(term, index) in localNode.data.condition
-                                    .terms"
-                                :key="`cond-term-${index}`"
-                                class="choice-item"
-                            >
-                                <select
-                                    class="form-input"
-                                    :value="getConditionTermVariableName(term)"
-                                    @change="
-                                        handleConditionVariableSelect(
-                                            term,
-                                            $event.target.value,
-                                        )
-                                    "
+                            <div class="multi-lines-header">
+                                <label class="form-label">条件分支</label>
+                                <button
+                                    class="open-dialogue-modal-btn"
+                                    @click="openConditionModal"
+                                    title="弹窗编辑条件"
+                                    aria-label="弹窗编辑条件"
                                 >
-                                    <option value="">（选择变量）</option>
-                                    <option
-                                        v-for="variable in availableVariables"
-                                        :key="`condition-variable-${variable.name}`"
-                                        :value="variable.name"
+                                    <IconGlyph name="open_in_full" />
+                                </button>
+                            </div>
+                            <div
+                                v-for="(branch, branchIndex) in localNode.data
+                                    .condition.branches"
+                                :key="`cond-branch-${branchIndex}`"
+                                class="condition-branch"
+                            >
+                                <div class="condition-branch-header">
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        v-model="branch.label"
+                                        placeholder="分支名称"
+                                        @compositionstart="
+                                            handleCompositionStart
+                                        "
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                    <select
+                                        class="form-input condition-logic-select"
+                                        v-model="branch.logic"
+                                        @change="handleUpdate"
                                     >
-                                        {{ formatVariableOption(variable) }}
-                                    </option>
-                                    <option
-                                        v-if="
-                                            getConditionTermVariableName(term) &&
-                                            !findVariableByName(
+                                        <option value="All">
+                                            All（全部满足）
+                                        </option>
+                                        <option value="Any">
+                                            Any（任一满足）
+                                        </option>
+                                    </select>
+                                    <button
+                                        class="remove-choice-btn"
+                                        @click="
+                                            removeConditionBranch(branchIndex)
+                                        "
+                                        title="删除条件分支"
+                                        aria-label="删除条件分支"
+                                    >
+                                        <IconGlyph name="close" />
+                                    </button>
+                                </div>
+
+                                <div
+                                    v-for="(term, termIndex) in branch.terms"
+                                    :key="`cond-term-${branchIndex}-${termIndex}`"
+                                    class="choice-item"
+                                >
+                                    <select
+                                        class="form-input"
+                                        :value="
+                                            getConditionTermVariableName(term)
+                                        "
+                                        @change="
+                                            handleConditionVariableSelect(
+                                                term,
+                                                $event.target.value,
+                                            )
+                                        "
+                                    >
+                                        <option value="">（选择变量）</option>
+                                        <option
+                                            v-for="variable in availableVariables"
+                                            :key="`condition-variable-${variable.name}`"
+                                            :value="variable.name"
+                                        >
+                                            {{
+                                                formatVariableOption(variable)
+                                            }}
+                                        </option>
+                                        <option
+                                            v-if="
+                                                getConditionTermVariableName(
+                                                    term,
+                                                ) &&
+                                                !findVariableByName(
+                                                    getConditionTermVariableName(
+                                                        term,
+                                                    ),
+                                                )
+                                            "
+                                            :value="
+                                                getConditionTermVariableName(
+                                                    term,
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                `${getConditionTermVariableName(term)}（未在变量管理中）`
+                                            }}
+                                        </option>
+                                    </select>
+                                    <select
+                                        class="form-input"
+                                        v-model="term.variable.type"
+                                        :disabled="
+                                            !!findVariableByName(
                                                 getConditionTermVariableName(
                                                     term,
                                                 ),
                                             )
                                         "
-                                        :value="
-                                            getConditionTermVariableName(term)
+                                        @change="handleUpdate"
+                                    >
+                                        <option value="Bool">Bool</option>
+                                        <option value="Int">Int</option>
+                                        <option value="Float">Float</option>
+                                        <option value="String">String</option>
+                                    </select>
+                                    <select
+                                        class="form-input"
+                                        v-model="term.variable.scope"
+                                        :disabled="
+                                            !!findVariableByName(
+                                                getConditionTermVariableName(
+                                                    term,
+                                                ),
+                                            )
+                                        "
+                                        @change="handleUpdate"
+                                    >
+                                        <option value="Session">Session</option>
+                                        <option value="Global">Global</option>
+                                    </select>
+                                    <select
+                                        class="form-input"
+                                        v-model="term.operator"
+                                        @change="handleUpdate"
+                                    >
+                                        <option value="==">==</option>
+                                        <option value="!=">!=</option>
+                                        <option value=">">&gt;</option>
+                                        <option value=">=">&gt;=</option>
+                                        <option value="<">&lt;</option>
+                                        <option value="<=">&lt;=</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        v-model="term.compareValue"
+                                        placeholder="比较值"
+                                        @compositionstart="
+                                            handleCompositionStart
+                                        "
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                    <button
+                                        class="remove-choice-btn"
+                                        @click="
+                                            removeConditionTerm(
+                                                branchIndex,
+                                                termIndex,
+                                            )
                                         "
                                     >
-                                        {{
-                                            `${getConditionTermVariableName(term)}（未在变量管理中）`
-                                        }}
-                                    </option>
-                                </select>
-                                <select
-                                    class="form-input"
-                                    v-model="term.variable.type"
-                                    :disabled="
-                                        !!findVariableByName(
-                                            getConditionTermVariableName(term),
-                                        )
-                                    "
-                                    @change="handleUpdate"
-                                >
-                                    <option value="Bool">Bool</option>
-                                    <option value="Int">Int</option>
-                                    <option value="Float">Float</option>
-                                    <option value="String">String</option>
-                                </select>
-                                <select
-                                    class="form-input"
-                                    v-model="term.variable.scope"
-                                    :disabled="
-                                        !!findVariableByName(
-                                            getConditionTermVariableName(term),
-                                        )
-                                    "
-                                    @change="handleUpdate"
-                                >
-                                    <option value="Session">Session</option>
-                                    <option value="Global">Global</option>
-                                </select>
-                                <select
-                                    class="form-input"
-                                    v-model="term.operator"
-                                    @change="handleUpdate"
-                                >
-                                    <option value="==">==</option>
-                                    <option value="!=">!=</option>
-                                    <option value=">">&gt;</option>
-                                    <option value=">=">&gt;=</option>
-                                    <option value="<">&lt;</option>
-                                    <option value="<=">&lt;=</option>
-                                </select>
-                                <input
-                                    type="text"
-                                    class="form-input"
-                                    v-model="term.compareValue"
-                                    placeholder="比较值"
-                                    @compositionstart="handleCompositionStart"
-                                    @compositionend="handleCompositionEnd"
-                                    @blur="handleInputChange"
-                                />
+                                        <IconGlyph name="close" />
+                                    </button>
+                                </div>
+
                                 <button
-                                    class="remove-choice-btn"
-                                    @click="removeConditionTerm(index)"
+                                    class="add-choice-btn condition-term-add"
+                                    @click="addConditionTerm(branchIndex)"
                                 >
-                                    <IconGlyph name="close" />
+                                    <IconGlyph name="add" />
+                                    <span>添加条件项</span>
                                 </button>
+                                <p class="choice-hint">
+                                    输出句柄：condition-{{ branchIndex }}
+                                </p>
                             </div>
 
                             <button
                                 class="add-choice-btn"
-                                @click="addConditionTerm"
+                                @click="addConditionBranch"
                             >
                                 <IconGlyph name="add" />
-                                <span>添加条件项</span>
+                                <span>添加条件分支</span>
                             </button>
                             <p class="choice-hint">
-                                输出句柄固定为 condition-true / condition-false
+                                从上到下匹配第一个满足的条件；未匹配时走 condition-fallback（可选）
                             </p>
                             <p
                                 v-if="availableVariables.length === 0"
@@ -831,6 +901,200 @@
 
     <Teleport to="body">
         <div
+            v-if="showConditionModal && localNode?.type === 'condition'"
+            class="multi-dialogue-modal-overlay"
+            @click.self="closeConditionModal"
+        >
+            <div
+                :class="[
+                    'multi-dialogue-modal',
+                    'condition-modal-wide',
+                    'glass-morphism-strong',
+                    { 'is-dark-theme': isDarkMode },
+                ]"
+                @mousedown.stop
+                @click.stop
+            >
+                <div class="multi-dialogue-modal-header">
+                    <div>
+                        <h3>条件分支编辑</h3>
+                        <p>从上到下匹配第一个满足的条件，未匹配时走 fallback 出口</p>
+                    </div>
+                    <button
+                        class="multi-dialogue-modal-close"
+                        @click="closeConditionModal"
+                        title="关闭"
+                        aria-label="关闭"
+                    >
+                        X
+                    </button>
+                </div>
+
+                <div class="multi-dialogue-modal-body condition-modal-body">
+                    <div class="condition-modal-branches">
+                        <div
+                            v-for="(branch, branchIndex) in localNode.data
+                                .condition.branches"
+                            :key="`modal-cond-branch-${branchIndex}`"
+                            class="condition-branch condition-branch-modal"
+                        >
+                            <div class="condition-branch-header">
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    v-model="branch.label"
+                                    placeholder="分支名称"
+                                    @compositionstart="handleCompositionStart"
+                                    @compositionend="handleCompositionEnd"
+                                    @blur="handleInputChange"
+                                />
+                                <select
+                                    class="form-input condition-logic-select"
+                                    v-model="branch.logic"
+                                    @change="handleUpdate"
+                                >
+                                    <option value="All">All（全部满足）</option>
+                                    <option value="Any">Any（任一满足）</option>
+                                </select>
+                                <button
+                                    class="remove-choice-btn"
+                                    @click="removeConditionBranch(branchIndex)"
+                                    title="删除条件分支"
+                                    aria-label="删除条件分支"
+                                >
+                                    <IconGlyph name="close" />
+                                </button>
+                            </div>
+
+                            <div
+                                v-for="(term, termIndex) in branch.terms"
+                                :key="`modal-cond-term-${branchIndex}-${termIndex}`"
+                                class="choice-item condition-term-modal"
+                            >
+                                <select
+                                    class="form-input"
+                                    :value="getConditionTermVariableName(term)"
+                                    @change="
+                                        handleConditionVariableSelect(
+                                            term,
+                                            $event.target.value,
+                                        )
+                                    "
+                                >
+                                    <option value="">（选择变量）</option>
+                                    <option
+                                        v-for="variable in availableVariables"
+                                        :key="`modal-condition-variable-${variable.name}`"
+                                        :value="variable.name"
+                                    >
+                                        {{ formatVariableOption(variable) }}
+                                    </option>
+                                    <option
+                                        v-if="
+                                            getConditionTermVariableName(term) &&
+                                            !findVariableByName(
+                                                getConditionTermVariableName(
+                                                    term,
+                                                ),
+                                            )
+                                        "
+                                        :value="
+                                            getConditionTermVariableName(term)
+                                        "
+                                    >
+                                        {{
+                                            `${getConditionTermVariableName(term)}（未在变量管理中）`
+                                        }}
+                                    </option>
+                                </select>
+                                <select
+                                    class="form-input"
+                                    v-model="term.variable.type"
+                                    :disabled="
+                                        !!findVariableByName(
+                                            getConditionTermVariableName(term),
+                                        )
+                                    "
+                                    @change="handleUpdate"
+                                >
+                                    <option value="Bool">Bool</option>
+                                    <option value="Int">Int</option>
+                                    <option value="Float">Float</option>
+                                    <option value="String">String</option>
+                                </select>
+                                <select
+                                    class="form-input"
+                                    v-model="term.variable.scope"
+                                    :disabled="
+                                        !!findVariableByName(
+                                            getConditionTermVariableName(term),
+                                        )
+                                    "
+                                    @change="handleUpdate"
+                                >
+                                    <option value="Session">Session</option>
+                                    <option value="Global">Global</option>
+                                </select>
+                                <select
+                                    class="form-input"
+                                    v-model="term.operator"
+                                    @change="handleUpdate"
+                                >
+                                    <option value="==">==</option>
+                                    <option value="!=">!=</option>
+                                    <option value=">">&gt;</option>
+                                    <option value=">=">&gt;=</option>
+                                    <option value="<">&lt;</option>
+                                    <option value="<=">&lt;=</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    class="form-input"
+                                    v-model="term.compareValue"
+                                    placeholder="比较值"
+                                    @compositionstart="handleCompositionStart"
+                                    @compositionend="handleCompositionEnd"
+                                    @blur="handleInputChange"
+                                />
+                                <button
+                                    class="remove-choice-btn"
+                                    @click="
+                                        removeConditionTerm(
+                                            branchIndex,
+                                            termIndex,
+                                        )
+                                    "
+                                    title="删除条件项"
+                                    aria-label="删除条件项"
+                                >
+                                    <IconGlyph name="close" />
+                                </button>
+                            </div>
+
+                            <button
+                                class="add-choice-btn condition-term-add"
+                                @click="addConditionTerm(branchIndex)"
+                            >
+                                <IconGlyph name="add" />
+                                <span>添加条件项</span>
+                            </button>
+                            <p class="choice-hint">
+                                输出句柄：condition-{{ branchIndex }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button class="add-choice-btn" @click="addConditionBranch">
+                        <IconGlyph name="add" />
+                        <span>添加条件分支</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <Teleport to="body">
+        <div
             v-if="showDialogueModal && localNode?.type === 'dialogue'"
             class="multi-dialogue-modal-overlay"
             @click.self="closeDialogueModal"
@@ -912,6 +1176,10 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    openConditionRequest: {
+        type: Object,
+        default: null,
+    },
 });
 
 const emit = defineEmits(["update", "set-entry-node"]);
@@ -939,6 +1207,7 @@ const dragOverDialogueLinePlacement = ref("after");
 const showMultiDialogueModal = ref(false);
 const showDialogueModal = ref(false);
 const showChoiceModal = ref(false);
+const showConditionModal = ref(false);
 const choiceRefs = ref([]);
 const activeChoiceIndex = ref(-1);
 const draggingChoiceIndex = ref(-1);
@@ -971,7 +1240,20 @@ function formatVariableOption(variable) {
     const name = String(variable?.name || "").trim();
     const type = getVariableType(variable);
     const scope = getVariableScope(variable);
-    return `${name} · ${type} · ${scope}`;
+    return `${name} - ${type} - ${scope}`;
+}
+
+function createDefaultConditionTerm() {
+    const firstVariable = availableVariables.value[0] || null;
+    return {
+        variable: {
+            name: firstVariable?.name || "",
+            type: firstVariable ? getVariableType(firstVariable) : "String",
+            scope: firstVariable ? getVariableScope(firstVariable) : "Session",
+        },
+        operator: "==",
+        compareValue: "",
+    };
 }
 
 function normalizeConditionTerm(term) {
@@ -997,6 +1279,59 @@ function normalizeConditionTerm(term) {
     if (term.compareValue === undefined || term.compareValue === null) {
         term.compareValue = "";
     }
+}
+
+function normalizeConditionBranch(branch, index) {
+    const normalized =
+        branch && typeof branch === "object" && !Array.isArray(branch)
+            ? branch
+            : {};
+    normalized.label = String(
+        normalized.label || `条件 ${Number(index || 0) + 1}`,
+    ).trim();
+    if (normalized.logic !== "Any") {
+        normalized.logic = "All";
+    }
+    if (!Array.isArray(normalized.terms)) {
+        normalized.terms = [];
+    }
+    normalized.terms.forEach((term) => normalizeConditionTerm(term));
+    return normalized;
+}
+
+function normalizeConditionData(condition) {
+    const normalized =
+        condition && typeof condition === "object" && !Array.isArray(condition)
+            ? condition
+            : {};
+
+    if (!Array.isArray(normalized.branches)) {
+        normalized.branches = Array.isArray(normalized.terms)
+            ? [
+                  {
+                      label: "条件 1",
+                      logic: normalized.logic || "All",
+                      terms: normalized.terms,
+                  },
+              ]
+            : [];
+    }
+
+    if (normalized.branches.length === 0) {
+        normalized.branches.push({
+            label: "条件 1",
+            logic: "All",
+            terms: [createDefaultConditionTerm()],
+        });
+    }
+
+    normalized.branches = normalized.branches.map((branch, index) =>
+        normalizeConditionBranch(branch, index),
+    );
+
+    delete normalized.logic;
+    delete normalized.terms;
+    return normalized;
 }
 
 function getConditionTermVariableName(term) {
@@ -1038,7 +1373,8 @@ watch(
         const isEditingCurrentNodeInModal =
             (showMultiDialogueModal.value ||
                 showDialogueModal.value ||
-                showChoiceModal.value) &&
+                showChoiceModal.value ||
+                showConditionModal.value) &&
             localNode.value &&
             newNode &&
             localNode.value.id === newNode.id;
@@ -1061,6 +1397,7 @@ watch(
             showMultiDialogueModal.value = false;
             showDialogueModal.value = false;
             showChoiceModal.value = false;
+            showConditionModal.value = false;
             localNode.value = JSON.parse(JSON.stringify(newNode));
             if (localNode.value.type === "multidialogue") {
                 localNode.value.data = localNode.value.data || {};
@@ -1085,15 +1422,9 @@ watch(
             }
             if (localNode.value.type === "condition") {
                 localNode.value.data = localNode.value.data || {};
-                const condition = localNode.value.data.condition || {};
-                if (condition.logic !== "Any") {
-                    condition.logic = "All";
-                }
-                if (!Array.isArray(condition.terms)) {
-                    condition.terms = [];
-                }
-                condition.terms.forEach((term) => normalizeConditionTerm(term));
-                localNode.value.data.condition = condition;
+                localNode.value.data.condition = normalizeConditionData(
+                    localNode.value.data.condition,
+                );
             }
             if (localNode.value.type === "setvariable") {
                 localNode.value.data = localNode.value.data || {};
@@ -1116,6 +1447,7 @@ watch(
             showMultiDialogueModal.value = false;
             showDialogueModal.value = false;
             showChoiceModal.value = false;
+            showConditionModal.value = false;
             localNode.value = null;
             isExpanded.value = false; // 取消选中时自动收起
         }
@@ -1127,10 +1459,9 @@ watch(
     availableVariables,
     () => {
         if (!localNode.value || localNode.value.type !== "condition") return;
-        const terms = Array.isArray(localNode.value.data?.condition?.terms)
-            ? localNode.value.data.condition.terms
-            : [];
-        terms.forEach((term) => normalizeConditionTerm(term));
+        localNode.value.data.condition = normalizeConditionData(
+            localNode.value.data?.condition,
+        );
     },
     { deep: true },
 );
@@ -1196,6 +1527,26 @@ watch(
             isExpanded.value = false;
             isPanelInputFocused.value = false;
             openChoiceModal();
+        }
+    },
+);
+
+watch(
+    () => props.openConditionRequest,
+    async (request) => {
+        const requestNodeId = String(request?.nodeId || "").trim();
+        if (!requestNodeId) return;
+
+        await nextTick();
+
+        if (
+            localNode.value &&
+            localNode.value.type === "condition" &&
+            localNode.value.id === requestNodeId
+        ) {
+            isExpanded.value = false;
+            isPanelInputFocused.value = false;
+            openConditionModal();
         }
     },
 );
@@ -1917,40 +2268,68 @@ function updateParameters(jsonString) {
     }
 }
 
-function addConditionTerm() {
+function addConditionBranch() {
     if (!localNode.value || localNode.value.type !== "condition") return;
-    const terms = Array.isArray(localNode.value.data?.condition?.terms)
-        ? [...localNode.value.data.condition.terms]
+    localNode.value.data.condition = normalizeConditionData(
+        localNode.value.data?.condition,
+    );
+    const branches = Array.isArray(localNode.value.data.condition.branches)
+        ? [...localNode.value.data.condition.branches]
         : [];
-    const firstVariable = availableVariables.value[0] || null;
 
-    terms.push({
-        variable: {
-            name: firstVariable?.name || "",
-            type: firstVariable ? getVariableType(firstVariable) : "String",
-            scope: firstVariable ? getVariableScope(firstVariable) : "Session",
-        },
-        operator: "==",
-        compareValue: "",
+    branches.push({
+        label: `条件 ${branches.length + 1}`,
+        logic: "All",
+        terms: [createDefaultConditionTerm()],
     });
 
-    if (!localNode.value.data.condition) {
-        localNode.value.data.condition = { logic: "All", terms: [] };
-    }
-    localNode.value.data.condition.terms = terms;
+    localNode.value.data.condition.branches = branches;
     handleUpdate();
 }
 
-function removeConditionTerm(index) {
+function removeConditionBranch(index) {
     if (!localNode.value || localNode.value.type !== "condition") return;
-    const terms = Array.isArray(localNode.value.data?.condition?.terms)
-        ? [...localNode.value.data.condition.terms]
+    localNode.value.data.condition = normalizeConditionData(
+        localNode.value.data?.condition,
+    );
+    const branches = Array.isArray(localNode.value.data.condition.branches)
+        ? [...localNode.value.data.condition.branches]
         : [];
-    terms.splice(index, 1);
-    if (!localNode.value.data.condition) {
-        localNode.value.data.condition = { logic: "All", terms: [] };
+    branches.splice(index, 1);
+    if (branches.length === 0) {
+        branches.push({
+            label: "条件 1",
+            logic: "All",
+            terms: [createDefaultConditionTerm()],
+        });
     }
-    localNode.value.data.condition.terms = terms;
+    localNode.value.data.condition.branches = branches.map((branch, idx) =>
+        normalizeConditionBranch(branch, idx),
+    );
+    handleUpdate();
+}
+
+function addConditionTerm(branchIndex) {
+    if (!localNode.value || localNode.value.type !== "condition") return;
+    localNode.value.data.condition = normalizeConditionData(
+        localNode.value.data?.condition,
+    );
+    const branch = localNode.value.data.condition.branches?.[branchIndex];
+    if (!branch) return;
+    branch.terms = Array.isArray(branch.terms) ? [...branch.terms] : [];
+    branch.terms.push(createDefaultConditionTerm());
+    handleUpdate();
+}
+
+function removeConditionTerm(branchIndex, termIndex) {
+    if (!localNode.value || localNode.value.type !== "condition") return;
+    localNode.value.data.condition = normalizeConditionData(
+        localNode.value.data?.condition,
+    );
+    const branch = localNode.value.data.condition.branches?.[branchIndex];
+    if (!branch) return;
+    branch.terms = Array.isArray(branch.terms) ? [...branch.terms] : [];
+    branch.terms.splice(termIndex, 1);
     handleUpdate();
 }
 
@@ -1958,6 +2337,7 @@ async function openMultiDialogueModal() {
     if (!localNode.value || localNode.value.type !== "multidialogue") return;
     showDialogueModal.value = false;
     showChoiceModal.value = false;
+    showConditionModal.value = false;
     isExpanded.value = false;
     isPanelInputFocused.value = false;
     showMultiDialogueModal.value = true;
@@ -1983,6 +2363,7 @@ function openDialogueModal() {
     if (!localNode.value || localNode.value.type !== "dialogue") return;
     showMultiDialogueModal.value = false;
     showChoiceModal.value = false;
+    showConditionModal.value = false;
     isExpanded.value = false;
     isPanelInputFocused.value = false;
     showDialogueModal.value = true;
@@ -1992,6 +2373,7 @@ async function openChoiceModal() {
     if (!localNode.value || localNode.value.type !== "choice") return;
     showMultiDialogueModal.value = false;
     showDialogueModal.value = false;
+    showConditionModal.value = false;
     isExpanded.value = false;
     isPanelInputFocused.value = false;
     showChoiceModal.value = true;
@@ -2000,6 +2382,20 @@ async function openChoiceModal() {
     choiceRefs.value.forEach((el) => {
         autoResizeTextarea(el);
     });
+}
+
+function openConditionModal() {
+    if (!localNode.value || localNode.value.type !== "condition") return;
+    showMultiDialogueModal.value = false;
+    showDialogueModal.value = false;
+    showChoiceModal.value = false;
+    localNode.value.data = localNode.value.data || {};
+    localNode.value.data.condition = normalizeConditionData(
+        localNode.value.data.condition,
+    );
+    isExpanded.value = false;
+    isPanelInputFocused.value = false;
+    showConditionModal.value = true;
 }
 
 function closeDialogueModal() {
@@ -2020,6 +2416,13 @@ function closeChoiceModal() {
     }
 }
 
+function closeConditionModal() {
+    showConditionModal.value = false;
+    if (localNode.value) {
+        isExpanded.value = true;
+    }
+}
+
 function handleUpdate() {
     // 提交本地修改到父组件
     if (localNode.value) {
@@ -2031,7 +2434,8 @@ function handleModalShortcutKeydown(event) {
     if (
         !showMultiDialogueModal.value &&
         !showDialogueModal.value &&
-        !showChoiceModal.value
+        !showChoiceModal.value &&
+        !showConditionModal.value
     )
         return;
 
@@ -2044,6 +2448,8 @@ function handleModalShortcutKeydown(event) {
             closeMultiDialogueModal();
         } else if (showChoiceModal.value) {
             closeChoiceModal();
+        } else if (showConditionModal.value) {
+            closeConditionModal();
         } else {
             closeDialogueModal();
         }
@@ -2056,6 +2462,8 @@ function handleModalShortcutKeydown(event) {
             closeMultiDialogueModal();
         } else if (showChoiceModal.value) {
             closeChoiceModal();
+        } else if (showConditionModal.value) {
+            closeConditionModal();
         } else {
             closeDialogueModal();
         }
@@ -2304,6 +2712,34 @@ onUnmounted(() => {
     border-radius: 8px;
     margin-bottom: 8px;
     position: relative;
+}
+
+.condition-branch {
+    padding: 12px;
+    margin-bottom: 12px;
+    background: rgba(255, 255, 255, 0.26);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    border-radius: 8px;
+}
+
+.condition-branch-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.condition-branch-header .remove-choice-btn {
+    position: static;
+}
+
+.condition-logic-select {
+    min-width: 0;
+}
+
+.condition-term-add {
+    margin-top: 4px;
 }
 
 .remove-choice-btn {
@@ -2581,6 +3017,39 @@ onUnmounted(() => {
 .choice-modal-small {
     width: min(48vw, 640px);
     max-height: 68vh;
+}
+
+.condition-modal-wide {
+    width: min(1040px, calc(100vw - 48px));
+    aspect-ratio: auto;
+    max-height: 82vh;
+}
+
+.condition-modal-body {
+    max-height: min(72vh, 760px);
+    overflow: auto;
+}
+
+.condition-modal-branches {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.condition-branch-modal {
+    margin-bottom: 0;
+}
+
+.condition-term-modal {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 1.4fr) 96px 100px 82px minmax(140px, 1fr)
+        auto;
+    align-items: center;
+}
+
+.condition-term-modal .remove-choice-btn {
+    position: static;
 }
 
 .multi-dialogue-modal.glass-morphism-strong {

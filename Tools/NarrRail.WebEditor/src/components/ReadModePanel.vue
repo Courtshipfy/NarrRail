@@ -362,6 +362,22 @@ function evaluateCondition(condition) {
     return checks.every(Boolean);
 }
 
+function getConditionBranches(condition) {
+    if (Array.isArray(condition?.branches)) {
+        return condition.branches;
+    }
+    if (Array.isArray(condition?.terms)) {
+        return [
+            {
+                label: "Condition 1",
+                logic: condition?.logic || "All",
+                terms: condition.terms,
+            },
+        ];
+    }
+    return [];
+}
+
 function firstNextTarget(nodeId) {
     const outgoing = getOutgoingEdges(nodeId);
     const next = outgoing[0];
@@ -644,14 +660,22 @@ function advanceUntilPause(maxSteps = 4000) {
         }
 
         if (kind === "condition") {
-            const passed = evaluateCondition(node?.data?.condition);
-            const handle = passed ? "condition-true" : "condition-false";
+            const branches = getConditionBranches(node?.data?.condition);
+            const matchedIndex = branches.findIndex((branch) =>
+                evaluateCondition(branch),
+            );
+            const matchedBranch =
+                matchedIndex >= 0 ? branches[matchedIndex] : null;
+            const handle =
+                matchedIndex >= 0
+                    ? `condition-${matchedIndex}`
+                    : "condition-fallback";
             const targetEdge = getChoiceEdges(node.id, handle)[0];
 
             pushTimeline({
                 kind: "condition",
                 nodeId: node.id,
-                text: `${node.id} => ${passed ? "True" : "False"}`,
+                text: `${node.id} => ${matchedBranch?.label || handle}`,
             });
 
             if (!targetEdge?.target) {

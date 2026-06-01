@@ -610,8 +610,13 @@
       case 'condition':
         return {
           condition: {
-            logic: 'All',
-            terms: []
+            branches: [
+              {
+                label: '条件 1',
+                logic: 'All',
+                terms: []
+              }
+            ]
           }
         };
       case 'end':

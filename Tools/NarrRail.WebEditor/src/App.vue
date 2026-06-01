@@ -82,6 +82,7 @@
             :open-multi-dialogue-request="multiDialogueOpenRequest"
             :open-dialogue-request="dialogueOpenRequest"
             :open-choice-request="choiceOpenRequest"
+            :open-condition-request="conditionOpenRequest"
             @update="handleNodeUpdate"
             @set-entry-node="handleSetEntryNode"
         />
@@ -227,6 +228,7 @@ const selectedEdge = ref(null);
 const multiDialogueOpenRequest = ref(null);
 const dialogueOpenRequest = ref(null);
 const choiceOpenRequest = ref(null);
+const conditionOpenRequest = ref(null);
 const lastNodeClickMeta = ref({ id: "", time: 0 });
 const recentDragSuppressUntil = ref(0);
 const focusModeEnabled = ref(false);
@@ -687,9 +689,16 @@ function isValidChoiceHandle(node, sourceHandle) {
 function isValidConditionHandle(node, sourceHandle) {
     if (!node || node.type !== "condition") return true;
     if (!sourceHandle) return false;
-    return (
-        sourceHandle === "condition-true" || sourceHandle === "condition-false"
-    );
+    if (sourceHandle === "condition-fallback") return true;
+    const match = /^condition-(\d+)$/.exec(sourceHandle);
+    if (!match) return false;
+    const index = Number(match[1]);
+    const branches = Array.isArray(node.data?.condition?.branches)
+        ? node.data.condition.branches
+        : Array.isArray(node.data?.condition?.terms)
+          ? [node.data.condition]
+          : [];
+    return Number.isInteger(index) && index >= 0 && index < branches.length;
 }
 
 function sanitizeEdges(rawEdges, nodeList = nodes.value) {
@@ -1091,6 +1100,14 @@ function handleNodeClick(event) {
 
     if (node.type === "choice") {
         choiceOpenRequest.value = {
+            nodeId: node.id,
+            nonce: now,
+        };
+        return;
+    }
+
+    if (node.type === "condition") {
+        conditionOpenRequest.value = {
             nodeId: node.id,
             nonce: now,
         };
