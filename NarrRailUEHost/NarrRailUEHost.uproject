@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.7",
+	"Category": "",
+	"Description": "UE host project for developing and testing the NarrRail plugin.",
+	"Modules": [
+		{
+			"Name": "NarrRailHost",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "NarrRail",
+			"Enabled": true
+		},
+		{
+			"Name": "CommonUI",
+			"Enabled": true
+		},
+
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		}
+	]
+}

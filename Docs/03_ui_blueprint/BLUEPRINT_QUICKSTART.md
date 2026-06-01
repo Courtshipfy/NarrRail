@@ -5,7 +5,7 @@
 ## 前提条件
 
 - 已编译 NarrRail 插件
-- 在 UE5.7 编辑器中打开 HostProject
+- 在 UE5.7 编辑器中打开 NarrRailUEHost
 
 ## 步骤 1：创建对话资产（在蓝图中）
 
