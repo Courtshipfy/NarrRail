@@ -60,9 +60,9 @@ The UE plugin is responsible for runtime execution, Blueprint integration, debug
 ### 2.2 UE-side Integration Flow
 
 1. Export the latest `.nrstory` from NarrRailEditor
-2. Open `HostProject/NarrRailHost.uproject` with UE5.7
+2. Open `NarrRailUEHost/NarrRailUEHost.uproject` with UE5.7
 3. Import/sync script into `UNarrRailStoryAsset`
-4. Run `HostProject/Build-HostProject.cmd` if plugin rebuild is needed
+4. Run `NarrRailUEHost/Build-NarrRailUEHost.cmd` if plugin rebuild is needed
 5. Validate story execution in PIE with debugger tools
 
 ---
@@ -82,7 +82,7 @@ The UE plugin is responsible for runtime execution, Blueprint integration, debug
 - `NarrRail/` plugin source
   - `Source/NarrRail/` runtime module (C++)
   - `Source/NarrRailEditor/` editor module (C++)
-- `HostProject/` development host project
+- `NarrRailUEHost/` development host project
 - `NarrRailEditor/` NarrRailEditor
 - `Docs/` project documentation
 

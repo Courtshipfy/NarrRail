@@ -7,16 +7,16 @@
 ## 目录结构
 
 - `NarrRail/`：插件源码（单一事实来源）
-- `HostProject/`：用于编辑器内测试的宿主项目
-- `HostProject/Build-HostProject.cmd`：双击即可执行的构建入口（仅 CMD）
+- `NarrRailUEHost/`：用于编辑器内测试的宿主项目
+- `NarrRailUEHost/Build-NarrRailUEHost.cmd`：双击即可执行的构建入口（仅 CMD）
 
 ## 一次性设置
 
 无需额外的独立初始化脚本。
 
-`Build-HostProject.cmd` 会自动检查并创建：
+`Build-NarrRailUEHost.cmd` 会自动检查并创建：
 
-- `HostProject/Plugins/NarrRail` -> `NarrRail`（Junction）
+- `NarrRailUEHost/Plugins/NarrRail` -> `NarrRail`（Junction）
 
 推荐先设置一次 UE5.7 引擎路径环境变量：
 
@@ -26,20 +26,20 @@
 
 ## 日常工作流
 
-1. 打开 `HostProject/NarrRailHost.uproject`。
+1. 打开 `NarrRailUEHost/NarrRailUEHost.uproject`。
 2. 在 `NarrRail/Source/...` 中修改代码。
-3. 双击 `HostProject/Build-HostProject.cmd` 编译。
+3. 双击 `NarrRailUEHost/Build-NarrRailUEHost.cmd` 编译。
 4. 在编辑器中使用 PIE 或测试地图验证功能。
 
 ## 构建入口
 
-- `HostProject/Build-HostProject.cmd`
+- `NarrRailUEHost/Build-NarrRailUEHost.cmd`
 
 默认行为：
 
 - 引擎根路径：优先 `UE57_ROOT`，否则 `I:\UE_5.7`
 - 构建目标：`UnrealEditor Win64 Development`
-- 工程路径：`HostProject/NarrRailHost.uproject`
+- 工程路径：`NarrRailUEHost/NarrRailUEHost.uproject`
 - 若插件链接缺失：自动创建 Junction
 
 ## 常见问题

@@ -60,19 +60,19 @@ UE 插件负责运行时执行、蓝图集成、调试与资产导入能力。
 ### 2.2 与 NarrRailEditor 的联动流程（UE 侧）
 
 1. 从 NarrRailEditor 导出最新 `.nrstory`
-2. 使用 UE5.7 打开 `HostProject/NarrRailHost.uproject`
+2. 使用 UE5.7 打开 `NarrRailUEHost/NarrRailUEHost.uproject`
 3. 将脚本导入/同步为 `UNarrRailStoryAsset`
-4. 运行 `HostProject/Build-HostProject.cmd`（如需重新编译插件）
+4. 运行 `NarrRailUEHost/Build-NarrRailUEHost.cmd`（如需重新编译插件）
 5. 在 PIE 中执行剧情并结合调试工具回归验证
 
-### 2.3 HostProject 插件放置
+### 2.3 NarrRailUEHost 插件放置
 
-开发时需要让 `HostProject` 能找到本仓库的 `NarrRail/` 插件源码。
+开发时需要让 `NarrRailUEHost` 能找到本仓库的 `NarrRail/` 插件源码。
 
-推荐做法：在 `HostProject/Plugins/` 下放一个指向仓库根目录 `NarrRail/` 插件源码的快捷方式/目录链接，目标路径为：
+推荐做法：在 `NarrRailUEHost/Plugins/` 下放一个指向仓库根目录 `NarrRail/` 插件源码的快捷方式/目录链接，目标路径为：
 
 ```text
-HostProject/Plugins/NarrRail -> ../../NarrRail
+NarrRailUEHost/Plugins/NarrRail -> ../../NarrRail
 ```
 
 在 Windows 上建议使用目录链接（Junction / symlink）或直接复制插件目录；普通 `.lnk` 快捷方式可能不会被 Unreal Engine 识别。
@@ -94,7 +94,7 @@ HostProject/Plugins/NarrRail -> ../../NarrRail
 - `NarrRail/`：插件源码
   - `Source/NarrRail/`：运行时模块（C++）
   - `Source/NarrRailEditor/`：编辑器模块（C++）
-- `HostProject/`：开发宿主工程
+- `NarrRailUEHost/`：开发宿主工程
 - `NarrRailEditor/`：Web 编辑器
 - `Docs/`：项目文档
 

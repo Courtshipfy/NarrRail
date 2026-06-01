@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Runtime/NarrRailStoryTypes.h"
+#include "Runtime/NarrRailVariableContainer.h"
 
 /**
  * Intermediate data structure for parsed YAML script

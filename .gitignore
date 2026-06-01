@@ -17,16 +17,16 @@ Saved/
 *.ipch
 
 # Host project generated artifacts
-HostProject/Plugins/
-HostProject/Binaries/
-HostProject/Build/
-HostProject/DerivedDataCache/
-HostProject/Intermediate/
-HostProject/Saved/
-HostProject/.vs/
-HostProject/.idea/
-HostProject/.vsconfig
-HostProject/Build-HostProject.cmd
+NarrRailUEHost/Plugins/
+NarrRailUEHost/Binaries/
+NarrRailUEHost/Build/
+NarrRailUEHost/DerivedDataCache/
+NarrRailUEHost/Intermediate/
+NarrRailUEHost/Saved/
+NarrRailUEHost/.vs/
+NarrRailUEHost/.idea/
+NarrRailUEHost/.vsconfig
+NarrRailUEHost/Build-NarrRailUEHost.cmd
 
 # Claude Code local files
 .claude/
@@ -34,7 +34,7 @@ HostProject/Build-HostProject.cmd
 
 # Zed editor local files
 .zed/
-HostProject/NarrRailHost.sln
+NarrRailUEHost/NarrRailUEHost.sln
 
 # NarrRailEditor build artifacts
 NarrRailEditor/dist/

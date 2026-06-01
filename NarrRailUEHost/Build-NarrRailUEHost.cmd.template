@@ -1,11 +1,11 @@
 @echo off
 REM ============================================================
-REM Build script template for NarrRail Host Project
+REM Build script template for NarrRail UE Host
 REM
 REM SETUP INSTRUCTIONS:
-REM 1. Copy this file to: Build-HostProject.cmd
+REM 1. Copy this file to: Build-NarrRailUEHost.cmd
 REM 2. (Recommended) Set environment variable UE57_ROOT to your UE installation path
-REM 3. Run Build-HostProject.cmd to build the project
+REM 3. Run Build-NarrRailUEHost.cmd to build the project
 REM
 REM Example paths:
 REM   Windows: D:\Engine\UE_5.7
@@ -25,7 +25,7 @@ if defined UE57_ROOT (
   set "ENGINE_ROOT=I:\UE_5.7"
 )
 set "BUILD_BAT=%ENGINE_ROOT%\Engine\Build\BatchFiles\Build.bat"
-set "UPROJECT=%PROJECT_DIR%NarrRailHost.uproject"
+set "UPROJECT=%PROJECT_DIR%NarrRailUEHost.uproject"
 set "PLUGIN_SOURCE=%REPO_ROOT%\NarrRail"
 set "PLUGIN_LINK=%PROJECT_DIR%Plugins\NarrRail"
 

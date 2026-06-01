@@ -275,6 +275,6 @@ A:
 
 ## 示例项目
 
-参考 `HostProject/Content/UI/` 中的示例：
+参考 `NarrRailUEHost/Content/UI/` 中的示例：
 - `WBP_Dialogue_ADV`: ADV 模式实现
 - `WBP_Dialogue_NVL`: NVL 模式实现

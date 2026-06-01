@@ -26,9 +26,9 @@ NarrRail/                      # Plugin root
       Private/                 # Editor implementations
   NarrRail.uplugin            # Plugin descriptor
 
-HostProject/                   # Development host project
-  NarrRailHost.uproject       # UE5.7 host project
-  Build-HostProject.cmd       # Build script
+NarrRailUEHost/                   # Development host project
+  NarrRailUEHost.uproject       # UE5.7 host project
+  Build-NarrRailUEHost.cmd       # Build script
   Plugins/NarrRail/           # Junction/symlink/copy of ../NarrRail
 
 NarrRailEditor/                # Web authoring editor
@@ -47,13 +47,13 @@ Docs/
 
 **Build the plugin:**
 ```bash
-cd HostProject
-./Build-HostProject.cmd
+cd NarrRailUEHost
+./Build-NarrRailUEHost.cmd
 ```
 
 This script invokes UE5.7's UnrealBuildTool to compile the plugin modules.
 
-Before building, make sure `HostProject/Plugins/NarrRail` points to the repository plugin source at `NarrRail/`. Use a directory junction/symlink or copy the plugin directory.
+Before building, make sure `NarrRailUEHost/Plugins/NarrRail` points to the repository plugin source at `NarrRail/`. Use a directory junction/symlink or copy the plugin directory.
 
 ## NarrRailEditor Commands
 
@@ -66,13 +66,13 @@ npm run build
 
 **Open in editor:**
 ```bash
-# Double-click NarrRailHost.uproject in Explorer
-# Or use UE5.7 launcher to open HostProject/NarrRailHost.uproject
+# Double-click NarrRailUEHost.uproject in Explorer
+# Or use UE5.7 launcher to open NarrRailUEHost/NarrRailUEHost.uproject
 ```
 
 **Generate project files:**
 ```bash
-# Right-click NarrRailHost.uproject > "Generate Visual Studio project files"
+# Right-click NarrRailUEHost.uproject > "Generate Visual Studio project files"
 ```
 
 ## Architecture Layers
@@ -125,8 +125,8 @@ Currently minimal scaffold. Planned features:
 ## Development Workflow
 
 1. Make changes to `NarrRail/Source/...`
-2. Run `HostProject/Build-HostProject.cmd` to compile
-3. Open `HostProject/NarrRailHost.uproject` in UE5.7 editor to test
+2. Run `NarrRailUEHost/Build-NarrRailUEHost.cmd` to compile
+3. Open `NarrRailUEHost/NarrRailUEHost.uproject` in UE5.7 editor to test
 4. Iterate
 
 **Testing in PIE (Play In Editor):**

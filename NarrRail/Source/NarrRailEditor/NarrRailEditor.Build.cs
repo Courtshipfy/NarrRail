@@ -9,7 +9,8 @@ public class NarrRailEditor : ModuleRules
 
         PublicDependencyModuleNames.AddRange(new[]
         {
-            "Core"
+            "Core",
+            "NarrRail"
         });
 
         PrivateDependencyModuleNames.AddRange(new[]
@@ -19,7 +20,6 @@ public class NarrRailEditor : ModuleRules
             "UnrealEd",
             "Slate",
             "SlateCore",
-            "NarrRail",
             "AssetTools",
             "ContentBrowser",
             "AssetRegistry",
