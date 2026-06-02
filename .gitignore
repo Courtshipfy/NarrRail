@@ -42,3 +42,4 @@ NarrRailEditor/dist/
 # Vite cache
 **/.vite/
 node_modules/
+.DS_Store
