@@ -19,6 +19,8 @@ static ENarrRailChoiceMode ParseChoiceMode(const FString& ChoiceModeStr);
 
 static bool ParseMeta(const YAML::Node& MetaNode, FNarrRailScriptData& OutData, FString& OutError);
 static bool ParseVariables(const YAML::Node& VarsNode, FNarrRailScriptData& OutData, FString& OutError);
+static bool ParseVariables(const YAML::Node& VarsNode, TArray<FNarrRailVariableDefinition>& OutVariables, FString& OutError);
+static bool ParsePresetSpeakers(const YAML::Node& SpeakersNode, TArray<FNarrRailPresetSpeaker>& OutSpeakers, FString& OutError);
 static bool ParseNodes(const YAML::Node& NodesNode, FNarrRailScriptData& OutData, FString& OutError);
 static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData, FString& OutError);
 
@@ -88,6 +90,117 @@ bool FNarrRailYamlParser::ParseFile(const FString& FilePath, FNarrRailScriptData
 		if (Root["edges"])
 		{
 			if (!ParseEdges(Root["edges"], OutData, OutErrorMessage))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	catch (const YAML::Exception& e)
+	{
+		OutErrorMessage = FString::Printf(TEXT("YAML parse error: %s"), UTF8_TO_TCHAR(e.what()));
+		return false;
+	}
+	catch (...)
+	{
+		OutErrorMessage = TEXT("Unknown error during YAML parsing");
+		return false;
+	}
+}
+
+ENarrRailScriptFileKind FNarrRailYamlParser::DetectFileKind(const FString& FilePath, FString& OutErrorMessage) const
+{
+	FString YamlContent;
+	if (!FFileHelper::LoadFileToString(YamlContent, *FilePath))
+	{
+		OutErrorMessage = FString::Printf(TEXT("Failed to read file: %s"), *FilePath);
+		return ENarrRailScriptFileKind::Unknown;
+	}
+
+	try
+	{
+		const YAML::Node Root = YAML::Load(TCHAR_TO_UTF8(*YamlContent));
+		const YAML::Node MetaNode = Root["meta"];
+		if (MetaNode && MetaNode["configType"])
+		{
+			const FString ConfigType = UTF8_TO_TCHAR(MetaNode["configType"].as<std::string>().c_str());
+			if (ConfigType.Equals(TEXT("GlobalConfig"), ESearchCase::IgnoreCase))
+			{
+				return ENarrRailScriptFileKind::GlobalConfig;
+			}
+		}
+
+		if (Root["nodes"] || Root["edges"] || (MetaNode && MetaNode["storyId"]))
+		{
+			return ENarrRailScriptFileKind::Story;
+		}
+
+		OutErrorMessage = TEXT("Unable to determine NarrRail script file kind");
+		return ENarrRailScriptFileKind::Unknown;
+	}
+	catch (const YAML::Exception& e)
+	{
+		OutErrorMessage = FString::Printf(TEXT("YAML parse error: %s"), UTF8_TO_TCHAR(e.what()));
+		return ENarrRailScriptFileKind::Unknown;
+	}
+	catch (...)
+	{
+		OutErrorMessage = TEXT("Unknown error during YAML parsing");
+		return ENarrRailScriptFileKind::Unknown;
+	}
+}
+
+bool FNarrRailYamlParser::ParseGlobalConfigFile(const FString& FilePath, FNarrRailGlobalConfigData& OutData, FString& OutErrorMessage)
+{
+	FString YamlContent;
+	if (!FFileHelper::LoadFileToString(YamlContent, *FilePath))
+	{
+		OutErrorMessage = FString::Printf(TEXT("Failed to read file: %s"), *FilePath);
+		return false;
+	}
+
+	try
+	{
+		const YAML::Node Root = YAML::Load(TCHAR_TO_UTF8(*YamlContent));
+		const YAML::Node MetaNode = Root["meta"];
+		if (!MetaNode)
+		{
+			OutErrorMessage = TEXT("Missing 'meta' section");
+			return false;
+		}
+
+		if (MetaNode["schemaVersion"])
+		{
+			OutData.SchemaVersion = MetaNode["schemaVersion"].as<int>();
+		}
+
+		if (!MetaNode["configType"])
+		{
+			OutErrorMessage = TEXT("Missing meta.configType");
+			return false;
+		}
+
+		const FString ConfigType = UTF8_TO_TCHAR(MetaNode["configType"].as<std::string>().c_str());
+		if (!ConfigType.Equals(TEXT("GlobalConfig"), ESearchCase::IgnoreCase))
+		{
+			OutErrorMessage = FString::Printf(TEXT("Unsupported configType: %s"), *ConfigType);
+			return false;
+		}
+
+		OutData.Variables.Empty();
+		if (Root["variables"])
+		{
+			if (!ParseVariables(Root["variables"], OutData.Variables, OutErrorMessage))
+			{
+				return false;
+			}
+		}
+
+		OutData.PresetSpeakers.Empty();
+		if (Root["presetSpeakers"])
+		{
+			if (!ParsePresetSpeakers(Root["presetSpeakers"], OutData.PresetSpeakers, OutErrorMessage))
 			{
 				return false;
 			}
@@ -193,6 +306,11 @@ static bool ParseMeta(const YAML::Node& MetaNode, FNarrRailScriptData& OutData, 
 // Parse variables section
 static bool ParseVariables(const YAML::Node& VarsNode, FNarrRailScriptData& OutData, FString& OutError)
 {
+	return ParseVariables(VarsNode, OutData.Variables, OutError);
+}
+
+static bool ParseVariables(const YAML::Node& VarsNode, TArray<FNarrRailVariableDefinition>& OutVariables, FString& OutError)
+{
 	if (!VarsNode.IsSequence())
 	{
 		OutError = TEXT("'variables' must be an array");
@@ -231,7 +349,50 @@ static bool ParseVariables(const YAML::Node& VarsNode, FNarrRailScriptData& OutD
 			VarDef.DefaultValue = UTF8_TO_TCHAR(VarNode["defaultValue"].as<std::string>().c_str());
 		}
 
-		OutData.Variables.Add(VarDef);
+		OutVariables.Add(VarDef);
+	}
+
+	return true;
+}
+
+static bool ParsePresetSpeakers(const YAML::Node& SpeakersNode, TArray<FNarrRailPresetSpeaker>& OutSpeakers, FString& OutError)
+{
+	if (!SpeakersNode.IsSequence())
+	{
+		OutError = TEXT("'presetSpeakers' must be an array");
+		return false;
+	}
+
+	for (const auto& SpeakerNode : SpeakersNode)
+	{
+		FNarrRailPresetSpeaker Speaker;
+
+		if (SpeakerNode.IsScalar())
+		{
+			Speaker.SpeakerId = FName(UTF8_TO_TCHAR(SpeakerNode.as<std::string>().c_str()));
+		}
+		else
+		{
+			if (!SpeakerNode["id"])
+			{
+				OutError = TEXT("Preset speaker missing 'id' field");
+				return false;
+			}
+
+			Speaker.SpeakerId = FName(UTF8_TO_TCHAR(SpeakerNode["id"].as<std::string>().c_str()));
+			if (SpeakerNode["displayName"])
+			{
+				Speaker.DisplayName = UTF8_TO_TCHAR(SpeakerNode["displayName"].as<std::string>().c_str());
+			}
+		}
+
+		if (Speaker.SpeakerId.IsNone())
+		{
+			OutError = TEXT("Preset speaker id must not be empty");
+			return false;
+		}
+
+		OutSpeakers.Add(Speaker);
 	}
 
 	return true;

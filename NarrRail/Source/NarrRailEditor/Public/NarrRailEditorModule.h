@@ -16,6 +16,7 @@ public:
 private:
     void AddToolbarExtension(FToolBarBuilder& Builder);
     void ReimportAllNarrRailStories();
+    void SyncStoryRepository();
 
     TArray<TSharedPtr<FAssetTypeActions_Base>> CreatedAssetTypeActions;
     TSharedPtr<FExtender> ToolbarExtender;

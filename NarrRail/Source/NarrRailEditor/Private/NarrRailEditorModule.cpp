@@ -3,22 +3,32 @@
 #include "Debug/NarrRailDebugHUD.h"
 #include "AssetTypeActions_NarrRailStory.h"
 #include "Importers/NarrRailStoryReimportHandler.h"
+#include "Importers/NarrRailYamlParser.h"
+#include "NarrRailEditorSettings.h"
+#include "Runtime/NarrRailGlobalConfigAsset.h"
 #include "Runtime/NarrRailStoryAsset.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "DesktopPlatformModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
 #include "EditorReimportHandler.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Editor/EditorEngine.h"
+#include "FileHelpers.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformProcess.h"
 #include "Engine/Engine.h"
 #include "GameFramework/HUD.h"
+#include "Misc/FileHelper.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
+#include "ObjectTools.h"
 #include "Styling/AppStyle.h"
 #include "DrawDebugHelpers.h"
 #include "Internationalization/Internationalization.h"
@@ -120,6 +130,249 @@ static FAutoConsoleCommand PrintSessionsCmd(
 		UNarrRailDebugger::PrintAllActiveSessions();
 	})
 );
+
+namespace
+{
+	struct FNarrRailRepositorySyncStats
+	{
+		int32 Created = 0;
+		int32 Updated = 0;
+		int32 Deleted = 0;
+		int32 Failed = 0;
+		int32 Skipped = 0;
+		TArray<FString> Errors;
+	};
+
+	static FString SanitizeLongPackageSegment(const FString& Raw)
+	{
+		FString Result;
+		Result.Reserve(Raw.Len());
+
+		for (const TCHAR Ch : Raw)
+		{
+			if (FChar::IsAlnum(Ch) || Ch == TEXT('_'))
+			{
+				Result.AppendChar(Ch);
+			}
+			else
+			{
+				Result.AppendChar(TEXT('_'));
+			}
+		}
+
+		while (Result.Contains(TEXT("__")))
+		{
+			Result.ReplaceInline(TEXT("__"), TEXT("_"));
+		}
+
+		Result.TrimStartAndEndInline();
+		Result.RemoveFromStart(TEXT("_"));
+		Result.RemoveFromEnd(TEXT("_"));
+		return Result.IsEmpty() ? TEXT("Item") : Result;
+	}
+
+	static FString NormalizeContentRootPath(FString Path)
+	{
+		Path.TrimStartAndEndInline();
+		FPaths::NormalizeFilename(Path);
+		while (Path.EndsWith(TEXT("/")))
+		{
+			Path.LeftChopInline(1);
+		}
+		return Path.IsEmpty() ? TEXT("/Game/NarrRailStories") : Path;
+	}
+
+	static bool ResolveRepositoryPath(const FString& InPath, FString& OutPath)
+	{
+		if (InPath.IsEmpty())
+		{
+			return false;
+		}
+
+		OutPath = FPaths::ConvertRelativePathToFull(InPath);
+		FPaths::NormalizeDirectoryName(OutPath);
+		FPaths::CollapseRelativeDirectories(OutPath);
+		return FPaths::DirectoryExists(OutPath);
+	}
+
+	static bool PromptForRepositoryPath(const FString& InitialPath, FString& OutPath)
+	{
+		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+		if (DesktopPlatform == nullptr)
+		{
+			return false;
+		}
+
+		const void* ParentWindowHandle = nullptr;
+		if (FSlateApplication::IsInitialized())
+		{
+			const TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindBestParentWindowForDialogs(nullptr);
+			if (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid())
+			{
+				ParentWindowHandle = ParentWindow->GetNativeWindow()->GetOSWindowHandle();
+			}
+		}
+
+		FString DefaultPath = InitialPath;
+		if (!DefaultPath.IsEmpty())
+		{
+			DefaultPath = FPaths::ConvertRelativePathToFull(DefaultPath);
+			FPaths::NormalizeDirectoryName(DefaultPath);
+		}
+
+		FString SelectedPath;
+		const bool bSelected = DesktopPlatform->OpenDirectoryDialog(
+			ParentWindowHandle,
+			TEXT("Select NarrRail Story Repository"),
+			DefaultPath,
+			SelectedPath
+		);
+
+		if (!bSelected || SelectedPath.IsEmpty())
+		{
+			return false;
+		}
+
+		FPaths::NormalizeDirectoryName(SelectedPath);
+		FPaths::CollapseRelativeDirectories(SelectedPath);
+		OutPath = MoveTemp(SelectedPath);
+		return FPaths::DirectoryExists(OutPath);
+	}
+
+	static bool RunGitCommand(const FString& RepositoryPath, const FString& Arguments, FString& OutStdout, FString& OutStderr, int32& OutReturnCode)
+	{
+		const FString GitArguments = FString::Printf(TEXT("-C \"%s\" %s"), *RepositoryPath, *Arguments);
+		OutReturnCode = -1;
+		return FPlatformProcess::ExecProcess(TEXT("git"), *GitArguments, &OutReturnCode, &OutStdout, &OutStderr);
+	}
+
+	static bool IsGitRepository(const FString& RepositoryPath)
+	{
+		FString Stdout;
+		FString Stderr;
+		int32 ReturnCode = -1;
+		if (!RunGitCommand(RepositoryPath, TEXT("rev-parse --is-inside-work-tree"), Stdout, Stderr, ReturnCode))
+		{
+			return false;
+		}
+
+		Stdout.TrimStartAndEndInline();
+		return ReturnCode == 0 && Stdout.Equals(TEXT("true"), ESearchCase::IgnoreCase);
+	}
+
+	static bool PullGitRepository(const FString& RepositoryPath, FString& OutMessage)
+	{
+		if (!IsGitRepository(RepositoryPath))
+		{
+			OutMessage = TEXT("Selected story repository is not a Git working tree; skipped git pull.");
+			return true;
+		}
+
+		FString Stdout;
+		FString Stderr;
+		int32 ReturnCode = -1;
+		if (!RunGitCommand(RepositoryPath, TEXT("pull --ff-only"), Stdout, Stderr, ReturnCode))
+		{
+			OutMessage = TEXT("Failed to start git. Make sure Git is installed and available in PATH.");
+			return false;
+		}
+
+		OutMessage = Stdout;
+		if (!Stderr.IsEmpty())
+		{
+			if (!OutMessage.IsEmpty())
+			{
+				OutMessage += TEXT("\n");
+			}
+			OutMessage += Stderr;
+		}
+		OutMessage.TrimStartAndEndInline();
+
+		return ReturnCode == 0;
+	}
+
+	static FString MakeRepositoryAssetRoot(const FString& ContentRoot, const FString& RepositoryPath)
+	{
+		FString RepoName = FPaths::GetCleanFilename(RepositoryPath);
+		if (RepoName.IsEmpty())
+		{
+			RepoName = TEXT("StoryRepository");
+		}
+
+		return NormalizeContentRootPath(ContentRoot) / SanitizeLongPackageSegment(RepoName);
+	}
+
+	static bool MakeRelativeRepositoryPath(const FString& RepositoryPath, const FString& SourceFile, FString& OutRelativePath)
+	{
+		FString RepoWithSlash = RepositoryPath;
+		FPaths::NormalizeDirectoryName(RepoWithSlash);
+		if (!RepoWithSlash.EndsWith(TEXT("/")))
+		{
+			RepoWithSlash += TEXT("/");
+		}
+
+		OutRelativePath = SourceFile;
+		FPaths::NormalizeFilename(OutRelativePath);
+		return FPaths::MakePathRelativeTo(OutRelativePath, *RepoWithSlash);
+	}
+
+	static FString MakePackagePathForSource(const FString& TargetRoot, const FString& RelativeSourcePath)
+	{
+		FString WithoutExtension = RelativeSourcePath;
+		FPaths::NormalizeFilename(WithoutExtension);
+		WithoutExtension = FPaths::ChangeExtension(WithoutExtension, TEXT(""));
+		WithoutExtension.RemoveFromEnd(TEXT("."));
+
+		TArray<FString> Parts;
+		WithoutExtension.ParseIntoArray(Parts, TEXT("/"), true);
+
+		FString PackagePath = TargetRoot;
+		for (const FString& Part : Parts)
+		{
+			PackagePath /= SanitizeLongPackageSegment(Part);
+		}
+		return PackagePath;
+	}
+
+	static void UpdateImportData(UObject* Asset, const FString& SourceFile)
+	{
+		FString Normalized = FPaths::ConvertRelativePathToFull(SourceFile);
+		FPaths::NormalizeFilename(Normalized);
+		FPaths::CollapseRelativeDirectories(Normalized);
+
+		if (UNarrRailStoryAsset* StoryAsset = Cast<UNarrRailStoryAsset>(Asset))
+		{
+			if (UAssetImportData* ImportData = StoryAsset->EnsureAssetImportData())
+			{
+				ImportData->UpdateFilenameOnly(Normalized);
+			}
+		}
+		else if (UNarrRailGlobalConfigAsset* ConfigAsset = Cast<UNarrRailGlobalConfigAsset>(Asset))
+		{
+			if (UAssetImportData* ImportData = ConfigAsset->EnsureAssetImportData())
+			{
+				ImportData->UpdateFilenameOnly(Normalized);
+			}
+		}
+	}
+
+	static void ApplyStoryData(UNarrRailStoryAsset* StoryAsset, const FNarrRailScriptData& ScriptData)
+	{
+		StoryAsset->SchemaVersion = ScriptData.SchemaVersion;
+		StoryAsset->StoryId = FName(*ScriptData.StoryId);
+		StoryAsset->EntryNodeId = FName(*ScriptData.EntryNodeId);
+		StoryAsset->Variables = ScriptData.Variables;
+		StoryAsset->Nodes = ScriptData.Nodes;
+		StoryAsset->Edges = ScriptData.Edges;
+	}
+
+	static void ApplyGlobalConfigData(UNarrRailGlobalConfigAsset* ConfigAsset, const FNarrRailGlobalConfigData& ConfigData)
+	{
+		ConfigAsset->SchemaVersion = ConfigData.SchemaVersion;
+		ConfigAsset->Variables = ConfigData.Variables;
+		ConfigAsset->PresetSpeakers = ConfigData.PresetSpeakers;
+	}
+}
 
 void FNarrRailEditorModule::StartupModule()
 {
@@ -364,13 +617,385 @@ void FNarrRailEditorModule::AddToolbarExtension(FToolBarBuilder& Builder)
 {
 	Builder.BeginSection("NarrRailTools");
 	Builder.AddToolBarButton(
-		FUIAction(FExecuteAction::CreateRaw(this, &FNarrRailEditorModule::ReimportAllNarrRailStories)),
+		FUIAction(FExecuteAction::CreateRaw(this, &FNarrRailEditorModule::SyncStoryRepository)),
 		NAME_None,
-		LOCTEXT("NarrRail_ReimportAll_Label", "Reimport Stories"),
-		LOCTEXT("NarrRail_ReimportAll_Tooltip", "Reimport all NarrRail story assets from their source YAML files."),
+		LOCTEXT("NarrRail_SyncRepository_Label", "Sync Stories"),
+		LOCTEXT("NarrRail_SyncRepository_Tooltip", "Sync NarrRail story assets from the configured local story repository."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Import")
 	);
 	Builder.EndSection();
+}
+
+void FNarrRailEditorModule::SyncStoryRepository()
+{
+	UNarrRailEditorSettings* Settings = GetMutableDefault<UNarrRailEditorSettings>();
+	if (Settings == nullptr)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NarrRail_Sync_NoSettings", "NarrRail editor settings are unavailable."));
+		return;
+	}
+
+	FString RepositoryPath;
+	if (!ResolveRepositoryPath(Settings->StoryRepositoryPath.Path, RepositoryPath))
+	{
+		FString SelectedRepositoryPath;
+		if (!PromptForRepositoryPath(Settings->StoryRepositoryPath.Path, SelectedRepositoryPath))
+		{
+			FMessageDialog::Open(
+				EAppMsgType::Ok,
+				LOCTEXT("NarrRail_Sync_NoRepoSelected", "No valid story repository folder was selected.")
+			);
+			return;
+		}
+
+		Settings->Modify();
+		Settings->StoryRepositoryPath.Path = SelectedRepositoryPath;
+		Settings->SaveConfig();
+		RepositoryPath = SelectedRepositoryPath;
+	}
+
+	const FString ContentRoot = NormalizeContentRootPath(Settings->StoryAssetRootPath);
+	if (!ContentRoot.StartsWith(TEXT("/Game/")) && ContentRoot != TEXT("/Game"))
+	{
+		FMessageDialog::Open(
+			EAppMsgType::Ok,
+			FText::Format(
+				LOCTEXT("NarrRail_Sync_InvalidContentRoot", "Story Asset Root Path must be under /Game:\n{0}"),
+				FText::FromString(ContentRoot)
+			)
+		);
+		return;
+	}
+
+	const FString TargetRoot = MakeRepositoryAssetRoot(ContentRoot, RepositoryPath);
+
+	if (Settings->bPullGitRepositoryBeforeSync)
+	{
+		FString GitMessage;
+		if (!PullGitRepository(RepositoryPath, GitMessage))
+		{
+			FMessageDialog::Open(
+				EAppMsgType::Ok,
+				FText::Format(
+					LOCTEXT("NarrRail_Sync_GitPullFailed", "Failed to pull the story repository before sync:\n{0}\n\n{1}"),
+					FText::FromString(RepositoryPath),
+					FText::FromString(GitMessage)
+				)
+			);
+			return;
+		}
+
+		if (!GitMessage.IsEmpty())
+		{
+			UE_LOG(LogNarrRailDebug, Log, TEXT("NarrRail story repository git pull:\n%s"), *GitMessage);
+		}
+	}
+
+	TArray<FString> SourceFiles;
+	IFileManager::Get().FindFilesRecursive(SourceFiles, *RepositoryPath, TEXT("*.nrstory"), true, false);
+
+	if (SourceFiles.Num() == 0)
+	{
+		FMessageDialog::Open(
+			EAppMsgType::Ok,
+			FText::Format(
+				LOCTEXT("NarrRail_Sync_NoFiles", "No .nrstory files were found in:\n{0}"),
+				FText::FromString(RepositoryPath)
+			)
+		);
+		return;
+	}
+
+	FNarrRailYamlParser Parser;
+	FNarrRailRepositorySyncStats Stats;
+	TMap<FString, FString> ExpectedPackageToSource;
+	TMap<FString, ENarrRailScriptFileKind> ExpectedPackageKind;
+
+	for (FString SourceFile : SourceFiles)
+	{
+		FPaths::NormalizeFilename(SourceFile);
+		FString RelativePath;
+		if (!MakeRelativeRepositoryPath(RepositoryPath, SourceFile, RelativePath))
+		{
+			++Stats.Failed;
+			Stats.Errors.Add(FString::Printf(TEXT("Failed to compute relative path: %s"), *SourceFile));
+			continue;
+		}
+
+		FString KindError;
+		const ENarrRailScriptFileKind FileKind = Parser.DetectFileKind(SourceFile, KindError);
+		if (FileKind == ENarrRailScriptFileKind::Unknown)
+		{
+			++Stats.Failed;
+			Stats.Errors.Add(FString::Printf(TEXT("%s: %s"), *RelativePath, *KindError));
+			continue;
+		}
+
+		const FString PackageName = MakePackagePathForSource(TargetRoot, RelativePath);
+		if (!FPackageName::IsValidLongPackageName(PackageName))
+		{
+			++Stats.Failed;
+			Stats.Errors.Add(FString::Printf(TEXT("Invalid package path for %s -> %s"), *RelativePath, *PackageName));
+			continue;
+		}
+
+		if (ExpectedPackageToSource.Contains(PackageName))
+		{
+			++Stats.Failed;
+			Stats.Errors.Add(FString::Printf(
+				TEXT("Package path collision:\n  %s\n  %s\n  -> %s"),
+				*ExpectedPackageToSource[PackageName],
+				*SourceFile,
+				*PackageName
+			));
+			continue;
+		}
+
+		ExpectedPackageToSource.Add(PackageName, SourceFile);
+		ExpectedPackageKind.Add(PackageName, FileKind);
+	}
+
+	if (ExpectedPackageToSource.Num() == 0)
+	{
+		FMessageDialog::Open(
+			EAppMsgType::Ok,
+			FText::Format(
+				LOCTEXT("NarrRail_Sync_NoValidFiles", "No valid NarrRail files were found in:\n{0}\n\nErrors:\n{1}"),
+				FText::FromString(RepositoryPath),
+				FText::FromString(FString::Join(Stats.Errors, TEXT("\n")))
+			)
+		);
+		return;
+	}
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	TArray<FAssetData> ExistingAssets;
+	AssetRegistry.GetAssetsByPath(FName(*TargetRoot), ExistingAssets, true);
+
+	TArray<FAssetData> AssetsToDelete;
+	for (const FAssetData& AssetData : ExistingAssets)
+	{
+		const bool bManagedClass =
+			AssetData.AssetClassPath == UNarrRailStoryAsset::StaticClass()->GetClassPathName() ||
+			AssetData.AssetClassPath == UNarrRailGlobalConfigAsset::StaticClass()->GetClassPathName();
+
+		if (!bManagedClass)
+		{
+			continue;
+		}
+
+		if (!ExpectedPackageToSource.Contains(AssetData.PackageName.ToString()))
+		{
+			AssetsToDelete.Add(AssetData);
+		}
+	}
+
+	if (AssetsToDelete.Num() > 0)
+	{
+		TArray<FString> DeleteNames;
+		const int32 PreviewCount = FMath::Min(AssetsToDelete.Num(), 20);
+		for (int32 Index = 0; Index < PreviewCount; ++Index)
+		{
+			DeleteNames.Add(AssetsToDelete[Index].GetObjectPathString());
+		}
+		if (AssetsToDelete.Num() > PreviewCount)
+		{
+			DeleteNames.Add(FString::Printf(TEXT("... and %d more"), AssetsToDelete.Num() - PreviewCount));
+		}
+
+		const EAppReturnType::Type ConfirmResult = FMessageDialog::Open(
+			EAppMsgType::YesNo,
+			FText::Format(
+				LOCTEXT("NarrRail_Sync_DeleteConfirm", "The following NarrRail assets no longer exist in the story repository and will be deleted from:\n{0}\n\n{1}\n\nContinue?"),
+				FText::FromString(TargetRoot),
+				FText::FromString(FString::Join(DeleteNames, TEXT("\n")))
+			)
+		);
+
+		if (ConfirmResult != EAppReturnType::Yes)
+		{
+			Stats.Skipped += AssetsToDelete.Num();
+			AssetsToDelete.Empty();
+		}
+	}
+
+	const FText ProgressText = FText::Format(
+		LOCTEXT("NarrRail_Sync_Progress", "Syncing NarrRail story repository to {0}..."),
+		FText::FromString(TargetRoot)
+	);
+	FScopedSlowTask SlowTask(static_cast<float>(ExpectedPackageToSource.Num() + AssetsToDelete.Num()), ProgressText);
+	SlowTask.MakeDialog(true);
+
+	TArray<UPackage*> PackagesToSave;
+
+	for (const TPair<FString, FString>& Pair : ExpectedPackageToSource)
+	{
+		SlowTask.EnterProgressFrame(1.0f, FText::FromString(FPackageName::GetShortName(Pair.Key)));
+		if (SlowTask.ShouldCancel())
+		{
+			++Stats.Skipped;
+			continue;
+		}
+
+		const FString& PackageName = Pair.Key;
+		const FString& SourceFile = Pair.Value;
+		const ENarrRailScriptFileKind FileKind = ExpectedPackageKind[PackageName];
+		const FString ObjectName = FPackageName::GetShortName(PackageName);
+
+		UPackage* Package = CreatePackage(*PackageName);
+		if (Package == nullptr)
+		{
+			++Stats.Failed;
+			Stats.Errors.Add(FString::Printf(TEXT("Failed to create package: %s"), *PackageName));
+			continue;
+		}
+
+		const FString ObjectPath = PackageName + TEXT(".") + ObjectName;
+		UObject* ExistingObject = LoadObject<UObject>(nullptr, *ObjectPath);
+
+		if (FileKind == ENarrRailScriptFileKind::Story)
+		{
+			FNarrRailScriptData ScriptData;
+			FString ErrorMessage;
+			if (!Parser.ParseFile(SourceFile, ScriptData, ErrorMessage))
+			{
+				++Stats.Failed;
+				Stats.Errors.Add(FString::Printf(TEXT("%s: %s"), *SourceFile, *ErrorMessage));
+				continue;
+			}
+
+			UNarrRailStoryAsset* StoryAsset = Cast<UNarrRailStoryAsset>(ExistingObject);
+			if (ExistingObject != nullptr && StoryAsset == nullptr)
+			{
+				++Stats.Failed;
+				Stats.Errors.Add(FString::Printf(TEXT("Existing asset has wrong type: %s"), *ExistingObject->GetPathName()));
+				continue;
+			}
+
+			const bool bCreated = StoryAsset == nullptr;
+			if (bCreated)
+			{
+				StoryAsset = NewObject<UNarrRailStoryAsset>(Package, UNarrRailStoryAsset::StaticClass(), *ObjectName, RF_Public | RF_Standalone);
+			}
+			else
+			{
+				StoryAsset->Modify();
+			}
+
+			ApplyStoryData(StoryAsset, ScriptData);
+			UpdateImportData(StoryAsset, SourceFile);
+			StoryAsset->PostEditChange();
+			StoryAsset->MarkPackageDirty();
+
+			if (bCreated)
+			{
+				FAssetRegistryModule::AssetCreated(StoryAsset);
+				++Stats.Created;
+			}
+			else
+			{
+				++Stats.Updated;
+			}
+		}
+		else if (FileKind == ENarrRailScriptFileKind::GlobalConfig)
+		{
+			FNarrRailGlobalConfigData ConfigData;
+			FString ErrorMessage;
+			if (!Parser.ParseGlobalConfigFile(SourceFile, ConfigData, ErrorMessage))
+			{
+				++Stats.Failed;
+				Stats.Errors.Add(FString::Printf(TEXT("%s: %s"), *SourceFile, *ErrorMessage));
+				continue;
+			}
+
+			UNarrRailGlobalConfigAsset* ConfigAsset = Cast<UNarrRailGlobalConfigAsset>(ExistingObject);
+			if (ExistingObject != nullptr && ConfigAsset == nullptr)
+			{
+				++Stats.Failed;
+				Stats.Errors.Add(FString::Printf(TEXT("Existing asset has wrong type: %s"), *ExistingObject->GetPathName()));
+				continue;
+			}
+
+			const bool bCreated = ConfigAsset == nullptr;
+			if (bCreated)
+			{
+				ConfigAsset = NewObject<UNarrRailGlobalConfigAsset>(Package, UNarrRailGlobalConfigAsset::StaticClass(), *ObjectName, RF_Public | RF_Standalone);
+			}
+			else
+			{
+				ConfigAsset->Modify();
+			}
+
+			ApplyGlobalConfigData(ConfigAsset, ConfigData);
+			UpdateImportData(ConfigAsset, SourceFile);
+			ConfigAsset->PostEditChange();
+			ConfigAsset->MarkPackageDirty();
+
+			if (bCreated)
+			{
+				FAssetRegistryModule::AssetCreated(ConfigAsset);
+				++Stats.Created;
+			}
+			else
+			{
+				++Stats.Updated;
+			}
+		}
+
+		PackagesToSave.AddUnique(Package);
+	}
+
+	if (AssetsToDelete.Num() > 0)
+	{
+		for (const FAssetData& AssetData : AssetsToDelete)
+		{
+			SlowTask.EnterProgressFrame(1.0f, FText::FromString(AssetData.GetObjectPathString()));
+		}
+
+		const int32 DeletedCount = ObjectTools::DeleteAssets(AssetsToDelete, false);
+		Stats.Deleted += DeletedCount;
+		if (DeletedCount < AssetsToDelete.Num())
+		{
+			Stats.Failed += (AssetsToDelete.Num() - DeletedCount);
+		}
+	}
+
+	if (PackagesToSave.Num() > 0)
+	{
+		UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, true);
+	}
+
+	FString ErrorText;
+	if (Stats.Errors.Num() > 0)
+	{
+		const int32 ErrorPreviewCount = FMath::Min(Stats.Errors.Num(), 12);
+		TArray<FString> ErrorPreview;
+		for (int32 Index = 0; Index < ErrorPreviewCount; ++Index)
+		{
+			ErrorPreview.Add(Stats.Errors[Index]);
+		}
+		if (Stats.Errors.Num() > ErrorPreviewCount)
+		{
+			ErrorPreview.Add(FString::Printf(TEXT("... and %d more"), Stats.Errors.Num() - ErrorPreviewCount));
+		}
+		ErrorText = TEXT("\n\nErrors:\n") + FString::Join(ErrorPreview, TEXT("\n"));
+	}
+
+	const FText Summary = FText::Format(
+		LOCTEXT("NarrRail_Sync_Summary", "Story repository sync finished.\nRepository: {0}\nTarget: {1}\nCreated: {2}\nUpdated: {3}\nDeleted: {4}\nFailed: {5}\nSkipped: {6}{7}"),
+		FText::FromString(RepositoryPath),
+		FText::FromString(TargetRoot),
+		FText::AsNumber(Stats.Created),
+		FText::AsNumber(Stats.Updated),
+		FText::AsNumber(Stats.Deleted),
+		FText::AsNumber(Stats.Failed),
+		FText::AsNumber(Stats.Skipped),
+		FText::FromString(ErrorText)
+	);
+
+	FMessageDialog::Open(EAppMsgType::Ok, Summary, LOCTEXT("NarrRail_Sync_Title", "NarrRail Story Repository Sync"));
 }
 
 void FNarrRailEditorModule::ReimportAllNarrRailStories()
