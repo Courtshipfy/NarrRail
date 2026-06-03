@@ -1,52 +1,37 @@
-# NarrRailEditor
+﻿# NarrRailEditor
 
 [English](./README.en.md)
 
-基于 **Vue 3 + Svelte Flow** 的 NarrRail 剧情可视化编辑器。
-面向编剧与叙事设计同学，支持节点式编辑、`.nrstory` 导入导出、实时校验、自动保存与运行语义预览。
+NarrRailEditor 是基于 **Vue 3 + Svelte Flow** 的 NarrRail 剧情可视化编辑器，面向编剧和叙事设计流程，支持节点式编辑、`.nrstory` 导入导出、结构校验、自动保存、预览审校和脚本库管理。
 
 ## 技术栈
 
-- **Vue 3**：主 UI 容器（工具栏、属性面板、状态栏、脚本库）
-- **Svelte Flow (@xyflow/svelte)**：图编辑核心（节点、连线、交互）
-- **YAML**：脚本内容序列化（统一后缀 `.nrstory`）
+- **Vue 3**：主 UI 容器、属性面板、脚本库、状态管理
+- **Svelte Flow (@xyflow/svelte)**：节点图编辑、连线和画布交互
+- **YAML**：统一 `.nrstory` 序列化格式
 - **Vite**：开发与构建
 
 ## 快速开始
 
-### 线上入口（默认）
+线上入口：
 
 - https://narr-rail.courtship.top
 
-### 使用流程（推荐）
+推荐流程：
 
 1. 登录后进入脚本库
-2. 新建/打开 `.nrstory`
+2. 新建或打开 `.nrstory`
 3. 编辑节点并完成校验
 4. 使用预览模式审校剧情流程
-5. 导出 `.nrstory` 并回流到 UE
+5. 导出 `.nrstory` 并提交到故事仓库
+6. 在 UE 中通过 `Sync Stories` 同步故事仓库
 
-### 本地开发（仅开发者）
+## 本地开发
 
 环境要求：
 
-- Node.js `>= 20`（建议 LTS）
+- Node.js `>= 20`
 - npm `>= 9`
-
-重要约束（跨平台稳定启动）：
-
-- `node_modules` 不要提交到 Git，也不要在 Win/Mac 之间拷贝复用
-- 切换平台后请在本机重新安装依赖（`npm ci` 或 `npm install`）
-
-macOS / Linux：
-
-```bash
-cd NarrRailEditor
-npm ci
-npm run dev -- --host 127.0.0.1
-```
-
-Windows（PowerShell / CMD）：
 
 ```bash
 cd NarrRailEditor
@@ -56,33 +41,11 @@ npm run dev -- --host 127.0.0.1
 
 默认地址：`http://127.0.0.1:5173/`
 
-常见问题：
+跨平台约束：
 
-- `Cannot find module @rollup/rollup-<platform>`：
-  删除 `node_modules` 后重新执行 `npm ci`
-- `node_modules/.bin/vite: Permission denied`（macOS/Linux）：
-  执行 `chmod +x node_modules/.bin/vite` 后重试
-
-性能基线（本地开发）：
-
-1. 启动本地服务并打开编辑器页面
-2. 在浏览器 Console 执行：
-
-```js
-await window.__narrrailBench.runGraphSyncBenchmark()
-```
-
-可选参数：
-
-```js
-await window.__narrrailBench.runGraphSyncBenchmark({
-  iterations: 300,
-  moveEvery: 3,
-  shiftPx: 1.5
-})
-```
-
-输出项包含 `averageMs / p95Ms / p99Ms`，可用于优化前后对比。
+- 不要提交 `node_modules`
+- 不要在 Windows/macOS/Linux 之间复制复用 `node_modules`
+- 切换平台后在本机重新执行 `npm ci`
 
 生产构建：
 
@@ -90,89 +53,94 @@ await window.__narrrailBench.runGraphSyncBenchmark({
 npm run build
 ```
 
-## 当前功能（实现状态）
+## 当前功能
 
-### 1) 图编辑器核心
+### 图编辑器
 
-- 6 类节点：`Dialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `End`
+- 节点类型：`Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
 - 节点创建、拖拽、连线、删除、框选
 - 右键菜单快速建点
-- 自动排布（含 Choice 分支布局优化）
-- 连线样式切换（直线 / 曲线）
+- 自动布局
+- 鼠标滚轮缩放、触摸板拖拽/平移/缩放
 
-### 2) 属性与数据编辑
+### 属性与数据编辑
 
-- 节点属性编辑（按类型动态表单）
-- 边属性编辑：`priority`、`condition.logic`、`condition.terms`
-- 变量与预设角色管理
+- 按节点类型展示动态属性表单
+- 变量管理：脚本变量、全局变量、类型和默认值
+- `SetVariable` 节点可选择已定义变量
+- `Condition` 节点可选择已定义变量
+- 预设角色管理
 
-### 3) 脚本导入导出
+### Condition 节点
+
+Condition 是 NarrRail 当前唯一承载条件判断的结构。边上的 `condition` 字段已经废弃，导入和校验都会拒绝旧边条件。
+
+当前机制：
+
+- 一个 Condition 节点可以包含多个条件分支
+- 每个分支对应一个输出句柄：`condition-0`、`condition-1`、`condition-2` ...
+- 所有分支从上到下依次匹配，命中第一个满足条件的分支
+- 没有分支命中时走 `condition-fallback`
+- 双击 Condition 节点可打开独立编辑窗口
+- 编辑器会校验输出句柄是否缺失、重复或与分支数量不一致
+
+### 导入导出
 
 - 支持 `.nrstory` 导入
 - 支持 `.nrstory` 导出
-- 导入后自动布局
-- 基础双向映射（图结构 ↔ 脚本结构）
+- 导出时不会写入旧的 `edges[].condition`
+- 导入时如果发现旧边条件，会提示使用 Condition 节点控制条件分支
+- 支持全局配置文件：`meta.configType: GlobalConfig`
 
-### 4) 校验与保存
+### 校验与保存
 
 - 实时校验 + 手动校验
-- 入口节点、ID 唯一性、边引用、孤立节点等检查
-- 本地自动保存（含 localStorage 兜底）
+- 检查入口节点、ID 唯一性、边引用、孤立节点、变量引用、Condition 分支出口
+- 本地自动保存兜底
 
-### 5) 预览模式（Preview Mode）
+### 预览模式
 
-- 从图编辑模式切换到预览模式
-- 按运行语义推进，不按画布坐标顺序
-- 支持：`Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `End`
+- 按运行语义推进，而不是按画布坐标顺序推进
+- 支持 `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
 - 支持 `ExhaustiveUntilComplete` 分支穷举流程
-- End 到达后不会重复触发
-- 标签样式：`[选择] [变量] [事件] [跳转] [结束]`，并与节点类型配色对齐
 
-## 文件命名约定（重要）
+## 文件命名约定
 
-### 剧情脚本
-
-- 后缀统一：`.nrstory`
-
-### 全局配置（变量/预设角色）
-
-- 推荐文件名：
-  - `globalconfig.nrstory`
-  - `global-config.nrstory`
-
-> 旧双后缀命名（如 `*.narrrail.yaml` / `*.narrrail.yml` / `*.narrrail.nrstory`）已不再作为默认约定。
-
-## 目录结构（简）
+剧情脚本统一使用：
 
 ```text
-NarrRailEditor/
-├── src/
-│   ├── App.vue
-│   ├── components/
-│   │   ├── ScriptLibraryPage.vue
-│   │   ├── ReadModePanel.vue
-│   │   ├── PropertyPanel.vue
-│   │   ├── VariablePanel.vue
-│   │   └── ...
-│   ├── nodes/
-│   │   ├── DialogueNode.svelte
-│   │   ├── ChoiceNode.svelte
-│   │   ├── JumpNode.svelte
-│   │   ├── SetVariableNode.svelte
-│   │   ├── EmitEventNode.svelte
-│   │   └── EndNode.svelte
-│   └── utils/
-├── index.html
-├── README.md
-└── README.en.md
+*.nrstory
 ```
 
-## 相关文档
+全局配置也使用 `.nrstory` 后缀，推荐文件名：
 
-- 预览模式说明：`NarrRailEditor/README_READING_MODE.md`
-- 介绍页规范：`Docs/05_narrrail_editor/INTRO_PAGE_CONTENT_STYLE_SPEC.md`
-- 部署方案：`Docs/05_narrrail_editor/NARRRAIL_EDITOR_DEPLOYMENT_PLAN.md`
+```text
+globalconfig.nrstory
+global-config.nrstory
+```
 
-## 许可证
+全局配置文件需要在 `meta` 中声明：
 
-本项目是 NarrRail 仓库的一部分，遵循仓库统一许可证。
+```yaml
+meta:
+  schemaVersion: 1
+  configType: GlobalConfig
+variables: []
+presetSpeakers: []
+```
+
+旧的双后缀命名（例如 `*.narrrail.yaml`、`*.narrrail.yml`、`*.narrrail.nrstory`）不再作为默认约定。
+
+## 与 UE 插件配合
+
+编辑器负责创作和导出 `.nrstory`；UE 插件负责从本地故事仓库同步资产。
+
+UE 侧流程：
+
+1. 在 `Project Settings > Plugins > NarrRail` 设置 `Story Repository Path`
+2. 点击工具栏 `Sync Stories`
+3. 插件默认对 Git 仓库执行 `git pull --ff-only`
+4. 插件将仓库内容镜像到 `/Game/NarrRailStories/<故事仓库文件夹名>`
+5. 普通剧情生成 `UNarrRailStoryAsset`
+6. 全局配置生成 `UNarrRailGlobalConfigAsset`
+7. 仓库删除的文件会同步删除对应资产，删除前会弹确认
