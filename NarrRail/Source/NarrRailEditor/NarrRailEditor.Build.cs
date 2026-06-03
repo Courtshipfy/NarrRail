@@ -23,6 +23,8 @@ public class NarrRailEditor : ModuleRules
             "AssetTools",
             "ContentBrowser",
             "AssetRegistry",
+            "DeveloperSettings",
+            "DesktopPlatform",
             "LevelEditor"
         });
 
