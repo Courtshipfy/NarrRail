@@ -1,6 +1,7 @@
 #include "Runtime/NarrRailStorySession.h"
 
 #include "Algo/Sort.h"
+#include "Engine/World.h"
 
 // 全局活跃会话列表定义
 TArray<UNarrRailStorySession*> UNarrRailStorySession::ActiveSessions;
@@ -37,12 +38,23 @@ static bool TryParseFloat(const FString& InValue, float& OutValue)
 
 void UNarrRailStorySession::BeginDestroy()
 {
-    // 从全局列表中移除
     ActiveSessions.Remove(this);
     Super::BeginDestroy();
 }
 
+
 FNarrRailRuntimeResult UNarrRailStorySession::Initialize(const UNarrRailStoryAsset* InStoryAsset)
+{
+    const UNarrRailGlobalConfigAsset* LinkedGlobalConfig = nullptr;
+    if (InStoryAsset != nullptr && !InStoryAsset->GlobalConfig.IsNull())
+    {
+        LinkedGlobalConfig = InStoryAsset->GlobalConfig.LoadSynchronous();
+    }
+
+    return InitializeWithGlobalConfig(InStoryAsset, LinkedGlobalConfig);
+}
+
+FNarrRailRuntimeResult UNarrRailStorySession::InitializeWithGlobalConfig(const UNarrRailStoryAsset* InStoryAsset, const UNarrRailGlobalConfigAsset* InGlobalConfig)
 {
     if (InStoryAsset == nullptr)
     {
@@ -51,18 +63,58 @@ FNarrRailRuntimeResult UNarrRailStorySession::Initialize(const UNarrRailStoryAss
     }
 
     StoryAsset = InStoryAsset;
+    GlobalConfigAsset = InGlobalConfig;
     SessionState = ENarrRailSessionState::Idle;
     StateBeforePause = ENarrRailSessionState::Idle;
 
-    // 创建变量容器
     if (VariableContainer == nullptr)
     {
         VariableContainer = NewObject<UNarrRailVariableContainer>(this);
     }
 
+    GlobalVariableContainer = nullptr;
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            if (UNarrRailGlobalStateSubsystem* GlobalState = GameInstance->GetSubsystem<UNarrRailGlobalStateSubsystem>())
+            {
+                FString GlobalError;
+                if (!GlobalState->ApplyGlobalConfig(GlobalConfigAsset, GlobalError))
+                {
+                    SessionState = ENarrRailSessionState::Error;
+                    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *GlobalError);
+                }
+
+                TArray<FNarrRailVariableDefinition> StoryGlobalDefinitions;
+                for (FNarrRailVariableDefinition Definition : StoryAsset->Variables)
+                {
+                    if (Definition.bGlobalScope)
+                    {
+                        Definition.bGlobalScope = true;
+                        StoryGlobalDefinitions.Add(Definition);
+                    }
+                }
+
+                if (StoryGlobalDefinitions.Num() > 0)
+                {
+                    if (UNarrRailVariableContainer* SharedVariables = GlobalState->GetGlobalVariableContainer())
+                    {
+                        if (!SharedVariables->AddDefinitions(StoryGlobalDefinitions, true, GlobalError))
+                        {
+                            SessionState = ENarrRailSessionState::Error;
+                            return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, *GlobalError);
+                        }
+                    }
+                }
+
+                GlobalVariableContainer = GlobalState->GetGlobalVariableContainer();
+            }
+        }
+    }
+
     ResetSessionContextFromAsset();
 
-    // 注册到全局列表
     if (!ActiveSessions.Contains(this))
     {
         ActiveSessions.Add(this);
@@ -427,74 +479,101 @@ TArray<FNarrRailChoiceOption> UNarrRailStorySession::GetCurrentChoices() const
 // 便捷的变量访问接口实现
 FNarrRailVariableResult UNarrRailStorySession::GetVariableBool(FName VariableName, bool& OutValue) const
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->GetBool(VariableName, OutValue);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    return Container != nullptr
+        ? Container->GetBool(VariableName, OutValue)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
 }
 
 FNarrRailVariableResult UNarrRailStorySession::GetVariableInt(FName VariableName, int32& OutValue) const
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->GetInt(VariableName, OutValue);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    return Container != nullptr
+        ? Container->GetInt(VariableName, OutValue)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
 }
 
 FNarrRailVariableResult UNarrRailStorySession::GetVariableFloat(FName VariableName, float& OutValue) const
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->GetFloat(VariableName, OutValue);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    return Container != nullptr
+        ? Container->GetFloat(VariableName, OutValue)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
 }
 
 FNarrRailVariableResult UNarrRailStorySession::GetVariableString(FName VariableName, FString& OutValue) const
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->GetString(VariableName, OutValue);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    return Container != nullptr
+        ? Container->GetString(VariableName, OutValue)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
 }
 
 FNarrRailVariableResult UNarrRailStorySession::SetVariableBool(FName VariableName, bool Value)
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->SetBool(VariableName, Value);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    FNarrRailVariableResult Result = Container != nullptr
+        ? Container->SetBool(VariableName, Value)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    SyncVariableSnapshotToContext();
+    return Result;
 }
 
 FNarrRailVariableResult UNarrRailStorySession::SetVariableInt(FName VariableName, int32 Value)
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->SetInt(VariableName, Value);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    FNarrRailVariableResult Result = Container != nullptr
+        ? Container->SetInt(VariableName, Value)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    SyncVariableSnapshotToContext();
+    return Result;
 }
 
 FNarrRailVariableResult UNarrRailStorySession::SetVariableFloat(FName VariableName, float Value)
 {
-    if (VariableContainer == nullptr)
-    {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
-    }
-    return VariableContainer->SetFloat(VariableName, Value);
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    FNarrRailVariableResult Result = Container != nullptr
+        ? Container->SetFloat(VariableName, Value)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    SyncVariableSnapshotToContext();
+    return Result;
 }
 
 FNarrRailVariableResult UNarrRailStorySession::SetVariableString(FName VariableName, const FString& Value)
 {
-    if (VariableContainer == nullptr)
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(VariableName);
+    FNarrRailVariableResult Result = Container != nullptr
+        ? Container->SetString(VariableName, Value)
+        : FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+    SyncVariableSnapshotToContext();
+    return Result;
+}
+
+bool UNarrRailStorySession::GetPresetSpeaker(FName SpeakerId, FNarrRailPresetSpeaker& OutSpeaker) const
+{
+    if (UWorld* World = GetWorld())
     {
-        return FNarrRailVariableResult::MakeError(ENarrRailVariableError::VariableNotFound, TEXT("Variable container not initialized."));
+        if (UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            if (const UNarrRailGlobalStateSubsystem* GlobalState = GameInstance->GetSubsystem<UNarrRailGlobalStateSubsystem>())
+            {
+                return GlobalState->GetPresetSpeaker(SpeakerId, OutSpeaker);
+            }
+        }
     }
-    return VariableContainer->SetString(VariableName, Value);
+
+    return false;
+}
+
+FString UNarrRailStorySession::ResolveSpeakerDisplayName(FName SpeakerId) const
+{
+    FNarrRailPresetSpeaker Speaker;
+    if (GetPresetSpeaker(SpeakerId, Speaker) && !Speaker.DisplayName.IsEmpty())
+    {
+        return Speaker.DisplayName;
+    }
+
+    return SpeakerId.ToString();
 }
 
 void UNarrRailStorySession::RegisterDialoguePresenter(TScriptInterface<INarrRailDialoguePresenterInterface> Presenter)
@@ -529,11 +608,47 @@ void UNarrRailStorySession::ResetSessionContextFromAsset()
         return;
     }
 
-    // 直接使用资产中的变量定义初始化变量容器
-    VariableContainer->Initialize(StoryAsset->Variables);
+    TArray<FNarrRailVariableDefinition> LocalDefinitions;
+    for (const FNarrRailVariableDefinition& Definition : StoryAsset->Variables)
+    {
+        if (!Definition.bGlobalScope)
+        {
+            LocalDefinitions.Add(Definition);
+        }
+    }
 
-    // 同步变量快照到 Context（用于存档兼容）
-    Context.VariableSnapshot = VariableContainer->GetSnapshot();
+    VariableContainer->Initialize(LocalDefinitions);
+    SyncVariableSnapshotToContext();
+}
+
+void UNarrRailStorySession::SyncVariableSnapshotToContext()
+{
+    Context.VariableSnapshot.Reset();
+
+    if (GlobalVariableContainer != nullptr)
+    {
+        Context.VariableSnapshot.Append(GlobalVariableContainer->GetSnapshot());
+    }
+
+    if (VariableContainer != nullptr)
+    {
+        Context.VariableSnapshot.Append(VariableContainer->GetSnapshot());
+    }
+}
+
+UNarrRailVariableContainer* UNarrRailStorySession::FindVariableContainerForName(const FName VariableName) const
+{
+    if (VariableContainer != nullptr && VariableContainer->HasVariable(VariableName))
+    {
+        return VariableContainer;
+    }
+
+    if (GlobalVariableContainer != nullptr && GlobalVariableContainer->HasVariable(VariableName))
+    {
+        return GlobalVariableContainer;
+    }
+
+    return VariableContainer;
 }
 
 bool UNarrRailStorySession::BuildMultiDialogueDisplay(const FNarrRailNode& Node, FNarrRailDialogueRequest& OutRequest) const
@@ -983,13 +1098,19 @@ bool UNarrRailStorySession::EvaluateConditionBranch(const FNarrRailConditionBran
 
 bool UNarrRailStorySession::EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const
 {
-    if (Term.Variable.VariableName == NAME_None || VariableContainer == nullptr)
+    if (Term.Variable.VariableName == NAME_None)
+    {
+        return false;
+    }
+
+    UNarrRailVariableContainer* Container = FindVariableContainerForName(Term.Variable.VariableName);
+    if (Container == nullptr)
     {
         return false;
     }
 
     FString CurrentValue;
-    FNarrRailVariableResult GetResult = VariableContainer->GetVariable(Term.Variable.VariableName, CurrentValue);
+    FNarrRailVariableResult GetResult = Container->GetVariable(Term.Variable.VariableName, CurrentValue);
     if (!GetResult.IsSuccess())
     {
         return false;
@@ -1076,7 +1197,7 @@ bool UNarrRailStorySession::EvaluateConditionTerm(const FNarrRailConditionTerm& 
 
 bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage)
 {
-    if (VariableContainer == nullptr)
+    if (VariableContainer == nullptr && GlobalVariableContainer == nullptr)
     {
         OutErrorMessage = TEXT("Variable container not initialized.");
         return false;
@@ -1101,7 +1222,14 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                 return false;
             }
 
-            FNarrRailVariableResult Result = VariableContainer->SetVariable(Action.Variable.VariableName, Action.Value);
+            UNarrRailVariableContainer* Container = FindVariableContainerForName(Action.Variable.VariableName);
+            if (Container == nullptr)
+            {
+                OutErrorMessage = FString::Printf(TEXT("Variable '%s' not found."), *Action.Variable.VariableName.ToString());
+                return false;
+            }
+
+            FNarrRailVariableResult Result = Container->SetVariable(Action.Variable.VariableName, Action.Value);
             if (!Result.IsSuccess())
             {
                 OutErrorMessage = FString::Printf(TEXT("Set variable failed: %s"), *Result.ErrorMessage);
@@ -1111,54 +1239,6 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
         }
 
         case ENarrRailActionType::Add:
-        {
-            if (Action.Variable.VariableName == NAME_None)
-            {
-                OutErrorMessage = TEXT("Action variable name is empty.");
-                return false;
-            }
-            if (!VariableContainer->HasVariable(Action.Variable.VariableName))
-            {
-                OutErrorMessage = FString::Printf(TEXT("Variable '%s' not found."), *Action.Variable.VariableName.ToString());
-                return false;
-            }
-
-            FNarrRailVariableResult Result;
-            const ENarrRailVariableType VariableType = VariableContainer->GetVariableType(Action.Variable.VariableName);
-            if (VariableType == ENarrRailVariableType::Int)
-            {
-                int32 Delta = 0;
-                if (!NarrRailRuntime::TryParseInt(Action.Value, Delta))
-                {
-                    OutErrorMessage = TEXT("Int action parse failed.");
-                    return false;
-                }
-                Result = VariableContainer->AddInt(Action.Variable.VariableName, Delta);
-            }
-            else if (VariableType == ENarrRailVariableType::Float)
-            {
-                float Delta = 0.f;
-                if (!NarrRailRuntime::TryParseFloat(Action.Value, Delta))
-                {
-                    OutErrorMessage = TEXT("Float action parse failed.");
-                    return false;
-                }
-                Result = VariableContainer->AddFloat(Action.Variable.VariableName, Delta);
-            }
-            else
-            {
-                OutErrorMessage = TEXT("Add only supports Int/Float variables.");
-                return false;
-            }
-
-            if (!Result.IsSuccess())
-            {
-                OutErrorMessage = FString::Printf(TEXT("Add variable failed: %s"), *Result.ErrorMessage);
-                return false;
-            }
-            break;
-        }
-
         case ENarrRailActionType::Subtract:
         {
             if (Action.Variable.VariableName == NAME_None)
@@ -1166,14 +1246,17 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                 OutErrorMessage = TEXT("Action variable name is empty.");
                 return false;
             }
-            if (!VariableContainer->HasVariable(Action.Variable.VariableName))
+
+            UNarrRailVariableContainer* Container = FindVariableContainerForName(Action.Variable.VariableName);
+            if (Container == nullptr || !Container->HasVariable(Action.Variable.VariableName))
             {
                 OutErrorMessage = FString::Printf(TEXT("Variable '%s' not found."), *Action.Variable.VariableName.ToString());
                 return false;
             }
 
             FNarrRailVariableResult Result;
-            const ENarrRailVariableType VariableType = VariableContainer->GetVariableType(Action.Variable.VariableName);
+            const ENarrRailVariableType VariableType = Container->GetVariableType(Action.Variable.VariableName);
+            const bool bAdd = Action.ActionType == ENarrRailActionType::Add;
             if (VariableType == ENarrRailVariableType::Int)
             {
                 int32 Delta = 0;
@@ -1182,7 +1265,9 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                     OutErrorMessage = TEXT("Int action parse failed.");
                     return false;
                 }
-                Result = VariableContainer->SubtractInt(Action.Variable.VariableName, Delta);
+                Result = bAdd
+                    ? Container->AddInt(Action.Variable.VariableName, Delta)
+                    : Container->SubtractInt(Action.Variable.VariableName, Delta);
             }
             else if (VariableType == ENarrRailVariableType::Float)
             {
@@ -1192,17 +1277,21 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
                     OutErrorMessage = TEXT("Float action parse failed.");
                     return false;
                 }
-                Result = VariableContainer->SubtractFloat(Action.Variable.VariableName, Delta);
+                Result = bAdd
+                    ? Container->AddFloat(Action.Variable.VariableName, Delta)
+                    : Container->SubtractFloat(Action.Variable.VariableName, Delta);
             }
             else
             {
-                OutErrorMessage = TEXT("Subtract only supports Int/Float variables.");
+                OutErrorMessage = bAdd
+                    ? TEXT("Add only supports Int/Float variables.")
+                    : TEXT("Subtract only supports Int/Float variables.");
                 return false;
             }
 
             if (!Result.IsSuccess())
             {
-                OutErrorMessage = FString::Printf(TEXT("Subtract variable failed: %s"), *Result.ErrorMessage);
+                OutErrorMessage = FString::Printf(TEXT("Variable arithmetic failed: %s"), *Result.ErrorMessage);
                 return false;
             }
             break;
@@ -1214,9 +1303,7 @@ bool UNarrRailStorySession::ExecuteActions(const TArray<FNarrRailNodeAction>& Ac
         }
     }
 
-    // 同步变量快照到 Context（用于存档兼容）
-    Context.VariableSnapshot = VariableContainer->GetSnapshot();
-
+    SyncVariableSnapshotToContext();
     return true;
 }
 
@@ -1237,4 +1324,3 @@ void UNarrRailStorySession::SetDebugName(const FString& InDebugName)
 {
     DebugName = InDebugName;
 }
-

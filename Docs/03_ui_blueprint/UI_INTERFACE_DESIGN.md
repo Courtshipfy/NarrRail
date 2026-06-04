@@ -131,3 +131,4 @@ UI 不应该做：
 - 文档中明确 `ChoiceIndex` 使用可见选项的 0-based 索引
 - 对 `MultiDialogue` 当前行索引做 UI 示例
 - 后续补充 GlobalConfig 与预设角色在 UI 中的消费示例
+- 当前可通过 `GetPresetSpeaker` / `ResolveSpeakerDisplayName` 主动查询 GlobalConfig 中的预设角色

@@ -83,6 +83,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NarrRail|Variables")
 	void Initialize(const TArray<FNarrRailVariableDefinition>& VariableDefinitions);
 
+	bool DefineVariable(const FNarrRailVariableDefinition& VariableDefinition, bool bPreserveExistingValue, FString& OutErrorMessage);
+
+	bool AddDefinitions(const TArray<FNarrRailVariableDefinition>& VariableDefinitions, bool bPreserveExistingValues, FString& OutErrorMessage);
+
 	// 重置所有会话级变量到默认值（保留全局变量）
 	UFUNCTION(BlueprintCallable, Category = "NarrRail|Variables")
 	void ResetSessionVariables();

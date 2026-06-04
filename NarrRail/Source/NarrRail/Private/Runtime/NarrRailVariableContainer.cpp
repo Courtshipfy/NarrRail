@@ -21,6 +21,62 @@ void UNarrRailVariableContainer::Initialize(const TArray<FNarrRailVariableDefini
 	}
 }
 
+bool UNarrRailVariableContainer::DefineVariable(const FNarrRailVariableDefinition& VariableDefinition, const bool bPreserveExistingValue, FString& OutErrorMessage)
+{
+	if (VariableDefinition.VariableName == NAME_None)
+	{
+		OutErrorMessage = TEXT("Variable definition has empty name.");
+		return false;
+	}
+
+	const FString DefaultValue = VariableDefinition.DefaultValue.IsEmpty()
+		? GetDefaultValueForType(VariableDefinition.VariableType)
+		: VariableDefinition.DefaultValue;
+
+	if (FVariableEntry* Existing = Variables.Find(VariableDefinition.VariableName))
+	{
+		if (Existing->Type != VariableDefinition.VariableType)
+		{
+			OutErrorMessage = FString::Printf(TEXT("Variable '%s' is already defined with a different type."), *VariableDefinition.VariableName.ToString());
+			return false;
+		}
+
+		if (Existing->bGlobalScope != VariableDefinition.bGlobalScope)
+		{
+			OutErrorMessage = FString::Printf(TEXT("Variable '%s' is already defined with a different scope."), *VariableDefinition.VariableName.ToString());
+			return false;
+		}
+
+		Existing->DefaultValue = DefaultValue;
+		if (!bPreserveExistingValue)
+		{
+			Existing->CurrentValue = DefaultValue;
+		}
+		return true;
+	}
+
+	FVariableEntry Entry;
+	Entry.Type = VariableDefinition.VariableType;
+	Entry.bGlobalScope = VariableDefinition.bGlobalScope;
+	Entry.DefaultValue = DefaultValue;
+	Entry.CurrentValue = DefaultValue;
+	Variables.Add(VariableDefinition.VariableName, Entry);
+	return true;
+}
+
+bool UNarrRailVariableContainer::AddDefinitions(const TArray<FNarrRailVariableDefinition>& VariableDefinitions, const bool bPreserveExistingValues, FString& OutErrorMessage)
+{
+	for (const FNarrRailVariableDefinition& Def : VariableDefinitions)
+	{
+		if (!DefineVariable(Def, bPreserveExistingValues, OutErrorMessage))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void UNarrRailVariableContainer::ResetSessionVariables()
 {
 	for (auto& Pair : Variables)

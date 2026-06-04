@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Runtime/NarrRailGlobalConfigAsset.h"
 #include "Runtime/NarrRailStoryTypes.h"
 #include "Runtime/NarrRailVariableContainer.h"
 class UAssetImportData;
@@ -26,6 +27,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
     TArray<FNarrRailVariableDefinition> Variables;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    TSoftObjectPtr<UNarrRailGlobalConfigAsset> GlobalConfig;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
     TArray<FNarrRailNode> Nodes;

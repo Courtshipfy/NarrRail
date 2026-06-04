@@ -77,6 +77,15 @@ function normalizeVariablesForExport(variables) {
     .filter(Boolean);
 }
 
+function buildVariableLookup(variables) {
+  return new Map(
+    normalizeVariablesForExport(variables).map((variable) => [
+      variable?.name,
+      variable,
+    ]),
+  );
+}
+
 function normalizeConditionForExport(condition) {
   if (condition && Array.isArray(condition.branches)) {
     return {
@@ -112,13 +121,7 @@ function normalizeConditionForExport(condition) {
 }
 
 export function buildYAMLString(nodes, edges, variables, meta) {
-  const yamlVariables = normalizeVariablesForExport(variables);
-  const variableByName = new Map(
-    yamlVariables.map((variable) => [
-      variable?.name,
-      variable,
-    ]),
-  );
+  const variableByName = buildVariableLookup(variables);
 
   // 转换节点
   const yamlNodes = nodes.map((node) => {
@@ -213,7 +216,7 @@ export function buildYAMLString(nodes, edges, variables, meta) {
       storyId: meta.storyId,
       entryNodeId: meta.entryNodeId,
     },
-    variables: yamlVariables,
+    variables: [],
     nodes: yamlNodes,
     edges: yamlEdges,
   };

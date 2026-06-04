@@ -123,6 +123,17 @@ static bool IsModernConditionHandle(const FString& Handle)
 
 TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(const UNarrRailStoryAsset* StoryAsset)
 {
+    const UNarrRailGlobalConfigAsset* LinkedGlobalConfig = nullptr;
+    if (StoryAsset != nullptr && !StoryAsset->GlobalConfig.IsNull())
+    {
+        LinkedGlobalConfig = StoryAsset->GlobalConfig.LoadSynchronous();
+    }
+
+    return ValidateStoryAssetWithGlobalConfig(StoryAsset, LinkedGlobalConfig);
+}
+
+TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAssetWithGlobalConfig(const UNarrRailStoryAsset* StoryAsset, const UNarrRailGlobalConfigAsset* GlobalConfigAsset)
+{
     TArray<FNarrRailValidationIssue> Issues;
 
     if (StoryAsset == nullptr)
@@ -138,6 +149,27 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
 
     TSet<FName> Variables;
     TMap<FName, ENarrRailVariableType> VariableTypes;
+    if (GlobalConfigAsset != nullptr)
+    {
+        for (const FNarrRailVariableDefinition& Var : GlobalConfigAsset->Variables)
+        {
+            if (Var.VariableName == NAME_None)
+            {
+                NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, NAME_None, TEXT("Global variable definition has empty name."));
+                continue;
+            }
+
+            if (Variables.Contains(Var.VariableName))
+            {
+                NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, Var.VariableName, TEXT("Duplicate global variable name detected."));
+                continue;
+            }
+
+            Variables.Add(Var.VariableName);
+            VariableTypes.Add(Var.VariableName, Var.VariableType);
+        }
+    }
+
     for (const FNarrRailVariableDefinition& Var : StoryAsset->Variables)
     {
         if (Var.VariableName == NAME_None)
@@ -148,7 +180,7 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAsset(con
 
         if (Variables.Contains(Var.VariableName))
         {
-            NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, Var.VariableName, TEXT("Duplicate variable name detected."));
+            NarrRailValidation::AddIssue(Issues, ENarrRailValidationSeverity::Error, Var.VariableName, TEXT("Variable name conflicts with another story/global variable."));
             continue;
         }
 

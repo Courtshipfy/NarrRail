@@ -17,6 +17,9 @@ struct NARRRAIL_API FNarrRailPresetSpeaker
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
     FString DisplayName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail")
+    FLinearColor Color = FLinearColor::White;
 };
 
 UCLASS(BlueprintType)

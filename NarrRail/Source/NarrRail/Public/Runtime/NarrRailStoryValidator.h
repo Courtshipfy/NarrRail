@@ -42,4 +42,7 @@ public:
     // 对剧情资产执行基础结构校验，返回问题列表。
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Validation")
     static TArray<FNarrRailValidationIssue> ValidateStoryAsset(const UNarrRailStoryAsset* StoryAsset);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Validation")
+    static TArray<FNarrRailValidationIssue> ValidateStoryAssetWithGlobalConfig(const UNarrRailStoryAsset* StoryAsset, const UNarrRailGlobalConfigAsset* GlobalConfigAsset);
 };

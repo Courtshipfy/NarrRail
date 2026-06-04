@@ -7,6 +7,7 @@
 #include "NarrRailEditorSettings.h"
 #include "Runtime/NarrRailGlobalConfigAsset.h"
 #include "Runtime/NarrRailStoryAsset.h"
+#include "Runtime/NarrRailStoryValidator.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -830,17 +831,31 @@ void FNarrRailEditorModule::SyncStoryRepository()
 
 	TArray<UPackage*> PackagesToSave;
 
-	for (const TPair<FString, FString>& Pair : ExpectedPackageToSource)
+	TArray<FString> PackageNames;
+	ExpectedPackageToSource.GetKeys(PackageNames);
+	PackageNames.Sort([&ExpectedPackageKind](const FString& Left, const FString& Right)
 	{
-		SlowTask.EnterProgressFrame(1.0f, FText::FromString(FPackageName::GetShortName(Pair.Key)));
+		const ENarrRailScriptFileKind LeftKind = ExpectedPackageKind[Left];
+		const ENarrRailScriptFileKind RightKind = ExpectedPackageKind[Right];
+		if (LeftKind != RightKind)
+		{
+			return LeftKind == ENarrRailScriptFileKind::GlobalConfig;
+		}
+		return Left < Right;
+	});
+
+	UNarrRailGlobalConfigAsset* RepositoryGlobalConfigAsset = nullptr;
+
+	for (const FString& PackageName : PackageNames)
+	{
+		SlowTask.EnterProgressFrame(1.0f, FText::FromString(FPackageName::GetShortName(PackageName)));
 		if (SlowTask.ShouldCancel())
 		{
 			++Stats.Skipped;
 			continue;
 		}
 
-		const FString& PackageName = Pair.Key;
-		const FString& SourceFile = Pair.Value;
+		const FString& SourceFile = ExpectedPackageToSource[PackageName];
 		const ENarrRailScriptFileKind FileKind = ExpectedPackageKind[PackageName];
 		const FString ObjectName = FPackageName::GetShortName(PackageName);
 
@@ -885,6 +900,22 @@ void FNarrRailEditorModule::SyncStoryRepository()
 			}
 
 			ApplyStoryData(StoryAsset, ScriptData);
+			StoryAsset->GlobalConfig = RepositoryGlobalConfigAsset;
+			bool bHasValidationError = false;
+			const TArray<FNarrRailValidationIssue> Issues = UNarrRailStoryValidator::ValidateStoryAssetWithGlobalConfig(StoryAsset, RepositoryGlobalConfigAsset);
+			for (const FNarrRailValidationIssue& Issue : Issues)
+			{
+				if (Issue.Severity == ENarrRailValidationSeverity::Error)
+				{
+					bHasValidationError = true;
+					Stats.Errors.Add(FString::Printf(TEXT("%s: validation error on '%s': %s"), *SourceFile, *Issue.NodeId.ToString(), *Issue.Message));
+				}
+			}
+			if (bHasValidationError)
+			{
+				++Stats.Failed;
+				continue;
+			}
 			UpdateImportData(StoryAsset, SourceFile);
 			StoryAsset->PostEditChange();
 			StoryAsset->MarkPackageDirty();
@@ -929,6 +960,16 @@ void FNarrRailEditorModule::SyncStoryRepository()
 			}
 
 			ApplyGlobalConfigData(ConfigAsset, ConfigData);
+			if (RepositoryGlobalConfigAsset == nullptr)
+			{
+				RepositoryGlobalConfigAsset = ConfigAsset;
+			}
+			else
+			{
+				++Stats.Failed;
+				Stats.Errors.Add(FString::Printf(TEXT("Multiple GlobalConfig files found in one repository. Using %s and skipping %s."), *RepositoryGlobalConfigAsset->GetPathName(), *SourceFile));
+				continue;
+			}
 			UpdateImportData(ConfigAsset, SourceFile);
 			ConfigAsset->PostEditChange();
 			ConfigAsset->MarkPackageDirty();

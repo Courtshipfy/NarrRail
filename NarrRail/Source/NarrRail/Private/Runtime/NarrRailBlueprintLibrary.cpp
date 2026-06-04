@@ -83,6 +83,23 @@ bool UNarrRailBlueprintLibrary::AddEdge(UNarrRailStoryAsset* StoryAsset, FName S
     return true;
 }
 
+bool UNarrRailBlueprintLibrary::AddEdgeWithSourceHandle(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName SourceHandle, FName TargetNodeId, int32 Priority)
+{
+    if (StoryAsset == nullptr || SourceNodeId == NAME_None || TargetNodeId == NAME_None)
+    {
+        return false;
+    }
+
+    FNarrRailNodeEdge NewEdge;
+    NewEdge.SourceNodeId = SourceNodeId;
+    NewEdge.SourceHandle = SourceHandle;
+    NewEdge.TargetNodeId = TargetNodeId;
+    NewEdge.Priority = Priority;
+
+    StoryAsset->Edges.Add(NewEdge);
+    return true;
+}
+
 bool UNarrRailBlueprintLibrary::AddVariableDefinition(UNarrRailStoryAsset* StoryAsset, FName VariableName, ENarrRailVariableType VariableType, bool bGlobalScope, const FString& DefaultValue)
 {
     if (StoryAsset == nullptr || VariableName == NAME_None)
@@ -174,6 +191,22 @@ FNarrRailConditionExpression UNarrRailBlueprintLibrary::MakeConditionExpression(
     return Expression;
 }
 
+FNarrRailConditionBranch UNarrRailBlueprintLibrary::MakeConditionBranch(const FString& Label, ENarrRailConditionLogic Logic, const TArray<FNarrRailConditionTerm>& Terms)
+{
+    FNarrRailConditionBranch Branch;
+    Branch.Label = Label;
+    Branch.Logic = Logic;
+    Branch.Terms = Terms;
+    return Branch;
+}
+
+FNarrRailConditionExpression UNarrRailBlueprintLibrary::MakeMultiBranchConditionExpression(const TArray<FNarrRailConditionBranch>& Branches)
+{
+    FNarrRailConditionExpression Expression;
+    Expression.Branches = Branches;
+    return Expression;
+}
+
 FNarrRailNodeAction UNarrRailBlueprintLibrary::MakeNodeAction(ENarrRailActionType ActionType, const FNarrRailVariableRef& Variable, const FString& Value)
 {
     FNarrRailNodeAction Action;
@@ -197,6 +230,58 @@ UNarrRailStorySession* UNarrRailBlueprintLibrary::CreateStorySession(UObject* Wo
     }
 
     return NewSession;
+}
+
+UNarrRailStorySession* UNarrRailBlueprintLibrary::CreateStorySessionWithGlobalConfig(UObject* WorldContextObject, const UNarrRailStoryAsset* StoryAsset, const UNarrRailGlobalConfigAsset* GlobalConfigAsset)
+{
+    if (WorldContextObject == nullptr || StoryAsset == nullptr)
+    {
+        return nullptr;
+    }
+
+    UNarrRailStorySession* NewSession = NewObject<UNarrRailStorySession>(WorldContextObject);
+    if (NewSession)
+    {
+        NewSession->InitializeWithGlobalConfig(StoryAsset, GlobalConfigAsset);
+    }
+
+    return NewSession;
+}
+
+UNarrRailGlobalStateSubsystem* UNarrRailBlueprintLibrary::GetNarrRailGlobalState(UObject* WorldContextObject)
+{
+    if (WorldContextObject == nullptr)
+    {
+        return nullptr;
+    }
+
+    UWorld* World = WorldContextObject->GetWorld();
+    if (World == nullptr || World->GetGameInstance() == nullptr)
+    {
+        return nullptr;
+    }
+
+    return World->GetGameInstance()->GetSubsystem<UNarrRailGlobalStateSubsystem>();
+}
+
+bool UNarrRailBlueprintLibrary::GetPresetSpeaker(UObject* WorldContextObject, FName SpeakerId, FNarrRailPresetSpeaker& OutSpeaker)
+{
+    if (const UNarrRailGlobalStateSubsystem* GlobalState = GetNarrRailGlobalState(WorldContextObject))
+    {
+        return GlobalState->GetPresetSpeaker(SpeakerId, OutSpeaker);
+    }
+
+    return false;
+}
+
+FString UNarrRailBlueprintLibrary::ResolveSpeakerDisplayName(UObject* WorldContextObject, FName SpeakerId)
+{
+    if (const UNarrRailGlobalStateSubsystem* GlobalState = GetNarrRailGlobalState(WorldContextObject))
+    {
+        return GlobalState->ResolveSpeakerDisplayName(SpeakerId);
+    }
+
+    return SpeakerId.ToString();
 }
 
 bool UNarrRailBlueprintLibrary::IsResultSuccess(const FNarrRailRuntimeResult& Result)

@@ -373,16 +373,30 @@ static bool ParsePresetSpeakers(const YAML::Node& SpeakersNode, TArray<FNarrRail
 		}
 		else
 		{
-			if (!SpeakerNode["id"])
+			if (!SpeakerNode["id"] && !SpeakerNode["speakerId"])
 			{
-				OutError = TEXT("Preset speaker missing 'id' field");
+				OutError = TEXT("Preset speaker missing 'id' or 'speakerId' field");
 				return false;
 			}
 
-			Speaker.SpeakerId = FName(UTF8_TO_TCHAR(SpeakerNode["id"].as<std::string>().c_str()));
+			const YAML::Node IdNode = SpeakerNode["speakerId"] ? SpeakerNode["speakerId"] : SpeakerNode["id"];
+			Speaker.SpeakerId = FName(UTF8_TO_TCHAR(IdNode.as<std::string>().c_str()));
 			if (SpeakerNode["displayName"])
 			{
 				Speaker.DisplayName = UTF8_TO_TCHAR(SpeakerNode["displayName"].as<std::string>().c_str());
+			}
+			if (SpeakerNode["color"])
+			{
+				const FString ColorText = UTF8_TO_TCHAR(SpeakerNode["color"].as<std::string>().c_str());
+				if (ColorText.StartsWith(TEXT("#")))
+				{
+					Speaker.Color = FLinearColor(FColor::FromHex(ColorText.RightChop(1)));
+				}
+				else
+				{
+					Speaker.Color = FLinearColor::White;
+					Speaker.Color.InitFromString(ColorText);
+				}
 			}
 		}
 

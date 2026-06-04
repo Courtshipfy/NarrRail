@@ -321,6 +321,8 @@ presetSpeakers:
 - 推荐文件名：`globalconfig.nrstory` 或 `global-config.nrstory`
 - UE 同步后生成 `UNarrRailGlobalConfigAsset`
 - 全局配置不需要 `nodes` 和 `edges`
+- 同步到同一故事仓库目录下的 `UNarrRailStoryAsset` 会自动绑定该 `UNarrRailGlobalConfigAsset`
+- 运行时会把全局变量注册到 GameInstance 级 `UNarrRailGlobalStateSubsystem`，多个 Session 共享同一份全局变量状态
 
 ## 15. UE 故事仓库同步
 
@@ -343,6 +345,7 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - 完整保留仓库子目录结构
 - 普通剧情生成或更新 `UNarrRailStoryAsset`
 - 全局配置生成或更新 `UNarrRailGlobalConfigAsset`
+- 同一仓库下的剧情资产会自动引用该仓库的 GlobalConfig 资产
 - 仓库删除的文件会删除对应 UE 资产，删除前弹确认
 
 ## 16. 校验规则

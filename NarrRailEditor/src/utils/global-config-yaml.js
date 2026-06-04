@@ -24,27 +24,58 @@ function normalizeVariableType(type) {
   return ["Bool", "Int", "Float", "String"].includes(t) ? t : "String";
 }
 
+function readDefaultValue(input = {}, type) {
+  if (input.defaultValue != null) {
+    return String(input.defaultValue);
+  }
+
+  if (type === "Bool") {
+    return Boolean(input.boolValue) ? "true" : "false";
+  }
+
+  if (type === "Int") {
+    const value = Number(input.intValue);
+    return Number.isFinite(value) ? String(Math.trunc(value)) : "0";
+  }
+
+  if (type === "Float") {
+    const value = Number(input.floatValue);
+    return Number.isFinite(value) ? String(value) : "0";
+  }
+
+  return String(input.stringValue ?? "");
+}
+
 function normalizeVariable(input = {}) {
   const name = toTrimmedString(input.name);
   const type = normalizeVariableType(input.type);
-
-  const out = { name, type };
+  const defaultValue = readDefaultValue(input, type);
+  const out = { name, type, scope: "Global" };
 
   if (type === "Bool") {
-    out.boolValue = Boolean(input.boolValue);
+    out.boolValue =
+      defaultValue.toLowerCase() === "true" || defaultValue === "1";
   } else if (type === "Int") {
-    out.intValue = Number.isFinite(Number(input.intValue))
-      ? Math.trunc(Number(input.intValue))
-      : 0;
+    const value = Number(defaultValue);
+    out.intValue = Number.isFinite(value) ? Math.trunc(value) : 0;
   } else if (type === "Float") {
-    out.floatValue = Number.isFinite(Number(input.floatValue))
-      ? Number(input.floatValue)
-      : 0;
+    const value = Number(defaultValue);
+    out.floatValue = Number.isFinite(value) ? value : 0;
   } else {
-    out.stringValue = String(input.stringValue ?? "");
+    out.stringValue = defaultValue;
   }
 
   return out;
+}
+
+function normalizeVariableForYAML(input = {}) {
+  const variable = normalizeVariable(input);
+  return {
+    name: variable.name,
+    type: variable.type,
+    scope: "Global",
+    defaultValue: readDefaultValue(variable, variable.type),
+  };
 }
 
 function normalizePresetSpeaker(input) {
@@ -53,10 +84,15 @@ function normalizePresetSpeaker(input) {
     return id ? { id } : null;
   }
 
-  const id = toTrimmedString(input?.id);
+  const id = toTrimmedString(input?.speakerId || input?.id);
   const displayName = toTrimmedString(input?.displayName);
+  const color = toTrimmedString(input?.color);
   if (!id) return null;
-  return displayName ? { id, displayName } : { id };
+  return {
+    id,
+    ...(displayName ? { displayName } : {}),
+    ...(color ? { color } : {}),
+  };
 }
 
 export function normalizeGlobalConfig(input = {}) {
@@ -99,7 +135,7 @@ export function serializeGlobalConfigToYAML(config = {}) {
       schemaVersion: GLOBAL_CONFIG_SCHEMA_VERSION,
       configType: "GlobalConfig",
     },
-    variables: normalized.variables,
+    variables: normalized.variables.map(normalizeVariableForYAML),
     presetSpeakers: normalized.presetSpeakers,
   };
 

@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Runtime/NarrRailGlobalConfigAsset.h"
+#include "Runtime/NarrRailGlobalStateSubsystem.h"
 #include "Runtime/NarrRailStoryAsset.h"
 #include "Runtime/NarrRailStorySession.h"
 #include "NarrRailBlueprintLibrary.generated.h"
@@ -66,6 +68,9 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
     static bool AddEdge(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName TargetNodeId, int32 Priority = 0);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Asset")
+    static bool AddEdgeWithSourceHandle(UNarrRailStoryAsset* StoryAsset, FName SourceNodeId, FName SourceHandle, FName TargetNodeId, int32 Priority = 0);
 
     /**
      * 添加变量定义到剧情资产
@@ -137,6 +142,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
     static FNarrRailConditionExpression MakeConditionExpression(ENarrRailConditionLogic Logic, const TArray<FNarrRailConditionTerm>& Terms);
 
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
+    static FNarrRailConditionBranch MakeConditionBranch(const FString& Label, ENarrRailConditionLogic Logic, const TArray<FNarrRailConditionTerm>& Terms);
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Asset")
+    static FNarrRailConditionExpression MakeMultiBranchConditionExpression(const TArray<FNarrRailConditionBranch>& Branches);
+
     /**
      * 创建节点动作
      * @param ActionType 动作类型
@@ -157,6 +168,18 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Session", meta = (WorldContext = "WorldContextObject"))
     static UNarrRailStorySession* CreateStorySession(UObject* WorldContextObject, const UNarrRailStoryAsset* StoryAsset);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Session", meta = (WorldContext = "WorldContextObject"))
+    static UNarrRailStorySession* CreateStorySessionWithGlobalConfig(UObject* WorldContextObject, const UNarrRailStoryAsset* StoryAsset, const UNarrRailGlobalConfigAsset* GlobalConfigAsset);
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Global", meta = (WorldContext = "WorldContextObject"))
+    static UNarrRailGlobalStateSubsystem* GetNarrRailGlobalState(UObject* WorldContextObject);
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Global", meta = (WorldContext = "WorldContextObject"))
+    static bool GetPresetSpeaker(UObject* WorldContextObject, FName SpeakerId, FNarrRailPresetSpeaker& OutSpeaker);
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Global", meta = (WorldContext = "WorldContextObject"))
+    static FString ResolveSpeakerDisplayName(UObject* WorldContextObject, FName SpeakerId);
 
     /**
      * 检查运行时结果是否成功

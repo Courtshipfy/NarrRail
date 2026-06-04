@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Runtime/NarrRailGlobalConfigAsset.h"
+#include "Runtime/NarrRailGlobalStateSubsystem.h"
 #include "Runtime/NarrRailStoryAsset.h"
 #include "Runtime/NarrRailVariableContainer.h"
 #include "Runtime/NarrRailDialoguePresenterInterface.h"
@@ -95,6 +97,9 @@ public:
     FNarrRailRuntimeResult Initialize(const UNarrRailStoryAsset* InStoryAsset);
 
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult InitializeWithGlobalConfig(const UNarrRailStoryAsset* InStoryAsset, const UNarrRailGlobalConfigAsset* InGlobalConfig);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
     FNarrRailRuntimeResult Start(FName OverrideEntryNodeId = NAME_None);
 
     UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
@@ -167,6 +172,25 @@ public:
     {
         return VariableContainer;
     }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    UNarrRailVariableContainer* GetGlobalVariableContainer() const
+    {
+        return GlobalVariableContainer;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    const UNarrRailGlobalConfigAsset* GetGlobalConfigAsset() const
+    {
+        return GlobalConfigAsset;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    bool GetPresetSpeaker(FName SpeakerId, FNarrRailPresetSpeaker& OutSpeaker) const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FString ResolveSpeakerDisplayName(FName SpeakerId) const;
+
 
     // 便捷的变量访问接口
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
@@ -268,6 +292,7 @@ public:
 
 private:
     void ResetSessionContextFromAsset();
+    void SyncVariableSnapshotToContext();
     bool BuildMultiDialogueDisplay(const FNarrRailNode& Node, FNarrRailDialogueRequest& OutRequest) const;
     FString MakeDefaultVariableValue(ENarrRailVariableType VariableType) const;
     FNarrRailRuntimeResult AdvanceToNode(FName TargetNodeId);
@@ -278,6 +303,7 @@ private:
     bool EvaluateConditionBranch(const FNarrRailConditionBranch& Branch) const;
     bool EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const;
     bool ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage);
+    UNarrRailVariableContainer* FindVariableContainerForName(FName VariableName) const;
 
     TArray<int32> BuildAvailableChoiceIndices(const FNarrRailNode& ChoiceNode) const;
     TArray<int32> BuildVisibleChoiceIndices(const FNarrRailNode& ChoiceNode) const;
@@ -291,6 +317,9 @@ private:
     TObjectPtr<const UNarrRailStoryAsset> StoryAsset;
 
     UPROPERTY(Transient)
+    TObjectPtr<const UNarrRailGlobalConfigAsset> GlobalConfigAsset;
+
+    UPROPERTY(Transient)
     ENarrRailSessionState SessionState = ENarrRailSessionState::Idle;
 
     UPROPERTY(Transient)
@@ -301,6 +330,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UNarrRailVariableContainer> VariableContainer;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UNarrRailVariableContainer> GlobalVariableContainer;
 
     UPROPERTY(Transient)
     FNarrRailLastChoiceInfo LastChoiceInfo;

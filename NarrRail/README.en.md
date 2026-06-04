@@ -26,6 +26,8 @@ This plugin is suitable for a first technical preview release. It supports story
 - Optional `git pull --ff-only` before sync
 - Mirrored asset output under `/Game/NarrRailStories/<repository-folder-name>`
 - Global config import with `meta.configType: GlobalConfig`
+- Automatic StoryAsset to GlobalConfig binding during repository sync
+- GameInstance-level global variable state shared by story sessions
 - Extra managed asset deletion after confirmation
 - Story validation during import/sync
 - Debug HUD and console commands

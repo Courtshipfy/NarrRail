@@ -28,6 +28,14 @@ BeginPlay
   -> Start
 ```
 
+如果需要显式指定全局配置，也可以使用：
+
+```text
+Create Story Session With Global Config(StoryAsset, GlobalConfigAsset)
+```
+
+同步流程生成的 StoryAsset 会自动绑定同仓库的 GlobalConfig，通常不需要手动传入。
+
 ## 方式二：在 Blueprint 中临时创建测试资产
 
 这个方式只适合快速测试 API，不建议作为正式创作流程。

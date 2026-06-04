@@ -2209,7 +2209,6 @@ function handleFileChange(event) {
             nodes.value = importedNodes;
             edges.value = importedEdges;
             storyMeta.value = importedMeta;
-            variables.value = safeClone(imported.variables || []);
             presetSpeakers.value =
                 importedPresetSpeakers.length > 0
                     ? importedPresetSpeakers
