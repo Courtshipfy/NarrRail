@@ -3,13 +3,14 @@ const VALID_OPERATORS = new Set(["==", "!=", ">", ">=", "<", "<="]);
 const VALID_VAR_TYPES = new Set(["Bool", "Int", "Float", "String"]);
 const VALID_SCOPES = new Set(["Session", "Global"]);
 
-export function validateStory(nodes, edges, meta) {
+export function validateStory(nodes, edges, meta, variables = []) {
   const errors = [];
   const warnings = [];
 
   const safeNodes = Array.isArray(nodes) ? nodes : [];
   const safeEdges = Array.isArray(edges) ? edges : [];
   const safeMeta = meta || {};
+  const variableMap = buildVariableMap(variables);
 
   const nodeMap = new Map();
   const edgeIdSet = new Set();
@@ -122,9 +123,12 @@ export function validateStory(nodes, edges, meta) {
         node,
         safeEdges,
         nodeMap,
+        variableMap,
         addError,
         addWarning,
       );
+    } else if (nodeType === "setvariable") {
+      validateSetVariableNode(node, variableMap, addError);
     } else {
       const badEdges = safeEdges.filter(
         (e) =>
@@ -154,6 +158,103 @@ export function validateStory(nodes, edges, meta) {
   }
 
   return { errors, warnings };
+}
+
+function buildVariableMap(variables) {
+  const map = new Map();
+  for (const variable of Array.isArray(variables) ? variables : []) {
+    const name = String(variable?.name || variable?.variableName || "").trim();
+    if (!name) continue;
+    map.set(name, {
+      name,
+      type: String(variable?.type || variable?.variableType || "String"),
+      scope:
+        variable?.scope === "Global" || variable?.bGlobalScope === true
+          ? "Global"
+          : "Session",
+    });
+  }
+  return map;
+}
+
+function validateVariableRef(
+  ownerLabel,
+  variableRef,
+  variableMap,
+  addError,
+  options = {},
+) {
+  const variableName = String(
+    variableRef?.name || variableRef?.variableName || options.variableName || "",
+  ).trim();
+  if (!variableName) {
+    addError(`${ownerLabel}: 缺少变量`);
+    return;
+  }
+
+  const variable = variableMap.get(variableName);
+  if (!variable) {
+    addError(`${ownerLabel}: 引用了未在 GlobalConfig 中定义的变量 ${variableName}`);
+    return;
+  }
+
+  const declaredType = String(
+    variableRef?.type || variableRef?.variableType || options.variableType || "",
+  ).trim();
+  if (declaredType && declaredType !== variable.type) {
+    addError(
+      `${ownerLabel}: 变量 ${variableName} 类型不匹配，节点为 ${declaredType}，GlobalConfig 为 ${variable.type}`,
+    );
+  }
+
+  const hasScope =
+    variableRef?.scope != null ||
+    variableRef?.bGlobalScope != null ||
+    options.scope != null ||
+    options.bGlobalScope != null;
+  const declaredScope =
+    variableRef?.scope === "Global" ||
+    variableRef?.bGlobalScope === true ||
+    options.scope === "Global" ||
+    options.bGlobalScope === true
+      ? "Global"
+      : "Session";
+
+  if (hasScope && declaredScope !== variable.scope) {
+    addError(
+      `${ownerLabel}: 变量 ${variableName} scope 不匹配，节点为 ${declaredScope}，GlobalConfig 为 ${variable.scope}`,
+    );
+  }
+}
+
+function validateSetVariableNode(node, variableMap, addError) {
+  const data = node?.data || {};
+  const variableName = String(data.variableName || "").trim();
+  validateVariableRef(
+    `节点 ${node.id}: SetVariable`,
+    null,
+    variableMap,
+    (message) => addError(message, { nodeId: node.id }),
+    {
+      variableName,
+      variableType: data.variableType,
+      scope: data.scope,
+      bGlobalScope: data.bGlobalScope,
+    },
+  );
+
+  const operation = String(data.operation || "Set");
+  const variable = variableMap.get(variableName);
+  if (
+    variable &&
+    (operation === "Add" || operation === "Subtract") &&
+    variable.type !== "Int" &&
+    variable.type !== "Float"
+  ) {
+    addError(`节点 ${node.id}: ${operation} 只能用于 Int/Float 变量`, {
+      nodeId: node.id,
+    });
+  }
 }
 
 function validateChoiceNodeEdgeMapping(
@@ -272,6 +373,7 @@ function validateConditionNodeEdgeMapping(
   node,
   edges,
   nodeMap,
+  variableMap,
   addError,
   addWarning,
 ) {
@@ -314,7 +416,7 @@ function validateConditionNodeEdgeMapping(
       }
     }
 
-    validateConditionBranch(node, branch, i, addError, addWarning);
+    validateConditionBranch(node, branch, i, variableMap, addError, addWarning);
   }
 
   const fallbackEdges = sourceEdges.filter(
@@ -378,7 +480,14 @@ function getConditionBranches(condition) {
   return [];
 }
 
-function validateConditionBranch(node, branch, index, addError, addWarning) {
+function validateConditionBranch(
+  node,
+  branch,
+  index,
+  variableMap,
+  addError,
+  addWarning,
+) {
   const label = `条件分支 #${index + 1}`;
   const logic = branch?.logic ?? "All";
   if (!VALID_LOGICS.has(logic)) {
@@ -409,6 +518,13 @@ function validateConditionBranch(node, branch, index, addError, addWarning) {
       addError(`节点 ${node.id}: ${label} 条件项 #${termIndex + 1} 缺少变量`, {
         nodeId: node.id,
       });
+    } else {
+      validateVariableRef(
+        `节点 ${node.id}: ${label} 条件项 #${termIndex + 1}`,
+        term?.variable,
+        variableMap,
+        (message) => addError(message, { nodeId: node.id }),
+      );
     }
     if (!VALID_OPERATORS.has(operator)) {
       addError(`节点 ${node.id}: ${label} 条件项 #${termIndex + 1} operator 非法`, {

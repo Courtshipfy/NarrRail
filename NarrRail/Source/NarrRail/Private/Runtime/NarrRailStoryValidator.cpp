@@ -44,6 +44,256 @@ static void ValidateConditionTerms(
     }
 }
 
+static FString NormalizeCompareText(const FString& Value)
+{
+    FString Out = Value;
+    Out.TrimStartAndEndInline();
+    Out.ToLowerInline();
+    return Out;
+}
+
+static FString GetConditionTermSignature(const FNarrRailConditionTerm& Term)
+{
+    return FString::Printf(
+        TEXT("%s:%d:%s"),
+        *Term.Variable.VariableName.ToString(),
+        static_cast<int32>(Term.Operator),
+        *NormalizeCompareText(Term.CompareValue));
+}
+
+static FString GetConditionBranchSignature(const FNarrRailConditionBranch& Branch)
+{
+    TArray<FString> TermSignatures;
+    TermSignatures.Reserve(Branch.Terms.Num());
+    for (const FNarrRailConditionTerm& Term : Branch.Terms)
+    {
+        TermSignatures.Add(GetConditionTermSignature(Term));
+    }
+    TermSignatures.Sort();
+
+    return FString::Printf(
+        TEXT("%d|%s"),
+        static_cast<int32>(Branch.Logic),
+        *FString::Join(TermSignatures, TEXT("|")));
+}
+
+static bool TryParseNumericCompareValue(const FString& Text, double& OutValue)
+{
+    FString Trimmed = Text;
+    Trimmed.TrimStartAndEndInline();
+    if (!Trimmed.IsNumeric())
+    {
+        return false;
+    }
+
+    OutValue = FCString::Atod(*Trimmed);
+    return true;
+}
+
+static FString FindNumericRangeConflict(const FName VariableName, const TArray<const FNarrRailConditionTerm*>& Terms)
+{
+    struct FBound
+    {
+        double Value = 0.0;
+        bool bStrict = false;
+        bool bSet = false;
+    };
+
+    FBound Lower;
+    FBound Upper;
+
+    for (const FNarrRailConditionTerm* Term : Terms)
+    {
+        if (Term == nullptr)
+        {
+            continue;
+        }
+
+        double Value = 0.0;
+        if (!TryParseNumericCompareValue(Term->CompareValue, Value))
+        {
+            continue;
+        }
+
+        if (Term->Operator == ENarrRailComparisonOp::Greater || Term->Operator == ENarrRailComparisonOp::GreaterOrEqual)
+        {
+            const bool bStrict = Term->Operator == ENarrRailComparisonOp::Greater;
+            if (!Lower.bSet || Value > Lower.Value || (Value == Lower.Value && bStrict))
+            {
+                Lower.Value = Value;
+                Lower.bStrict = bStrict;
+                Lower.bSet = true;
+            }
+        }
+        else if (Term->Operator == ENarrRailComparisonOp::Less || Term->Operator == ENarrRailComparisonOp::LessOrEqual)
+        {
+            const bool bStrict = Term->Operator == ENarrRailComparisonOp::Less;
+            if (!Upper.bSet || Value < Upper.Value || (Value == Upper.Value && bStrict))
+            {
+                Upper.Value = Value;
+                Upper.bStrict = bStrict;
+                Upper.bSet = true;
+            }
+        }
+    }
+
+    if (!Lower.bSet || !Upper.bSet)
+    {
+        return FString();
+    }
+
+    if (Lower.Value > Upper.Value || (Lower.Value == Upper.Value && (Lower.bStrict || Upper.bStrict)))
+    {
+        return FString::Printf(TEXT("%s numeric range is empty."), *VariableName.ToString());
+    }
+
+    return FString();
+}
+
+static FString FindSimpleConditionContradiction(const FNarrRailConditionBranch& Branch)
+{
+    if (Branch.Logic != ENarrRailConditionLogic::All)
+    {
+        return FString();
+    }
+
+    TMap<FName, TArray<const FNarrRailConditionTerm*>> TermsByVariable;
+    for (const FNarrRailConditionTerm& Term : Branch.Terms)
+    {
+        if (Term.Variable.VariableName == NAME_None)
+        {
+            continue;
+        }
+        TermsByVariable.FindOrAdd(Term.Variable.VariableName).Add(&Term);
+    }
+
+    for (const TPair<FName, TArray<const FNarrRailConditionTerm*>>& Pair : TermsByVariable)
+    {
+        TSet<FString> EqualityValues;
+        for (const FNarrRailConditionTerm* Term : Pair.Value)
+        {
+            if (Term == nullptr)
+            {
+                continue;
+            }
+            if (Term->Operator == ENarrRailComparisonOp::Equal)
+            {
+                EqualityValues.Add(NormalizeCompareText(Term->CompareValue));
+            }
+        }
+
+        if (EqualityValues.Num() > 1)
+        {
+            return FString::Printf(TEXT("%s is required to equal multiple different values."), *Pair.Key.ToString());
+        }
+
+        if (EqualityValues.Num() == 1)
+        {
+            FString EqualValue;
+            for (const FString& Value : EqualityValues)
+            {
+                EqualValue = Value;
+                break;
+            }
+
+            for (const FNarrRailConditionTerm* Term : Pair.Value)
+            {
+                if (Term != nullptr &&
+                    Term->Operator == ENarrRailComparisonOp::NotEqual &&
+                    NormalizeCompareText(Term->CompareValue) == EqualValue)
+                {
+                    return FString::Printf(TEXT("%s is required to equal and not equal %s."), *Pair.Key.ToString(), *EqualValue);
+                }
+            }
+        }
+
+        const FString NumericConflict = FindNumericRangeConflict(Pair.Key, Pair.Value);
+        if (!NumericConflict.IsEmpty())
+        {
+            return NumericConflict;
+        }
+    }
+
+    return FString();
+}
+
+static bool MayConditionBranchesOverlap(const FNarrRailConditionBranch& Left, const FNarrRailConditionBranch& Right)
+{
+    if (Left.Terms.Num() == 0 || Right.Terms.Num() == 0)
+    {
+        return true;
+    }
+
+    if (Left.Logic != ENarrRailConditionLogic::All || Right.Logic != ENarrRailConditionLogic::All)
+    {
+        return false;
+    }
+
+    FNarrRailConditionBranch Combined;
+    Combined.Logic = ENarrRailConditionLogic::All;
+    Combined.Terms.Append(Left.Terms);
+    Combined.Terms.Append(Right.Terms);
+    return FindSimpleConditionContradiction(Combined).IsEmpty();
+}
+
+static void ValidateConditionBranchUniqueness(
+    TArray<FNarrRailValidationIssue>& OutIssues,
+    const FName NodeId,
+    const TArray<FNarrRailConditionBranch>& Branches)
+{
+    TMap<FString, int32> SeenSignatures;
+
+    for (int32 Index = 0; Index < Branches.Num(); ++Index)
+    {
+        const FString Signature = GetConditionBranchSignature(Branches[Index]);
+        if (const int32* ExistingIndex = SeenSignatures.Find(Signature))
+        {
+            AddIssue(
+                OutIssues,
+                ENarrRailValidationSeverity::Error,
+                NodeId,
+                FString::Printf(TEXT("Condition branch %d duplicates branch %d."), Index, *ExistingIndex));
+        }
+        else
+        {
+            SeenSignatures.Add(Signature, Index);
+        }
+
+        const FString Contradiction = FindSimpleConditionContradiction(Branches[Index]);
+        if (!Contradiction.IsEmpty())
+        {
+            AddIssue(
+                OutIssues,
+                ENarrRailValidationSeverity::Warning,
+                NodeId,
+                FString::Printf(TEXT("Condition branch %d may never match: %s"), Index, *Contradiction));
+        }
+    }
+
+    for (int32 LeftIndex = 0; LeftIndex < Branches.Num(); ++LeftIndex)
+    {
+        for (int32 RightIndex = LeftIndex + 1; RightIndex < Branches.Num(); ++RightIndex)
+        {
+            if (GetConditionBranchSignature(Branches[LeftIndex]) == GetConditionBranchSignature(Branches[RightIndex]))
+            {
+                continue;
+            }
+
+            if (MayConditionBranchesOverlap(Branches[LeftIndex], Branches[RightIndex]))
+            {
+                AddIssue(
+                    OutIssues,
+                    ENarrRailValidationSeverity::Warning,
+                    NodeId,
+                    FString::Printf(
+                        TEXT("Condition branches %d and %d may both match; the first matching branch wins."),
+                        LeftIndex,
+                        RightIndex));
+            }
+        }
+    }
+}
+
 static void ValidateActions(
     TArray<FNarrRailValidationIssue>& OutIssues,
     const FName NodeId,
@@ -385,6 +635,8 @@ TArray<FNarrRailValidationIssue> UNarrRailStoryValidator::ValidateStoryAssetWith
                             FString::Printf(TEXT("Condition branch %d is missing outgoing handle '%s'."), BranchIndex, *RequiredHandle.ToString()));
                     }
                 }
+
+                NarrRailValidation::ValidateConditionBranchUniqueness(Issues, Node.NodeId, Node.Condition.Branches);
 
                 if (!HandleCounts.Contains(FName(TEXT("condition-fallback"))))
                 {

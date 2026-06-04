@@ -29,9 +29,10 @@ edges: []
 必需字段：
 
 - `meta`
-- `variables`
 - `nodes`
 - `edges`
+
+`variables` 在剧情脚本中为保留字段，当前必须为空数组或省略。变量定义统一写在全局配置文件中。
 
 ## 4. Meta
 
@@ -42,21 +43,15 @@ edges: []
 | `entryNodeId` | string | 剧情脚本必需 | 必须存在于 `nodes[].nodeId` |
 | `configType` | string | 全局配置必需 | 全局配置使用 `GlobalConfig` |
 
-## 5. 变量
+## 5. 变量与引用
 
-```yaml
-variables:
-  - name: Affinity
-    type: Int
-    scope: Session
-    defaultValue: "0"
-```
+剧情脚本不再定义变量，只引用全局配置中的变量。变量定义只允许出现在 `meta.configType: GlobalConfig` 的全局配置文件中。
 
 | 字段 | 类型 | 必需 | 说明 |
 |---|---|---|---|
-| `name` | string | 是 | 在当前文件中唯一 |
+| `name` | string | 是 | 在 GlobalConfig 中唯一 |
 | `type` | enum | 是 | `Bool` / `Int` / `Float` / `String` |
-| `scope` | enum | 否 | `Session` 默认，或 `Global` |
+| `scope` | enum | 是 | 当前使用 `Global` |
 | `defaultValue` | string | 否 | 按变量类型解析 |
 
 变量引用统一使用：
@@ -65,7 +60,7 @@ variables:
 variable:
   name: Affinity
   type: Int
-  scope: Session
+  scope: Global
 ```
 
 ## 6. 节点
@@ -159,7 +154,7 @@ Condition 是当前唯一支持条件分支的结构。边上的 `condition` 字
           - variable:
               name: Affinity
               type: Int
-              scope: Session
+              scope: Global
             operator: ">="
             compareValue: "10"
       - label: LowAffinity
@@ -168,7 +163,7 @@ Condition 是当前唯一支持条件分支的结构。边上的 `condition` 字
           - variable:
               name: Affinity
               type: Int
-              scope: Session
+              scope: Global
             operator: "<"
             compareValue: "0"
 ```
@@ -227,7 +222,7 @@ terms:
   - variable:
       name: Affinity
       type: Int
-      scope: Session
+      scope: Global
     operator: ">="
     compareValue: "10"
 ```
@@ -254,7 +249,7 @@ enterActions:
     variable:
       name: Affinity
       type: Int
-      scope: Session
+      scope: Global
     value: "2"
     eventId: ""
 ```
@@ -361,14 +356,31 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - `SetVariable` 节点没有变量动作
 - Condition 出边缺失或重复 `sourceHandle`
 - Condition `condition-N` 没有对应分支
+- Condition 分支完全重复
 - 出现旧的 `edges[].condition`
 
 警告：
 
 - 孤立节点
 - Condition 缺少 `condition-fallback`
+- Condition 分支内部存在明显矛盾
+- 多个 Condition 分支可能同时满足，运行时会按顺序命中第一个分支
 
 ## 17. 最小剧情示例
+
+该示例假设同一故事仓库的 GlobalConfig 中已经定义了 `Affinity`：
+
+```yaml
+meta:
+  schemaVersion: 1
+  configType: GlobalConfig
+
+variables:
+  - name: Affinity
+    type: Int
+    scope: Global
+    defaultValue: "0"
+```
 
 ```yaml
 meta:
@@ -376,11 +388,7 @@ meta:
   storyId: demo
   entryNodeId: N_Start
 
-variables:
-  - name: Affinity
-    type: Int
-    scope: Session
-    defaultValue: "0"
+variables: []
 
 nodes:
   - nodeId: N_Start
@@ -404,7 +412,7 @@ nodes:
             - variable:
                 name: Affinity
                 type: Int
-                scope: Session
+                scope: Global
               operator: ">="
               compareValue: "10"
 

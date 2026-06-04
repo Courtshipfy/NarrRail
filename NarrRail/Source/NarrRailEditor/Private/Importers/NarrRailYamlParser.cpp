@@ -32,14 +32,6 @@ static bool ParseCondition(const YAML::Node& ConditionNode, FNarrRailConditionEx
 static bool ParseConditionTerms(const YAML::Node& TermsNode, TArray<FNarrRailConditionTerm>& OutTerms);
 static bool ParseVariableRef(const YAML::Node& VarNode, FNarrRailVariableRef& OutVarRef);
 
-struct FParsedNarrRailEdge
-{
-	FNarrRailNodeEdge Edge;
-	bool bHasDeprecatedCondition = false;
-	FNarrRailConditionExpression DeprecatedCondition;
-	int32 OriginalIndex = 0;
-};
-
 bool FNarrRailYamlParser::ParseFile(const FString& FilePath, FNarrRailScriptData& OutData, FString& OutErrorMessage)
 {
 	// Read file content
@@ -522,14 +514,9 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 		return false;
 	}
 
-	TArray<FParsedNarrRailEdge> ParsedEdges;
-	int32 OriginalIndex = 0;
-
 	for (const auto& EdgeYaml : EdgesNode)
 	{
-		FParsedNarrRailEdge ParsedEdge;
-		FNarrRailNodeEdge& Edge = ParsedEdge.Edge;
-		ParsedEdge.OriginalIndex = OriginalIndex++;
+		FNarrRailNodeEdge Edge;
 
 		if (!EdgeYaml["sourceNodeId"])
 		{
@@ -553,8 +540,11 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 
 		if (EdgeYaml["condition"])
 		{
-			ParsedEdge.bHasDeprecatedCondition = true;
-			ParseCondition(EdgeYaml["condition"], ParsedEdge.DeprecatedCondition);
+			OutError = FString::Printf(
+				TEXT("Edge '%s' -> '%s' uses deprecated edge condition. Use a Condition node with condition-N / condition-fallback outputs."),
+				*Edge.SourceNodeId.ToString(),
+				*Edge.TargetNodeId.ToString());
+			return false;
 		}
 
 		// Source handle (optional; used by Choice / Condition dedicated outputs)
@@ -571,107 +561,7 @@ static bool ParseEdges(const YAML::Node& EdgesNode, FNarrRailScriptData& OutData
 			}
 		}
 
-		ParsedEdges.Add(ParsedEdge);
-	}
-
-	TMap<FString, TArray<int32>> EdgeGroups;
-	for (int32 EdgeIndex = 0; EdgeIndex < ParsedEdges.Num(); ++EdgeIndex)
-	{
-		const FNarrRailNodeEdge& Edge = ParsedEdges[EdgeIndex].Edge;
-		const FString GroupKey = FString::Printf(TEXT("%s|%s"), *Edge.SourceNodeId.ToString(), *Edge.SourceHandle.ToString());
-		EdgeGroups.FindOrAdd(GroupKey).Add(EdgeIndex);
-	}
-
-	int32 MigratedConditionIndex = 0;
-	for (const TPair<FString, TArray<int32>>& Pair : EdgeGroups)
-	{
-		TArray<int32> GroupIndices = Pair.Value;
-		GroupIndices.Sort([&ParsedEdges](const int32 LeftIndex, const int32 RightIndex)
-		{
-			const FParsedNarrRailEdge& Left = ParsedEdges[LeftIndex];
-			const FParsedNarrRailEdge& Right = ParsedEdges[RightIndex];
-			if (Left.Edge.Priority != Right.Edge.Priority)
-			{
-				return Left.Edge.Priority < Right.Edge.Priority;
-			}
-
-			return Left.OriginalIndex < Right.OriginalIndex;
-		});
-
-		bool bGroupHasDeprecatedCondition = false;
-		for (const int32 EdgeIndex : GroupIndices)
-		{
-			if (ParsedEdges[EdgeIndex].bHasDeprecatedCondition)
-			{
-				bGroupHasDeprecatedCondition = true;
-				break;
-			}
-		}
-
-		if (!bGroupHasDeprecatedCondition)
-		{
-			for (const int32 EdgeIndex : GroupIndices)
-			{
-				OutData.Edges.Add(ParsedEdges[EdgeIndex].Edge);
-			}
-			continue;
-		}
-
-		FName CurrentSourceNodeId = ParsedEdges[GroupIndices[0]].Edge.SourceNodeId;
-		FName CurrentSourceHandle = ParsedEdges[GroupIndices[0]].Edge.SourceHandle;
-		int32 ChainPriority = ParsedEdges[GroupIndices[0]].Edge.Priority;
-
-		for (const int32 EdgeIndex : GroupIndices)
-		{
-			const FParsedNarrRailEdge& ParsedEdge = ParsedEdges[EdgeIndex];
-			const FNarrRailNodeEdge& OriginalEdge = ParsedEdge.Edge;
-
-			if (!ParsedEdge.bHasDeprecatedCondition)
-			{
-				FNarrRailNodeEdge FallbackEdge = OriginalEdge;
-				FallbackEdge.SourceNodeId = CurrentSourceNodeId;
-				FallbackEdge.SourceHandle = CurrentSourceHandle;
-				FallbackEdge.Priority = ChainPriority;
-				OutData.Edges.Add(FallbackEdge);
-				break;
-			}
-
-			FNarrRailNode ConditionNode;
-			ConditionNode.NodeId = FName(*FString::Printf(
-				TEXT("%s__migrated_condition_%d"),
-				*OriginalEdge.SourceNodeId.ToString(),
-				MigratedConditionIndex++));
-			ConditionNode.NodeType = ENarrRailNodeType::Condition;
-			ConditionNode.Condition = ParsedEdge.DeprecatedCondition;
-
-			if (ConditionNode.Condition.Branches.Num() == 0)
-			{
-				FNarrRailConditionBranch Branch;
-				Branch.Label = TEXT("Migrated edge condition");
-				Branch.Logic = ConditionNode.Condition.Logic;
-				Branch.Terms = ConditionNode.Condition.Terms;
-				ConditionNode.Condition.Branches.Add(Branch);
-			}
-
-			OutData.Nodes.Add(ConditionNode);
-
-			FNarrRailNodeEdge ToConditionEdge;
-			ToConditionEdge.SourceNodeId = CurrentSourceNodeId;
-			ToConditionEdge.TargetNodeId = ConditionNode.NodeId;
-			ToConditionEdge.SourceHandle = CurrentSourceHandle;
-			ToConditionEdge.Priority = ChainPriority;
-			OutData.Edges.Add(ToConditionEdge);
-
-			FNarrRailNodeEdge TrueEdge = OriginalEdge;
-			TrueEdge.SourceNodeId = ConditionNode.NodeId;
-			TrueEdge.SourceHandle = FName(TEXT("condition-0"));
-			TrueEdge.Priority = 0;
-			OutData.Edges.Add(TrueEdge);
-
-			CurrentSourceNodeId = ConditionNode.NodeId;
-			CurrentSourceHandle = FName(TEXT("condition-fallback"));
-			ChainPriority = 0;
-		}
+		OutData.Edges.Add(Edge);
 	}
 
 	return true;

@@ -988,6 +988,7 @@ function runRealtimeValidation() {
         nodes.value,
         edges.value,
         storyMeta.value,
+        variables.value,
     );
 }
 
@@ -2190,6 +2191,7 @@ function handleFileChange(event) {
                 importedNodes,
                 importedEdges,
                 importedMeta,
+                variables.value,
             );
             if (precheck.errors.length > 0) {
                 const preview = precheck.errors

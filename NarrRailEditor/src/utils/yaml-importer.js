@@ -145,7 +145,7 @@ export function importFromYAML(yamlString) {
   // 转换边
   const edges = [];
   let edgeIndex = 0;
-  const yamlEdges = migrateLegacyEdgeConditions(data.edges || [], nodes);
+  const yamlEdges = rejectDeprecatedEdgeConditions(data.edges || []);
 
   // 处理普通边
   yamlEdges.forEach((edge) => {
@@ -258,124 +258,15 @@ export function importFromYAML(yamlString) {
   };
 }
 
-function migrateLegacyEdgeConditions(edges, nodes) {
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const groups = new Map();
-  const groupOrder = [];
-
-  edges.forEach((edge, index) => {
-    const key = `${edge?.sourceNodeId || ""}\u0000${edge?.sourceHandle || ""}`;
-    if (!groups.has(key)) {
-      groups.set(key, []);
-      groupOrder.push(key);
+function rejectDeprecatedEdgeConditions(edges) {
+  return (Array.isArray(edges) ? edges : []).map((edge, index) => {
+    if (edge?.condition != null) {
+      throw new Error(
+        `Edge ${edge?.sourceNodeId || `#${index}`} -> ${edge?.targetNodeId || "(empty)"} uses deprecated edge condition. Use a Condition node with condition-N / condition-fallback outputs.`,
+      );
     }
-    groups.get(key).push({ ...edge, __index: index });
+    return edge;
   });
-
-  const migrated = [];
-
-  groupOrder.forEach((key) => {
-    const group = groups.get(key);
-    const hasLegacyCondition = group.some((edge) => edge?.condition != null);
-    if (!hasLegacyCondition) {
-      migrated.push(...group.map(stripImporterMeta));
-      return;
-    }
-
-    const hasMeaningfulCondition = group.some((edge) =>
-      isMeaningfulCondition(edge?.condition),
-    );
-
-    if (!hasMeaningfulCondition) {
-      migrated.push(
-        ...group.map((edge) => stripImporterMeta(stripLegacyCondition(edge))),
-      );
-      return;
-    }
-
-    const sorted = [...group].sort((a, b) => {
-      const priorityDiff = (a.priority ?? 0) - (b.priority ?? 0);
-      return priorityDiff !== 0 ? priorityDiff : a.__index - b.__index;
-    });
-
-    const first = sorted[0];
-    let pendingSourceNodeId = first.sourceNodeId;
-    let pendingSourceHandle = first.sourceHandle || "";
-    let fallbackCreated = false;
-
-    sorted.forEach((edge, conditionIndex) => {
-      if (fallbackCreated) return;
-
-      if (!isMeaningfulCondition(edge?.condition)) {
-        migrated.push({
-          sourceNodeId: pendingSourceNodeId,
-          sourceHandle: pendingSourceHandle,
-          targetNodeId: edge.targetNodeId,
-          priority: pendingSourceNodeId === first.sourceNodeId ? (edge.priority ?? 0) : 0,
-        });
-        fallbackCreated = true;
-        return;
-      }
-
-      const conditionNodeId = uniqueNodeId(
-        `legacy-condition-${sanitizeId(edge.sourceNodeId)}-${conditionIndex}`,
-        nodeIds,
-      );
-      const sourceNode = nodes.find((node) => node.id === edge.sourceNodeId);
-      nodes.push({
-        id: conditionNodeId,
-        type: "condition",
-        position: {
-          x: (sourceNode?.position?.x || 0) + 220,
-          y: (sourceNode?.position?.y || 0) + conditionIndex * 150,
-        },
-        data: {
-          condition: normalizeCondition(edge.condition),
-        },
-      });
-
-      migrated.push({
-        sourceNodeId: pendingSourceNodeId,
-        sourceHandle: pendingSourceHandle,
-        targetNodeId: conditionNodeId,
-        priority: pendingSourceNodeId === first.sourceNodeId ? (edge.priority ?? 0) : 0,
-      });
-      migrated.push({
-        sourceNodeId: conditionNodeId,
-        sourceHandle: "condition-0",
-        targetNodeId: edge.targetNodeId,
-        priority: 0,
-      });
-
-      pendingSourceNodeId = conditionNodeId;
-      pendingSourceHandle = "condition-fallback";
-    });
-
-    if (!fallbackCreated) {
-      const endNodeId = uniqueNodeId(
-        `legacy-no-match-${sanitizeId(first.sourceNodeId)}`,
-        nodeIds,
-      );
-      const sourceNode = nodes.find((node) => node.id === first.sourceNodeId);
-      nodes.push({
-        id: endNodeId,
-        type: "end",
-        position: {
-          x: (sourceNode?.position?.x || 0) + 440,
-          y: (sourceNode?.position?.y || 0) + sorted.length * 150,
-        },
-        data: {},
-      });
-      migrated.push({
-        sourceNodeId: pendingSourceNodeId,
-        sourceHandle: pendingSourceHandle,
-        targetNodeId: endNodeId,
-        priority: 0,
-      });
-    }
-  });
-
-  return migrated;
 }
 
 function normalizeCondition(condition) {
@@ -410,44 +301,6 @@ function normalizeCondition(condition) {
       },
     ],
   };
-}
-
-function isMeaningfulCondition(condition) {
-  if (condition == null) return false;
-  if (Array.isArray(condition.branches)) {
-    return condition.branches.some((branch) => {
-      return Array.isArray(branch?.terms) && branch.terms.length > 0;
-    });
-  }
-  return !Array.isArray(condition.terms) || condition.terms.length > 0;
-}
-
-function stripLegacyCondition(edge) {
-  const { condition, ...rest } = edge;
-  return rest;
-}
-
-function stripImporterMeta(edge) {
-  const { __index, ...rest } = edge;
-  return rest;
-}
-
-function sanitizeId(value) {
-  return String(value || "edge")
-    .replace(/[^a-zA-Z0-9_-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 48);
-}
-
-function uniqueNodeId(baseId, nodeIds) {
-  let candidate = baseId || "legacy-condition";
-  let suffix = 1;
-  while (nodeIds.has(candidate)) {
-    candidate = `${baseId}-${suffix++}`;
-  }
-  nodeIds.add(candidate);
-  return candidate;
 }
 
 // 简单的自动布局算法（网格布局）
