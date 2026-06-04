@@ -72,6 +72,66 @@ struct NARRRAIL_API FNarrRailRuntimeResult
     }
 };
 
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailChoiceSelectionSnapshot
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    FName ChoiceNodeId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    TArray<int32> SelectedChoiceIndices;
+};
+
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailStorySessionSnapshot
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    int32 SnapshotVersion = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    FName StoryId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    FSoftObjectPath StoryAssetPath;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    FSoftObjectPath GlobalConfigPath;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    ENarrRailSessionState SessionState = ENarrRailSessionState::Idle;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    ENarrRailSessionState StateBeforePause = ENarrRailSessionState::Idle;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    FName CurrentNodeId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    TArray<FName> NodeHistory;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    TArray<FName> EmittedEvents;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    TMap<FName, FString> LocalVariableSnapshot;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    int32 CurrentMultiDialogueLineIndex = INDEX_NONE;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    FNarrRailLastChoiceInfo LastChoiceInfo;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    TArray<FNarrRailChoiceSelectionSnapshot> ExhaustiveChoiceSelections;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+    TArray<FName> ExhaustivePendingChoiceReturnStack;
+};
+
 // 运行时事件委托声明
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNarrRailSessionStartedDelegate, FName, EntryNodeId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNarrRailNodeEnteredDelegate, FName, NodeId, const FNarrRailNode&, Node);
@@ -191,6 +251,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
     FString ResolveSpeakerDisplayName(FName SpeakerId) const;
 
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Save")
+    FNarrRailStorySessionSnapshot GetSessionSnapshot() const;
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Save")
+    FNarrRailRuntimeResult RestoreSessionSnapshot(const FNarrRailStorySessionSnapshot& Snapshot, bool bRefreshPresenter = true);
 
     // 便捷的变量访问接口
     UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
@@ -304,6 +369,7 @@ private:
     bool EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const;
     bool ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage);
     UNarrRailVariableContainer* FindVariableContainerForName(FName VariableName) const;
+    void RefreshCurrentNodeAfterRestore();
 
     TArray<int32> BuildAvailableChoiceIndices(const FNarrRailNode& ChoiceNode) const;
     TArray<int32> BuildVisibleChoiceIndices(const FNarrRailNode& ChoiceNode) const;

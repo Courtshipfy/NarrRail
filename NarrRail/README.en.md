@@ -18,6 +18,7 @@ This plugin is suitable for a first technical preview release. It supports story
 - Multi-branch Condition routing with `condition-N` and `condition-fallback`
 - Runtime delegates for Blueprint/UI integration
 - Optional dialogue presenter interface for UI widgets
+- Save/load snapshot API for story sessions and GameInstance global variables
 
 ## Editor Features
 
@@ -58,8 +59,7 @@ Settings:
 
 ## Known Limitations
 
-- Save/Load is not implemented yet
-- Global config assets can be imported, but full runtime consumption is still being expanded
+- Save/Load exposes snapshots for project SaveGame integration; automatic slot management is left to the host project
 - Blueprint helper functions do not yet cover every editor-side authoring feature
 - Automated test coverage is limited
 

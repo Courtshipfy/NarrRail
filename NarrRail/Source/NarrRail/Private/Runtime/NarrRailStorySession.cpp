@@ -576,6 +576,109 @@ FString UNarrRailStorySession::ResolveSpeakerDisplayName(FName SpeakerId) const
     return SpeakerId.ToString();
 }
 
+FNarrRailStorySessionSnapshot UNarrRailStorySession::GetSessionSnapshot() const
+{
+    FNarrRailStorySessionSnapshot Snapshot;
+    Snapshot.StoryId = StoryAsset != nullptr ? StoryAsset->StoryId : NAME_None;
+    Snapshot.StoryAssetPath = StoryAsset != nullptr ? FSoftObjectPath(StoryAsset) : FSoftObjectPath();
+    Snapshot.GlobalConfigPath = GlobalConfigAsset != nullptr ? FSoftObjectPath(GlobalConfigAsset) : FSoftObjectPath();
+    Snapshot.SessionState = SessionState;
+    Snapshot.StateBeforePause = StateBeforePause;
+    Snapshot.CurrentNodeId = Context.CurrentNodeId;
+    Snapshot.NodeHistory = Context.NodeHistory;
+    Snapshot.EmittedEvents = Context.EmittedEvents;
+    Snapshot.CurrentMultiDialogueLineIndex = CurrentMultiDialogueLineIndex;
+    Snapshot.LastChoiceInfo = LastChoiceInfo;
+    Snapshot.ExhaustivePendingChoiceReturnStack = ExhaustivePendingChoiceReturnStack;
+
+    if (VariableContainer != nullptr)
+    {
+        Snapshot.LocalVariableSnapshot = VariableContainer->GetSnapshot();
+    }
+
+    for (const TPair<FName, TSet<int32>>& Pair : ExhaustiveSelectedChoiceIndices)
+    {
+        FNarrRailChoiceSelectionSnapshot& ChoiceSnapshot = Snapshot.ExhaustiveChoiceSelections.AddDefaulted_GetRef();
+        ChoiceSnapshot.ChoiceNodeId = Pair.Key;
+        ChoiceSnapshot.SelectedChoiceIndices = Pair.Value.Array();
+        ChoiceSnapshot.SelectedChoiceIndices.Sort();
+    }
+
+    return Snapshot;
+}
+
+FNarrRailRuntimeResult UNarrRailStorySession::RestoreSessionSnapshot(const FNarrRailStorySessionSnapshot& Snapshot, const bool bRefreshPresenter)
+{
+    if (Snapshot.SnapshotVersion <= 0)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidInput, TEXT("Invalid NarrRail session snapshot version."));
+    }
+
+    if (StoryAsset == nullptr)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
+    }
+
+    if (Snapshot.StoryId != NAME_None && StoryAsset->StoryId != NAME_None && Snapshot.StoryId != StoryAsset->StoryId)
+    {
+        return FNarrRailRuntimeResult::Make(
+            ENarrRailRuntimeResultCode::InvalidInput,
+            *FString::Printf(TEXT("Snapshot StoryId '%s' does not match current StoryId '%s'."), *Snapshot.StoryId.ToString(), *StoryAsset->StoryId.ToString()));
+    }
+
+    if (Snapshot.CurrentNodeId != NAME_None && FindNode(Snapshot.CurrentNodeId) == nullptr)
+    {
+        return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::MissingNode, TEXT("Snapshot current node does not exist."), Snapshot.CurrentNodeId);
+    }
+
+    SessionState = Snapshot.SessionState;
+    StateBeforePause = Snapshot.StateBeforePause;
+    Context.CurrentNodeId = Snapshot.CurrentNodeId;
+    Context.NodeHistory = Snapshot.NodeHistory;
+    Context.EmittedEvents = Snapshot.EmittedEvents;
+    CurrentMultiDialogueLineIndex = Snapshot.CurrentMultiDialogueLineIndex;
+    LastChoiceInfo = Snapshot.LastChoiceInfo;
+    ExhaustivePendingChoiceReturnStack = Snapshot.ExhaustivePendingChoiceReturnStack;
+    RuntimeVisibleChoiceIndexMap.Reset();
+
+    ExhaustiveSelectedChoiceIndices.Reset();
+    for (const FNarrRailChoiceSelectionSnapshot& ChoiceSnapshot : Snapshot.ExhaustiveChoiceSelections)
+    {
+        if (ChoiceSnapshot.ChoiceNodeId == NAME_None)
+        {
+            continue;
+        }
+
+        TSet<int32>& Selected = ExhaustiveSelectedChoiceIndices.FindOrAdd(ChoiceSnapshot.ChoiceNodeId);
+        for (const int32 ChoiceIndex : ChoiceSnapshot.SelectedChoiceIndices)
+        {
+            if (ChoiceIndex >= 0)
+            {
+                Selected.Add(ChoiceIndex);
+            }
+        }
+    }
+
+    if (VariableContainer != nullptr)
+    {
+        VariableContainer->RestoreFromSnapshot(Snapshot.LocalVariableSnapshot);
+    }
+    SyncVariableSnapshotToContext();
+
+    const FNarrRailNode* CurrentNode = FindNode(Context.CurrentNodeId);
+    if (CurrentNode != nullptr && CurrentNode->NodeType == ENarrRailNodeType::Choice)
+    {
+        RuntimeVisibleChoiceIndexMap.Add(Context.CurrentNodeId, BuildVisibleChoiceIndices(*CurrentNode));
+    }
+
+    if (bRefreshPresenter)
+    {
+        RefreshCurrentNodeAfterRestore();
+    }
+
+    return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::Success, TEXT("NarrRail session snapshot restored."), Context.CurrentNodeId);
+}
+
 void UNarrRailStorySession::RegisterDialoguePresenter(TScriptInterface<INarrRailDialoguePresenterInterface> Presenter)
 {
     DialoguePresenter = Presenter;
@@ -649,6 +752,70 @@ UNarrRailVariableContainer* UNarrRailStorySession::FindVariableContainerForName(
     }
 
     return VariableContainer;
+}
+
+void UNarrRailStorySession::RefreshCurrentNodeAfterRestore()
+{
+    const FNarrRailNode* Node = FindNode(Context.CurrentNodeId);
+    if (Node == nullptr)
+    {
+        return;
+    }
+
+    UObject* PresenterObject = DialoguePresenter.GetObject();
+    const bool bPresenterValid =
+        PresenterObject != nullptr &&
+        PresenterObject->GetClass()->ImplementsInterface(UNarrRailDialoguePresenterInterface::StaticClass());
+
+    FNarrRailNode NodeForEvent = *Node;
+
+    if (bPresenterValid)
+    {
+        if (Node->NodeType == ENarrRailNodeType::Dialogue)
+        {
+            FNarrRailDialogueRequest Request;
+            Request.NodeId = Node->NodeId;
+            Request.SpeakerId = Node->Dialogue.SpeakerId;
+            Request.TextContent = Node->Dialogue.TextKey;
+            Request.SpeechRate = Node->Dialogue.SpeechRate;
+            Request.VoiceAsset = Node->Dialogue.VoiceAsset;
+            Request.bAutoAdvance = false;
+            INarrRailDialoguePresenterInterface::Execute_ShowDialogue(PresenterObject, Request);
+        }
+        else if (Node->NodeType == ENarrRailNodeType::MultiDialogue)
+        {
+            FNarrRailDialogueRequest Request;
+            if (BuildMultiDialogueDisplay(*Node, Request))
+            {
+                INarrRailDialoguePresenterInterface::Execute_ShowDialogue(PresenterObject, Request);
+
+                NodeForEvent.NodeType = ENarrRailNodeType::Dialogue;
+                NodeForEvent.Dialogue.SpeakerId = Request.SpeakerId;
+                NodeForEvent.Dialogue.TextKey = Request.TextContent;
+                NodeForEvent.Dialogue.SpeechRate = Request.SpeechRate;
+            }
+        }
+        else if (Node->NodeType == ENarrRailNodeType::Choice)
+        {
+            FNarrRailChoiceRequest Request;
+            Request.NodeId = Node->NodeId;
+            Request.Choices = BuildVisibleChoiceOptions(*Node);
+            Request.Session = this;
+            INarrRailDialoguePresenterInterface::Execute_ShowChoices(PresenterObject, Request);
+        }
+    }
+
+    OnNodeEntered.Broadcast(Context.CurrentNodeId, NodeForEvent);
+
+    if (Node->NodeType == ENarrRailNodeType::Choice)
+    {
+        OnChoicesReady.Broadcast(Context.CurrentNodeId, BuildVisibleChoiceOptions(*Node));
+    }
+
+    if (SessionState == ENarrRailSessionState::Completed)
+    {
+        OnSessionEnded.Broadcast(Context.CurrentNodeId, SessionState);
+    }
 }
 
 bool UNarrRailStorySession::BuildMultiDialogueDisplay(const FNarrRailNode& Node, FNarrRailDialogueRequest& OutRequest) const

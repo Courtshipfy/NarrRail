@@ -6,6 +6,21 @@
 #include "Runtime/NarrRailVariableContainer.h"
 #include "NarrRailGlobalStateSubsystem.generated.h"
 
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailGlobalStateSnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+	int32 SnapshotVersion = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+	TArray<FSoftObjectPath> AppliedGlobalConfigPaths;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NarrRail|Save")
+	TMap<FName, FString> GlobalVariableSnapshot;
+};
+
 UCLASS(BlueprintType)
 class NARRRAIL_API UNarrRailGlobalStateSubsystem : public UGameInstanceSubsystem
 {
@@ -28,6 +43,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "NarrRail|Global")
 	FString ResolveSpeakerDisplayName(FName SpeakerId) const;
+
+	UFUNCTION(BlueprintPure, Category = "NarrRail|Save")
+	FNarrRailGlobalStateSnapshot GetGlobalStateSnapshot() const;
+
+	UFUNCTION(BlueprintCallable, Category = "NarrRail|Save")
+	bool RestoreGlobalStateSnapshot(const FNarrRailGlobalStateSnapshot& Snapshot, FString& OutErrorMessage);
 
 private:
 	UPROPERTY(Transient)

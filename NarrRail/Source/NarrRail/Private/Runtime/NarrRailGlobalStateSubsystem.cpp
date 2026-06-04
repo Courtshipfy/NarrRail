@@ -86,3 +86,32 @@ FString UNarrRailGlobalStateSubsystem::ResolveSpeakerDisplayName(const FName Spe
 
 	return SpeakerId.ToString();
 }
+
+FNarrRailGlobalStateSnapshot UNarrRailGlobalStateSubsystem::GetGlobalStateSnapshot() const
+{
+	FNarrRailGlobalStateSnapshot Snapshot;
+	Snapshot.AppliedGlobalConfigPaths = AppliedConfigPaths;
+	if (GlobalVariables != nullptr)
+	{
+		Snapshot.GlobalVariableSnapshot = GlobalVariables->GetSnapshot();
+	}
+	return Snapshot;
+}
+
+bool UNarrRailGlobalStateSubsystem::RestoreGlobalStateSnapshot(const FNarrRailGlobalStateSnapshot& Snapshot, FString& OutErrorMessage)
+{
+	if (Snapshot.SnapshotVersion <= 0)
+	{
+		OutErrorMessage = TEXT("Invalid NarrRail global state snapshot version.");
+		return false;
+	}
+
+	if (GlobalVariables == nullptr)
+	{
+		GlobalVariables = NewObject<UNarrRailVariableContainer>(this);
+	}
+
+	GlobalVariables->RestoreFromSnapshot(Snapshot.GlobalVariableSnapshot);
+	AppliedConfigPaths = Snapshot.AppliedGlobalConfigPaths;
+	return true;
+}

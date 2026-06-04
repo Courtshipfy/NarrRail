@@ -139,6 +139,45 @@ StorySession.Choose(VisibleChoiceIndex)
 
 `VisibleChoiceIndex` 是当前 UI 可见选项列表中的 0-based 索引。
 
+## 存档与读档
+
+NarrRail 插件提供快照 API，不直接决定项目的存档槽策略。推荐做法是把 NarrRail 快照放进项目自己的 `USaveGame`。
+
+Session 快照：
+
+```text
+StorySession.GetSessionSnapshot
+StorySession.RestoreSessionSnapshot
+```
+
+全局变量快照：
+
+```text
+Get NarrRail Global State
+  -> GetGlobalStateSnapshot
+  -> RestoreGlobalStateSnapshot
+```
+
+恢复顺序：
+
+```text
+Create Story Session
+  -> Initialize / Initialize With Global Config
+  -> RestoreGlobalStateSnapshot
+  -> RestoreSessionSnapshot
+```
+
+`RestoreSessionSnapshot` 只恢复运行状态，不重放节点进入动作。`bRefreshPresenter` 为 true 时会刷新当前节点显示和选择列表。
+
+示例工程 `NarrRailUEHost` 已在 `ANarrRailPlayerController` 中提供：
+
+```text
+SaveNarrRailState
+LoadNarrRailState
+```
+
+它使用 `UNarrRailHostSaveGame` 保存 Session 快照和全局状态快照，可用于 PIE 中同步验证插件存档机制。
+
 ## 常见问题
 
 ### `Next` 返回 Current node requires Choose

@@ -27,6 +27,12 @@ public:
     UFUNCTION(BlueprintPure, Category="NarrRail|UI")
     UNarrRailTypewriterController* GetTypewriterController() const { return Typewriter; }
 
+    UFUNCTION(BlueprintCallable, Category="NarrRail|Save")
+    bool SaveNarrRailState(const FString& SlotName = TEXT("NarrRailDemoSave"), int32 UserIndex = 0);
+
+    UFUNCTION(BlueprintCallable, Category="NarrRail|Save")
+    bool LoadNarrRailState(const FString& SlotName = TEXT("NarrRailDemoSave"), int32 UserIndex = 0, bool bRefreshPresenter = true);
+
 protected:
     UFUNCTION()
     void HandleAdvancePressed();
