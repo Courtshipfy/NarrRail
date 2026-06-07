@@ -15,6 +15,7 @@ Saved/
 *.opensdf
 *.sdf
 *.ipch
+*.idea
 
 # Host project generated artifacts
 NarrRailUEHost/Plugins/
