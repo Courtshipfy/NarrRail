@@ -13,6 +13,8 @@ class NARRRAILHOST_API ANarrRailPlayerController : public APlayerController
     GENERATED_BODY()
 
 public:
+    ANarrRailPlayerController();
+
     virtual void SetupInputComponent() override;
 
     UFUNCTION(BlueprintCallable, Category="NarrRail|Runtime")

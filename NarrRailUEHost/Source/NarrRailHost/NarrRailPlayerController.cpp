@@ -6,6 +6,13 @@
 #include "Runtime/NarrRailGlobalStateSubsystem.h"
 #include "Runtime/NarrRailTypewriterController.h"
 
+ANarrRailPlayerController::ANarrRailPlayerController()
+{
+    bShowMouseCursor = true;
+    bEnableClickEvents = true;
+    bEnableMouseOverEvents = true;
+}
+
 void ANarrRailPlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
