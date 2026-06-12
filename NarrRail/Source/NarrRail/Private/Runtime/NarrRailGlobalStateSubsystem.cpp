@@ -23,6 +23,22 @@ bool UNarrRailGlobalStateSubsystem::ApplyGlobalConfig(const UNarrRailGlobalConfi
 		return true;
 	}
 
+	if (!ApplyGlobalConfigContent(GlobalConfig, OutErrorMessage))
+	{
+		return false;
+	}
+
+	AppliedConfigPaths.Add(ConfigPath);
+	return true;
+}
+
+bool UNarrRailGlobalStateSubsystem::ApplyGlobalConfigContent(const UNarrRailGlobalConfigAsset* GlobalConfig, FString& OutErrorMessage)
+{
+	if (GlobalConfig == nullptr)
+	{
+		return true;
+	}
+
 	if (GlobalVariables == nullptr)
 	{
 		GlobalVariables = NewObject<UNarrRailVariableContainer>(this);
@@ -61,7 +77,6 @@ bool UNarrRailGlobalStateSubsystem::ApplyGlobalConfig(const UNarrRailGlobalConfi
 		PresetSpeakersById.Add(Speaker.SpeakerId, Speaker);
 	}
 
-	AppliedConfigPaths.Add(ConfigPath);
 	return true;
 }
 
@@ -109,6 +124,27 @@ bool UNarrRailGlobalStateSubsystem::RestoreGlobalStateSnapshot(const FNarrRailGl
 	if (GlobalVariables == nullptr)
 	{
 		GlobalVariables = NewObject<UNarrRailVariableContainer>(this);
+	}
+
+	PresetSpeakersById.Reset();
+	for (const FSoftObjectPath& ConfigPath : Snapshot.AppliedGlobalConfigPaths)
+	{
+		if (ConfigPath.IsNull())
+		{
+			continue;
+		}
+
+		const UNarrRailGlobalConfigAsset* GlobalConfig = Cast<UNarrRailGlobalConfigAsset>(ConfigPath.TryLoad());
+		if (GlobalConfig == nullptr)
+		{
+			OutErrorMessage = FString::Printf(TEXT("Failed to load NarrRail global config '%s'."), *ConfigPath.ToString());
+			return false;
+		}
+
+		if (!ApplyGlobalConfigContent(GlobalConfig, OutErrorMessage))
+		{
+			return false;
+		}
 	}
 
 	GlobalVariables->RestoreFromSnapshot(Snapshot.GlobalVariableSnapshot);

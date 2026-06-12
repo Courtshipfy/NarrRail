@@ -51,6 +51,8 @@ public:
 	bool RestoreGlobalStateSnapshot(const FNarrRailGlobalStateSnapshot& Snapshot, FString& OutErrorMessage);
 
 private:
+	bool ApplyGlobalConfigContent(const UNarrRailGlobalConfigAsset* GlobalConfig, FString& OutErrorMessage);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UNarrRailVariableContainer> GlobalVariables;
 

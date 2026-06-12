@@ -619,6 +619,24 @@ FNarrRailRuntimeResult UNarrRailStorySession::RestoreSessionSnapshot(const FNarr
         return FNarrRailRuntimeResult::Make(ENarrRailRuntimeResultCode::InvalidState, TEXT("Session not initialized."));
     }
 
+    if (!Snapshot.StoryAssetPath.IsNull() && FSoftObjectPath(StoryAsset) != Snapshot.StoryAssetPath)
+    {
+        return FNarrRailRuntimeResult::Make(
+            ENarrRailRuntimeResultCode::InvalidInput,
+            *FString::Printf(TEXT("Snapshot StoryAssetPath '%s' does not match current StoryAssetPath '%s'."),
+                *Snapshot.StoryAssetPath.ToString(),
+                *FSoftObjectPath(StoryAsset).ToString()));
+    }
+
+    if (!Snapshot.GlobalConfigPath.IsNull() && FSoftObjectPath(GlobalConfigAsset) != Snapshot.GlobalConfigPath)
+    {
+        return FNarrRailRuntimeResult::Make(
+            ENarrRailRuntimeResultCode::InvalidInput,
+            *FString::Printf(TEXT("Snapshot GlobalConfigPath '%s' does not match current GlobalConfigPath '%s'."),
+                *Snapshot.GlobalConfigPath.ToString(),
+                *FSoftObjectPath(GlobalConfigAsset).ToString()));
+    }
+
     if (Snapshot.StoryId != NAME_None && StoryAsset->StoryId != NAME_None && Snapshot.StoryId != StoryAsset->StoryId)
     {
         return FNarrRailRuntimeResult::Make(

@@ -4,6 +4,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NarrRailHostSaveGame.h"
 #include "Runtime/NarrRailGlobalStateSubsystem.h"
+#include "Runtime/NarrRailGlobalConfigAsset.h"
 #include "Runtime/NarrRailTypewriterController.h"
 
 ANarrRailPlayerController::ANarrRailPlayerController()
@@ -64,18 +65,67 @@ bool ANarrRailPlayerController::SaveNarrRailState(const FString& SlotName, const
 
 bool ANarrRailPlayerController::LoadNarrRailState(const FString& SlotName, const int32 UserIndex, const bool bRefreshPresenter)
 {
-    if (Session == nullptr)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[NarrRailHost] LoadNarrRailState failed: no bound session."));
-        return false;
-    }
-
     USaveGame* Loaded = UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex);
     UNarrRailHostSaveGame* SaveGame = Cast<UNarrRailHostSaveGame>(Loaded);
     if (SaveGame == nullptr)
     {
         UE_LOG(LogTemp, Warning, TEXT("[NarrRailHost] LoadNarrRailState failed: slot '%s' has no NarrRail save."), *SlotName);
         return false;
+    }
+
+    const FSoftObjectPath& StoryAssetPath = SaveGame->SessionSnapshot.StoryAssetPath;
+    const bool bNeedsSessionFromSave =
+        Session == nullptr ||
+        (!StoryAssetPath.IsNull() && Session->GetSessionSnapshot().StoryAssetPath != StoryAssetPath);
+
+    if (bNeedsSessionFromSave)
+    {
+        UNarrRailStoryAsset* StoryAsset = Cast<UNarrRailStoryAsset>(StoryAssetPath.TryLoad());
+        if (StoryAsset == nullptr)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[NarrRailHost] LoadNarrRailState failed: story asset '%s' could not be loaded."), *StoryAssetPath.ToString());
+            return false;
+        }
+
+        const FSoftObjectPath& GlobalConfigPath = SaveGame->SessionSnapshot.GlobalConfigPath;
+        UNarrRailGlobalConfigAsset* GlobalConfigAsset = nullptr;
+        if (!GlobalConfigPath.IsNull())
+        {
+            GlobalConfigAsset = Cast<UNarrRailGlobalConfigAsset>(GlobalConfigPath.TryLoad());
+            if (GlobalConfigAsset == nullptr)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[NarrRailHost] LoadNarrRailState failed: global config asset '%s' could not be loaded."), *GlobalConfigPath.ToString());
+                return false;
+            }
+        }
+
+        TScriptInterface<INarrRailDialoguePresenterInterface> ExistingPresenter;
+        if (Session != nullptr)
+        {
+            ExistingPresenter = Session->GetDialoguePresenter();
+        }
+
+        UNarrRailStorySession* NewSession = NewObject<UNarrRailStorySession>(this);
+        if (NewSession == nullptr)
+        {
+            return false;
+        }
+
+        const FNarrRailRuntimeResult InitResult = GlobalConfigAsset != nullptr
+            ? NewSession->InitializeWithGlobalConfig(StoryAsset, GlobalConfigAsset)
+            : NewSession->Initialize(StoryAsset);
+        if (InitResult.Code != ENarrRailRuntimeResultCode::Success)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[NarrRailHost] LoadNarrRailState failed: session init failed: %s"), *InitResult.Message);
+            return false;
+        }
+
+        if (ExistingPresenter.GetObject() != nullptr)
+        {
+            NewSession->RegisterDialoguePresenter(ExistingPresenter);
+        }
+
+        Session = NewSession;
     }
 
     if (UGameInstance* GameInstance = GetGameInstance())
