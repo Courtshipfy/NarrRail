@@ -12,7 +12,8 @@ Workflow:
 4. If staged changes contain clearly unrelated files, ask for confirmation before committing.
 5. Generate a concise Chinese commit message from the staged diff.
 6. Run `git commit` using only staged changes.
-7. Report the commit hash, title, and committed file summary.
+7. Run `git push` after a successful commit.
+8. Report the commit hash, title, committed file summary, and push result.
 
 Rules:
 
@@ -21,3 +22,4 @@ Rules:
 - If the user lists exact file paths to commit, stage only those paths with `git add -- <path>`.
 - Do not include unrelated local files, caches, build artifacts, or unconfirmed deletions.
 - Use Chinese commit messages.
+- If `git push` fails, do not hide it. Report the exact failure summary and leave the commit local.
