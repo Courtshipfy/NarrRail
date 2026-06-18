@@ -62,6 +62,27 @@ function normalizeVariablesForEditor(variables) {
     .filter(Boolean);
 }
 
+function normalizeChoiceTimer(timer) {
+  const durationSeconds = Number(timer?.durationSeconds);
+  const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
+  const timeoutBehavior =
+    timer?.timeoutBehavior === "JumpToNode" ? "JumpToNode" : "SelectDefault";
+
+  return {
+    enabled: Boolean(timer?.enabled),
+    durationSeconds:
+      Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? durationSeconds
+        : 8,
+    timeoutBehavior,
+    defaultChoiceIndex:
+      Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
+        ? defaultChoiceIndex
+        : 0,
+    timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || ""),
+  };
+}
+
 export function importFromYAML(yamlString) {
   // 解析 YAML
   const data = YAML.parse(yamlString);
@@ -103,6 +124,7 @@ export function importFromYAML(yamlString) {
           textKey: c.textKey,
         })),
         choiceMode,
+        choiceTimer: normalizeChoiceTimer(node.choiceTimer),
       };
     } else if (node.nodeType === "MultiDialogue" || node.multiDialogue) {
       const md = node.multiDialogue || {};
@@ -181,7 +203,9 @@ export function importFromYAML(yamlString) {
           (e) =>
             e.source === node.nodeId &&
             e.target === choice.targetNodeId &&
-            (e.sourceHandle == null || e.sourceHandle === ""),
+            (e.sourceHandle == null ||
+              e.sourceHandle === "" ||
+              e.sourceHandle === `choice-${index}`),
         );
 
         if (existing) {

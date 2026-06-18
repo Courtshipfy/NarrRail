@@ -120,6 +120,28 @@ function normalizeConditionForExport(condition) {
   };
 }
 
+function normalizeChoiceTimerForExport(timer) {
+  const enabled = Boolean(timer?.enabled);
+  const durationSeconds = Number(timer?.durationSeconds);
+  const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
+  const timeoutBehavior =
+    timer?.timeoutBehavior === "JumpToNode" ? "JumpToNode" : "SelectDefault";
+
+  return {
+    enabled,
+    durationSeconds:
+      Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? durationSeconds
+        : 8,
+    timeoutBehavior,
+    defaultChoiceIndex:
+      Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
+        ? defaultChoiceIndex
+        : 0,
+    timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || ""),
+  };
+}
+
 export function buildYAMLString(nodes, edges, variables, meta) {
   const variableByName = buildVariableLookup(variables);
 
@@ -170,6 +192,7 @@ export function buildYAMLString(nodes, edges, variables, meta) {
       base.choiceCompletionTargetNodeId = completionEdge
         ? completionEdge.target
         : "";
+      base.choiceTimer = normalizeChoiceTimerForExport(node.data?.choiceTimer);
     } else if (node.type === "jump") {
       base.jump = {
         targetNodeId: node.data.targetNodeId || "",

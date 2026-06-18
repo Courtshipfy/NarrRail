@@ -276,6 +276,8 @@ function validateChoiceNodeEdgeMapping(
     node?.data?.choiceMode === "ExhaustiveUntilComplete"
       ? "ExhaustiveUntilComplete"
       : "SinglePass";
+  validateChoiceTimer(node, choices, nodeMap, addError);
+
   if (choiceMode === "ExhaustiveUntilComplete") {
     const completionEdges = sourceEdges.filter(
       (e) => e?.sourceHandle === "choice-complete",
@@ -365,6 +367,48 @@ function validateChoiceNodeEdgeMapping(
       addError(
         `节点 ${node.id}: 边 ${edge.id || "(无ID)"} 的 sourceHandle=${sh} 越界（当前选项数 ${choices.length}）`,
       );
+    }
+  }
+}
+
+function validateChoiceTimer(node, choices, nodeMap, addError) {
+  const timer = node?.data?.choiceTimer;
+  if (!timer || !timer.enabled) return;
+
+  const durationSeconds = Number(timer.durationSeconds);
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    addError(`节点 ${node.id}: Choice 倒计时秒数必须大于 0`, {
+      nodeId: node.id,
+    });
+  }
+
+  const behavior =
+    timer.timeoutBehavior === "JumpToNode" ? "JumpToNode" : "SelectDefault";
+
+  if (behavior === "SelectDefault") {
+    const defaultChoiceIndex = Number(timer.defaultChoiceIndex);
+    if (
+      !Number.isInteger(defaultChoiceIndex) ||
+      defaultChoiceIndex < 0 ||
+      defaultChoiceIndex >= choices.length
+    ) {
+      addError(
+        `节点 ${node.id}: Choice 倒计时默认选项越界（当前选项数 ${choices.length}）`,
+        { nodeId: node.id },
+      );
+    }
+  }
+
+  if (behavior === "JumpToNode") {
+    const target = String(timer.timeoutTargetNodeId || "").trim();
+    if (!target) {
+      addError(`节点 ${node.id}: Choice 倒计时跳转目标为空`, {
+        nodeId: node.id,
+      });
+    } else if (!nodeMap.has(target)) {
+      addError(`节点 ${node.id}: Choice 倒计时跳转目标不存在: ${target}`, {
+        nodeId: node.id,
+      });
     }
   }
 }

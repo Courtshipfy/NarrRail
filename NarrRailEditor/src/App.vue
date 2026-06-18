@@ -178,6 +178,13 @@ const nodes = ref([
         data: {
             choices: [{ textKey: "继续对话" }, { textKey: "结束对话" }],
             choiceMode: "SinglePass",
+            choiceTimer: {
+                enabled: false,
+                durationSeconds: 8,
+                timeoutBehavior: "SelectDefault",
+                defaultChoiceIndex: 0,
+                timeoutTargetNodeId: "",
+            },
         },
     },
     {

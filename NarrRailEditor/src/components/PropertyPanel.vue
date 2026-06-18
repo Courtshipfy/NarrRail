@@ -285,6 +285,100 @@
                         </p>
 
                         <div class="form-group glass-input">
+                            <label class="choice-toggle-row">
+                                <input
+                                    type="checkbox"
+                                    v-model="localNode.data.choiceTimer.enabled"
+                                    @change="handleUpdate"
+                                />
+                                <span>启用选项倒计时</span>
+                            </label>
+
+                            <div
+                                v-if="localNode.data.choiceTimer.enabled"
+                                class="choice-timer-grid"
+                            >
+                                <label class="form-label">倒计时秒数</label>
+                                <input
+                                    type="number"
+                                    class="form-input"
+                                    v-model.number="
+                                        localNode.data.choiceTimer
+                                            .durationSeconds
+                                    "
+                                    min="0.1"
+                                    step="0.1"
+                                    @blur="handleUpdate"
+                                />
+
+                                <label class="form-label">超时行为</label>
+                                <select
+                                    class="form-input"
+                                    v-model="
+                                        localNode.data.choiceTimer
+                                            .timeoutBehavior
+                                    "
+                                    @change="handleUpdate"
+                                >
+                                    <option value="SelectDefault">
+                                        自动选择默认选项
+                                    </option>
+                                    <option value="JumpToNode">
+                                        跳转到指定节点
+                                    </option>
+                                </select>
+
+                                <template
+                                    v-if="
+                                        localNode.data.choiceTimer
+                                            .timeoutBehavior ===
+                                        'SelectDefault'
+                                    "
+                                >
+                                    <label class="form-label">默认选项</label>
+                                    <select
+                                        class="form-input"
+                                        v-model.number="
+                                            localNode.data.choiceTimer
+                                                .defaultChoiceIndex
+                                        "
+                                        @change="handleUpdate"
+                                    >
+                                        <option
+                                            v-for="(choice, index) in localNode
+                                                .data.choices"
+                                            :key="`timer-choice-${index}`"
+                                            :value="index"
+                                        >
+                                            {{
+                                                choice.textKey ||
+                                                `选项 ${index + 1}`
+                                            }}
+                                        </option>
+                                    </select>
+                                </template>
+
+                                <template v-else>
+                                    <label class="form-label">跳转目标 ID</label>
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        v-model="
+                                            localNode.data.choiceTimer
+                                                .timeoutTargetNodeId
+                                        "
+                                        placeholder="目标节点 ID"
+                                        @compositionstart="
+                                            handleCompositionStart
+                                        "
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="form-group glass-input">
                             <div class="multi-lines-header">
                                 <label class="form-label"
                                     >选项列表（Enter 新增下一项）</label
@@ -1221,6 +1315,27 @@ function getVariableScope(variable) {
     return "Session";
 }
 
+function normalizeChoiceTimer(timer) {
+    const durationSeconds = Number(timer?.durationSeconds);
+    const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
+    return {
+        enabled: Boolean(timer?.enabled),
+        durationSeconds:
+            Number.isFinite(durationSeconds) && durationSeconds > 0
+                ? durationSeconds
+                : 8,
+        timeoutBehavior:
+            timer?.timeoutBehavior === "JumpToNode"
+                ? "JumpToNode"
+                : "SelectDefault",
+        defaultChoiceIndex:
+            Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
+                ? defaultChoiceIndex
+                : 0,
+        timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || ""),
+    };
+}
+
 function getVariableType(variable) {
     const type = String(variable?.type || variable?.variableType || "String");
     return ["Bool", "Int", "Float", "String"].includes(type) ? type : "String";
@@ -1413,6 +1528,9 @@ watch(
                 if (!Array.isArray(localNode.value.data.choices)) {
                     localNode.value.data.choices = [];
                 }
+                localNode.value.data.choiceTimer = normalizeChoiceTimer(
+                    localNode.value.data.choiceTimer,
+                );
                 if (
                     localNode.value.data.choiceMode !==
                     "ExhaustiveUntilComplete"
@@ -2800,6 +2918,26 @@ onUnmounted(() => {
     color: #86868b;
     font-style: italic;
     text-align: center;
+}
+
+.choice-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.choice-toggle-row input {
+    width: 16px;
+    height: 16px;
+}
+
+.choice-timer-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
 }
 
 .multi-lines-header {
