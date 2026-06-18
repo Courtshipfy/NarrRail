@@ -606,9 +606,7 @@
           choiceTimer: {
             enabled: false,
             durationSeconds: 8,
-            timeoutBehavior: 'SelectDefault',
-            defaultChoiceIndex: 0,
-            timeoutTargetNodeId: ''
+            timeoutChoiceTextKey: '超时'
           }
         };
       case 'jump':

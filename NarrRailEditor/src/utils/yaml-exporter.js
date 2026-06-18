@@ -123,9 +123,6 @@ function normalizeConditionForExport(condition) {
 function normalizeChoiceTimerForExport(timer) {
   const enabled = Boolean(timer?.enabled);
   const durationSeconds = Number(timer?.durationSeconds);
-  const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
-  const timeoutBehavior =
-    timer?.timeoutBehavior === "JumpToNode" ? "JumpToNode" : "SelectDefault";
 
   return {
     enabled,
@@ -133,12 +130,9 @@ function normalizeChoiceTimerForExport(timer) {
       Number.isFinite(durationSeconds) && durationSeconds > 0
         ? durationSeconds
         : 8,
-    timeoutBehavior,
-    defaultChoiceIndex:
-      Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
-        ? defaultChoiceIndex
-        : 0,
-    timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || ""),
+    timeoutChoiceTextKey: String(
+      timer?.timeoutChoiceTextKey || "超时",
+    ),
   };
 }
 

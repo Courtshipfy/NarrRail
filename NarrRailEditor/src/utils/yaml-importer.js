@@ -64,9 +64,6 @@ function normalizeVariablesForEditor(variables) {
 
 function normalizeChoiceTimer(timer) {
   const durationSeconds = Number(timer?.durationSeconds);
-  const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
-  const timeoutBehavior =
-    timer?.timeoutBehavior === "JumpToNode" ? "JumpToNode" : "SelectDefault";
 
   return {
     enabled: Boolean(timer?.enabled),
@@ -74,12 +71,9 @@ function normalizeChoiceTimer(timer) {
       Number.isFinite(durationSeconds) && durationSeconds > 0
         ? durationSeconds
         : 8,
-    timeoutBehavior,
-    defaultChoiceIndex:
-      Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
-        ? defaultChoiceIndex
-        : 0,
-    timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || ""),
+    timeoutChoiceTextKey: String(
+      timer?.timeoutChoiceTextKey || "超时",
+    ),
   };
 }
 

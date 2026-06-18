@@ -45,6 +45,19 @@
         />
       </div>
     {/if}
+
+    {#if data?.choiceTimer?.enabled}
+      <div class="timeout-row-with-handle">
+        <div class="timeout-choice">
+          <span class="choice-text">{data.choiceTimer.timeoutChoiceTextKey || '超时'}</span>
+        </div>
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="choice-timeout"
+        />
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -130,6 +143,36 @@
     height: 18px;
     padding-right: 20px;
     margin-top: 6px;
+  }
+
+  .timeout-row-with-handle {
+    position: relative;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    padding-right: 20px;
+    margin-top: 6px;
+    border-top: 1px dashed rgba(146, 64, 14, 0.24);
+  }
+
+  .timeout-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: #92400e;
+    padding: 6px 0;
+    flex: 1;
+    font-weight: 700;
+  }
+
+  .timeout-row-with-handle :global(.svelte-flow__handle) {
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #92400e;
+    border-color: #92400e;
   }
 
   .completion-row-with-handle :global(.svelte-flow__handle) {

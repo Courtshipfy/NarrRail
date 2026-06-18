@@ -276,7 +276,7 @@ function validateChoiceNodeEdgeMapping(
     node?.data?.choiceMode === "ExhaustiveUntilComplete"
       ? "ExhaustiveUntilComplete"
       : "SinglePass";
-  validateChoiceTimer(node, choices, nodeMap, addError);
+  validateChoiceTimer(node, choices, sourceEdges, nodeMap, addError);
 
   if (choiceMode === "ExhaustiveUntilComplete") {
     const completionEdges = sourceEdges.filter(
@@ -350,6 +350,13 @@ function validateChoiceNodeEdgeMapping(
       continue;
     }
 
+    if (sh === "choice-timeout") {
+      if (!node?.data?.choiceTimer?.enabled) {
+        addWarning(`节点 ${node.id}: 未启用倒计时时不建议存在 choice-timeout 连线`);
+      }
+      continue;
+    }
+
     if (sh === "choice-complete") {
       if (choiceMode !== "ExhaustiveUntilComplete") {
         addWarning(`节点 ${node.id}: 非穷举模式下不建议存在 choice-complete 连线`);
@@ -371,7 +378,7 @@ function validateChoiceNodeEdgeMapping(
   }
 }
 
-function validateChoiceTimer(node, choices, nodeMap, addError) {
+function validateChoiceTimer(node, choices, sourceEdges, nodeMap, addError) {
   const timer = node?.data?.choiceTimer;
   if (!timer || !timer.enabled) return;
 
@@ -382,31 +389,28 @@ function validateChoiceTimer(node, choices, nodeMap, addError) {
     });
   }
 
-  const behavior =
-    timer.timeoutBehavior === "JumpToNode" ? "JumpToNode" : "SelectDefault";
-
-  if (behavior === "SelectDefault") {
-    const defaultChoiceIndex = Number(timer.defaultChoiceIndex);
-    if (
-      !Number.isInteger(defaultChoiceIndex) ||
-      defaultChoiceIndex < 0 ||
-      defaultChoiceIndex >= choices.length
-    ) {
-      addError(
-        `节点 ${node.id}: Choice 倒计时默认选项越界（当前选项数 ${choices.length}）`,
-        { nodeId: node.id },
-      );
-    }
+  if (!String(timer.timeoutChoiceTextKey || "").trim()) {
+    addError(`节点 ${node.id}: Choice 倒计时超时选项文本为空`, {
+      nodeId: node.id,
+    });
   }
 
-  if (behavior === "JumpToNode") {
-    const target = String(timer.timeoutTargetNodeId || "").trim();
-    if (!target) {
-      addError(`节点 ${node.id}: Choice 倒计时跳转目标为空`, {
-        nodeId: node.id,
-      });
-    } else if (!nodeMap.has(target)) {
-      addError(`节点 ${node.id}: Choice 倒计时跳转目标不存在: ${target}`, {
+  const timeoutEdges = sourceEdges.filter(
+    (edge) => edge?.sourceHandle === "choice-timeout",
+  );
+  if (timeoutEdges.length === 0) {
+    addError(`节点 ${node.id}: 启用倒计时时缺少超时选择连线 (choice-timeout)`, {
+      nodeId: node.id,
+    });
+  } else if (timeoutEdges.length > 1) {
+    addError(`节点 ${node.id}: 超时选择只允许一条连线 (choice-timeout)`, {
+      nodeId: node.id,
+    });
+  }
+
+  for (const edge of timeoutEdges) {
+    if (!nodeMap.has(edge.target)) {
+      addError(`节点 ${node.id}: 超时选择目标不存在: ${edge.target || "(空)"}`, {
         nodeId: node.id,
       });
     }
