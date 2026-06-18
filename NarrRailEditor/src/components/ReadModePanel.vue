@@ -267,9 +267,7 @@ const state = reactive({
         enabled: false,
         remainingSeconds: 0,
         durationSeconds: 0,
-        timeoutBehavior: "SelectDefault",
-        defaultChoiceIndex: 0,
-        timeoutTargetNodeId: "",
+        timeoutChoiceTextKey: "超时",
     },
 });
 
@@ -435,22 +433,13 @@ function resolveChoiceCompleteTarget(nodeId) {
 
 function normalizeChoiceTimer(timer) {
     const durationSeconds = Number(timer?.durationSeconds);
-    const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
     return {
         enabled: Boolean(timer?.enabled),
         durationSeconds:
             Number.isFinite(durationSeconds) && durationSeconds > 0
                 ? durationSeconds
                 : 8,
-        timeoutBehavior:
-            timer?.timeoutBehavior === "JumpToNode"
-                ? "JumpToNode"
-                : "SelectDefault",
-        defaultChoiceIndex:
-            Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
-                ? defaultChoiceIndex
-                : 0,
-        timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || "").trim(),
+        timeoutChoiceTextKey: String(timer?.timeoutChoiceTextKey || "超时"),
     };
 }
 
@@ -459,9 +448,7 @@ function resetChoiceTimerState() {
         enabled: false,
         remainingSeconds: 0,
         durationSeconds: 0,
-        timeoutBehavior: "SelectDefault",
-        defaultChoiceIndex: 0,
-        timeoutTargetNodeId: "",
+        timeoutChoiceTextKey: "超时",
     };
 }
 
@@ -512,40 +499,7 @@ function handleChoiceTimeout(nodeId, timer) {
         return;
     }
 
-    if (timer.timeoutBehavior === "JumpToNode") {
-        const target = String(timer.timeoutTargetNodeId || "").trim();
-        if (!target || !getNodeById(target)) {
-            setEnded(`Choice 节点 ${nodeId} 的倒计时跳转目标不存在`);
-            return;
-        }
-
-        pushTimeline({
-            kind: "choice",
-            nodeId,
-            text: `超时跳转 -> ${target}`,
-        });
-        state.pendingChoices = [];
-        state.status = "running";
-        state.currentNodeId = target;
-        advanceUntilPause();
-        scrollTimelineToBottom();
-        return;
-    }
-
-    const defaultHandle = `choice-${timer.defaultChoiceIndex}`;
-    const pendingHandles = new Set(
-        state.pendingChoices.map((choice) => String(choice.handle)),
-    );
-    const handle = pendingHandles.has(defaultHandle)
-        ? defaultHandle
-        : String(state.pendingChoices[0]?.handle || "");
-
-    if (!handle) {
-        setEnded(`Choice 节点 ${nodeId} 倒计时结束，但没有可用默认分支`);
-        return;
-    }
-
-    handleChoose(handle, { timedOut: true });
+    handleChoose("choice-timeout", { timedOut: true });
 }
 
 function applySetVariable(node) {
@@ -941,6 +895,8 @@ function handleChoose(handle, options = {}) {
     const choiceText =
         choiceIndex >= 0
             ? toText(currentNode?.data?.choices?.[choiceIndex]?.textKey)
+            : String(handle || "") === "choice-timeout"
+              ? toText(currentNode?.data?.choiceTimer?.timeoutChoiceTextKey)
             : "";
 
     const targetEdge = getChoiceEdges(currentNode.id, handle)[0];
@@ -957,7 +913,7 @@ function handleChoose(handle, options = {}) {
     });
 
     const exhaustiveMode = isExhaustiveChoiceNode(currentNode);
-    if (exhaustiveMode) {
+    if (exhaustiveMode && handle !== "choice-timeout") {
         markChoiceHandleSelected(currentNode.id, handle);
         state.exhaustiveReturnStack.push(String(currentNode.id));
     }

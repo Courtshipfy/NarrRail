@@ -311,70 +311,23 @@
                                     @blur="handleUpdate"
                                 />
 
-                                <label class="form-label">超时行为</label>
-                                <select
+                                <label class="form-label">超时选择文本</label>
+                                <input
+                                    type="text"
                                     class="form-input"
                                     v-model="
                                         localNode.data.choiceTimer
-                                            .timeoutBehavior
+                                            .timeoutChoiceTextKey
                                     "
-                                    @change="handleUpdate"
-                                >
-                                    <option value="SelectDefault">
-                                        自动选择默认选项
-                                    </option>
-                                    <option value="JumpToNode">
-                                        跳转到指定节点
-                                    </option>
-                                </select>
+                                    placeholder="例如：沉默"
+                                    @compositionstart="handleCompositionStart"
+                                    @compositionend="handleCompositionEnd"
+                                    @blur="handleInputChange"
+                                />
 
-                                <template
-                                    v-if="
-                                        localNode.data.choiceTimer
-                                            .timeoutBehavior ===
-                                        'SelectDefault'
-                                    "
-                                >
-                                    <label class="form-label">默认选项</label>
-                                    <select
-                                        class="form-input"
-                                        v-model.number="
-                                            localNode.data.choiceTimer
-                                                .defaultChoiceIndex
-                                        "
-                                        @change="handleUpdate"
-                                    >
-                                        <option
-                                            v-for="(choice, index) in localNode
-                                                .data.choices"
-                                            :key="`timer-choice-${index}`"
-                                            :value="index"
-                                        >
-                                            {{
-                                                choice.textKey ||
-                                                `选项 ${index + 1}`
-                                            }}
-                                        </option>
-                                    </select>
-                                </template>
-
-                                <template v-else>
-                                    <label class="form-label">跳转目标 ID</label>
-                                    <input
-                                        type="text"
-                                        class="form-input"
-                                        v-model="
-                                            localNode.data.choiceTimer
-                                                .timeoutTargetNodeId
-                                        "
-                                        placeholder="目标节点 ID"
-                                        @compositionstart="
-                                            handleCompositionStart
-                                        "
-                                        @compositionend="handleCompositionEnd"
-                                        @blur="handleInputChange"
-                                    />
-                                </template>
+                                <p class="choice-hint">
+                                    启用后节点会出现“超时选择”连接点；时间结束后自动沿该连线继续
+                                </p>
                             </div>
                         </div>
 
@@ -1317,22 +1270,13 @@ function getVariableScope(variable) {
 
 function normalizeChoiceTimer(timer) {
     const durationSeconds = Number(timer?.durationSeconds);
-    const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
     return {
         enabled: Boolean(timer?.enabled),
         durationSeconds:
             Number.isFinite(durationSeconds) && durationSeconds > 0
                 ? durationSeconds
                 : 8,
-        timeoutBehavior:
-            timer?.timeoutBehavior === "JumpToNode"
-                ? "JumpToNode"
-                : "SelectDefault",
-        defaultChoiceIndex:
-            Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
-                ? defaultChoiceIndex
-                : 0,
-        timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || ""),
+        timeoutChoiceTextKey: String(timer?.timeoutChoiceTextKey || "超时"),
     };
 }
 

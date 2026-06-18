@@ -181,9 +181,7 @@ const nodes = ref([
             choiceTimer: {
                 enabled: false,
                 durationSeconds: 8,
-                timeoutBehavior: "SelectDefault",
-                defaultChoiceIndex: 0,
-                timeoutTargetNodeId: "",
+                timeoutChoiceTextKey: "超时",
             },
         },
     },
@@ -726,6 +724,10 @@ function isValidChoiceHandle(node, sourceHandle) {
 
     if (sourceHandle === "choice-complete") {
         return node.data?.choiceMode === "ExhaustiveUntilComplete";
+    }
+
+    if (sourceHandle === "choice-timeout") {
+        return Boolean(node.data?.choiceTimer?.enabled);
     }
 
     const match = /^choice-(\d+)$/.exec(sourceHandle);
