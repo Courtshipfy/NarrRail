@@ -12,6 +12,9 @@
   <div class="node-header">
     <span class="node-icon"><IconGlyph name="fork_right" /></span>
     <span class="node-type">选择</span>
+    {#if data?.choiceTimer?.enabled}
+      <span class="timer-badge">{data.choiceTimer.durationSeconds || 8}s</span>
+    {/if}
   </div>
   <div class="node-content">
     {#if data.choices && data.choices.length > 0}
@@ -96,6 +99,17 @@
     color: #ffcc00;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .timer-badge {
+    margin-left: auto;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    color: #92400e;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.3;
   }
 
   .node-content {

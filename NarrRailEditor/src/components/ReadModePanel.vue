@@ -180,6 +180,18 @@
                             class="timeline-choice-box"
                             @click.stop
                         >
+                            <div
+                                v-if="state.choiceTimer.enabled"
+                                class="choice-countdown"
+                                aria-live="polite"
+                            >
+                                <span>倒计时</span>
+                                <strong>{{
+                                    formatCountdown(
+                                        state.choiceTimer.remainingSeconds,
+                                    )
+                                }}</strong>
+                            </div>
                             <div class="choice-inline-list">
                                 <button
                                     v-for="choice in state.pendingChoices"
@@ -225,7 +237,7 @@
 </template>
 
 <script setup>
-import { nextTick, reactive, ref, watch } from "vue";
+import { nextTick, onUnmounted, reactive, ref, watch } from "vue";
 
 const props = defineProps({
     nodes: { type: Array, default: () => [] },
@@ -251,7 +263,17 @@ const state = reactive({
     },
     exhaustiveSelectedByNode: {}, // { [nodeId]: { [choiceHandle]: true } }
     exhaustiveReturnStack: [], // string[]
+    choiceTimer: {
+        enabled: false,
+        remainingSeconds: 0,
+        durationSeconds: 0,
+        timeoutBehavior: "SelectDefault",
+        defaultChoiceIndex: 0,
+        timeoutTargetNodeId: "",
+    },
 });
+
+let choiceTimerId = null;
 
 function toNodeType(node) {
     return String(node?.type || "").toLowerCase();
@@ -411,6 +433,121 @@ function resolveChoiceCompleteTarget(nodeId) {
     return edge?.target ? String(edge.target) : "";
 }
 
+function normalizeChoiceTimer(timer) {
+    const durationSeconds = Number(timer?.durationSeconds);
+    const defaultChoiceIndex = Number(timer?.defaultChoiceIndex);
+    return {
+        enabled: Boolean(timer?.enabled),
+        durationSeconds:
+            Number.isFinite(durationSeconds) && durationSeconds > 0
+                ? durationSeconds
+                : 8,
+        timeoutBehavior:
+            timer?.timeoutBehavior === "JumpToNode"
+                ? "JumpToNode"
+                : "SelectDefault",
+        defaultChoiceIndex:
+            Number.isInteger(defaultChoiceIndex) && defaultChoiceIndex >= 0
+                ? defaultChoiceIndex
+                : 0,
+        timeoutTargetNodeId: String(timer?.timeoutTargetNodeId || "").trim(),
+    };
+}
+
+function resetChoiceTimerState() {
+    state.choiceTimer = {
+        enabled: false,
+        remainingSeconds: 0,
+        durationSeconds: 0,
+        timeoutBehavior: "SelectDefault",
+        defaultChoiceIndex: 0,
+        timeoutTargetNodeId: "",
+    };
+}
+
+function clearChoiceTimer() {
+    if (choiceTimerId) {
+        clearInterval(choiceTimerId);
+        choiceTimerId = null;
+    }
+    resetChoiceTimerState();
+}
+
+function startChoiceTimerForNode(node, pendingChoices) {
+    clearChoiceTimer();
+    const timer = normalizeChoiceTimer(node?.data?.choiceTimer);
+    if (!timer.enabled || pendingChoices.length <= 0) return;
+
+    state.choiceTimer = {
+        ...timer,
+        remainingSeconds: timer.durationSeconds,
+    };
+
+    const startedAt = Date.now();
+    choiceTimerId = setInterval(() => {
+        if (state.status !== "await-choice" || state.currentNodeId !== node.id) {
+            clearChoiceTimer();
+            return;
+        }
+
+        const elapsedSeconds = (Date.now() - startedAt) / 1000;
+        const remaining = Math.max(0, timer.durationSeconds - elapsedSeconds);
+        state.choiceTimer.remainingSeconds = remaining;
+
+        if (remaining > 0) return;
+
+        clearChoiceTimer();
+        handleChoiceTimeout(node.id, timer);
+    }, 100);
+}
+
+function handleChoiceTimeout(nodeId, timer) {
+    if (state.status !== "await-choice" || state.currentNodeId !== nodeId) {
+        return;
+    }
+
+    const currentNode = getNodeById(nodeId);
+    if (!currentNode) {
+        setEnded("当前 Choice 节点不存在");
+        return;
+    }
+
+    if (timer.timeoutBehavior === "JumpToNode") {
+        const target = String(timer.timeoutTargetNodeId || "").trim();
+        if (!target || !getNodeById(target)) {
+            setEnded(`Choice 节点 ${nodeId} 的倒计时跳转目标不存在`);
+            return;
+        }
+
+        pushTimeline({
+            kind: "choice",
+            nodeId,
+            text: `超时跳转 -> ${target}`,
+        });
+        state.pendingChoices = [];
+        state.status = "running";
+        state.currentNodeId = target;
+        advanceUntilPause();
+        scrollTimelineToBottom();
+        return;
+    }
+
+    const defaultHandle = `choice-${timer.defaultChoiceIndex}`;
+    const pendingHandles = new Set(
+        state.pendingChoices.map((choice) => String(choice.handle)),
+    );
+    const handle = pendingHandles.has(defaultHandle)
+        ? defaultHandle
+        : String(state.pendingChoices[0]?.handle || "");
+
+    if (!handle) {
+        setEnded(`Choice 节点 ${nodeId} 倒计时结束，但没有可用默认分支`);
+        return;
+    }
+
+    handleChoose(handle, { timedOut: true });
+}
+
 function applySetVariable(node) {
     const name = String(node?.data?.variableName || "").trim();
     if (!name) return "变量名为空，已跳过";
@@ -454,6 +591,7 @@ function scrollTimelineToBottom() {
 }
 
 function setEnded(errorText = "") {
+    clearChoiceTimer();
     state.status = "ended";
     state.currentNodeId = "";
     state.pendingChoices = [];
@@ -476,6 +614,7 @@ function handleBranchEnd() {
 }
 
 function restartPreview() {
+    clearChoiceTimer();
     state.timeline = [];
     state.pendingChoices = [];
     state.error = "";
@@ -656,6 +795,7 @@ function advanceUntilPause(maxSteps = 4000) {
 
             state.pendingChoices = pending;
             state.status = "await-choice";
+            startChoiceTimerForNode(node, pending);
             return;
         }
 
@@ -786,8 +926,9 @@ function handleTimelineAdvance() {
     }
 }
 
-function handleChoose(handle) {
+function handleChoose(handle, options = {}) {
     if (state.status !== "await-choice") return;
+    clearChoiceTimer();
 
     const currentNode = getNodeById(state.currentNodeId);
     if (!currentNode) {
@@ -812,7 +953,7 @@ function handleChoose(handle) {
     pushTimeline({
         kind: "choice",
         nodeId: currentNode.id,
-        text: choiceText || `选项 ${choiceIndex + 1}`,
+        text: `${options.timedOut ? "超时选择：" : ""}${choiceText || `选项 ${choiceIndex + 1}`}`,
     });
 
     const exhaustiveMode = isExhaustiveChoiceNode(currentNode);
@@ -833,6 +974,16 @@ function formatVarValue(value) {
     if (typeof value === "boolean") return value ? "true" : "false";
     return String(value);
 }
+
+function formatCountdown(value) {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds)) return "0.0s";
+    return `${Math.max(0, seconds).toFixed(1)}s`;
+}
+
+onUnmounted(() => {
+    clearChoiceTimer();
+});
 
 watch(
     () => [props.nodes, props.edges, props.variables, props.entryNodeId],
@@ -1002,6 +1153,21 @@ watch(
     margin-top: 8px;
     border-top: 1px dashed rgba(148, 163, 184, 0.28);
     padding-top: 6px;
+}
+
+.choice-countdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 6px;
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.choice-countdown strong {
+    font-variant-numeric: tabular-nums;
 }
 
 .timeline-end-hint {

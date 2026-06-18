@@ -600,7 +600,17 @@
         };
       }
       case 'choice':
-        return { choices: [] };
+        return {
+          choices: [],
+          choiceMode: 'SinglePass',
+          choiceTimer: {
+            enabled: false,
+            durationSeconds: 8,
+            timeoutBehavior: 'SelectDefault',
+            defaultChoiceIndex: 0,
+            timeoutTargetNodeId: ''
+          }
+        };
       case 'jump':
         return { targetNodeId: '' };
       case 'setvariable':

@@ -128,6 +128,12 @@ choices:
     targetNodeId: N_No
 choiceMode: SinglePass
 choiceCompletionTargetNodeId: ""
+choiceTimer:
+  enabled: true
+  durationSeconds: 8
+  timeoutBehavior: SelectDefault
+  defaultChoiceIndex: 0
+  timeoutTargetNodeId: ""
 ```
 
 说明：
@@ -136,6 +142,13 @@ choiceCompletionTargetNodeId: ""
 - 如需按条件进入不同选择集合，应在 Choice 前放置 Condition 节点
 - `choiceMode` 可为 `SinglePass` 或 `ExhaustiveUntilComplete`
 - `ExhaustiveUntilComplete` 需要 `choiceCompletionTargetNodeId`
+- `choiceTimer` 为可选字段；省略时等同于 `enabled: false`
+- `choiceTimer.durationSeconds` 为倒计时秒数，必须大于 0
+- `choiceTimer.timeoutBehavior` 可为 `SelectDefault` 或 `JumpToNode`
+- `SelectDefault` 超时时执行 `defaultChoiceIndex` 对应选项，索引从 0 开始
+- `JumpToNode` 超时时直接跳转到 `timeoutTargetNodeId`
+- 手动选择优先于倒计时；倒计时只在等待 Choice 输入时运行
+- `ExhaustiveUntilComplete` 下，`SelectDefault` 不能指向已经选择过的分支；如果默认分支已经被选过，运行时应选择当前仍可选的第一个分支
 
 ## 10. Condition
 
@@ -351,6 +364,7 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - `entryNodeId` 不存在
 - 无效边引用
 - 无效 Choice 目标引用
+- 无效 Choice 倒计时配置（非正数时长、默认选项越界、超时跳转目标不存在）
 - 空变量名或重复变量名
 - 变量动作引用不存在的变量
 - `SetVariable` 节点没有变量动作
