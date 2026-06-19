@@ -23,6 +23,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    graphMode: {
+        type: String,
+        default: "story",
+    },
 });
 
 const container = ref(null);
@@ -38,6 +42,7 @@ onMounted(() => {
                     edges: props.edges,
                     edgeRenderMode: props.edgeRenderMode,
                     presetSpeakers: props.presetSpeakers,
+                    graphMode: props.graphMode,
                 },
             });
         } catch (error) {
@@ -90,6 +95,15 @@ watch(
         }
     },
     { deep: true },
+);
+
+watch(
+    () => props.graphMode,
+    (newGraphMode) => {
+        if (svelteInstance) {
+            svelteInstance.$set({ graphMode: newGraphMode });
+        }
+    },
 );
 </script>
 

@@ -38,7 +38,215 @@
                         />
                     </div>
 
-                    <template v-if="localNode.type === 'dialogue'">
+                    <template v-if="localNode.type === 'railstory'">
+                        <div class="form-group glass-input">
+                            <label class="form-label">标题</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="localNode.data.title"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            />
+                        </div>
+
+                        <div class="form-group glass-input">
+                            <label class="form-label">引用脚本</label>
+                            <select
+                                class="form-input"
+                                v-model="localNode.data.storyId"
+                                @change="handleUpdate"
+                            >
+                                <option value="">（选择 storyId）</option>
+                                <option
+                                    v-for="story in storyEntries"
+                                    :key="`rail-story-${story.storyId}`"
+                                    :value="story.storyId"
+                                >
+                                    {{ story.storyId }}
+                                </option>
+                            </select>
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="localNode.data.storyId"
+                                placeholder="或手动输入 storyId"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            />
+                        </div>
+
+                        <div class="form-group glass-input">
+                            <label class="form-label">摘要</label>
+                            <textarea
+                                class="form-textarea"
+                                v-model="localNode.data.summary"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            ></textarea>
+                        </div>
+                    </template>
+
+                    <template v-else-if="localNode.type === 'railnote' || localNode.type === 'railend'">
+                        <div class="form-group glass-input">
+                            <label class="form-label">标题</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="localNode.data.title"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            />
+                        </div>
+                        <div class="form-group glass-input">
+                            <label class="form-label">摘要</label>
+                            <textarea
+                                class="form-textarea"
+                                v-model="localNode.data.summary"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            ></textarea>
+                        </div>
+                    </template>
+
+                    <template v-else-if="localNode.type === 'railbranch'">
+                        <div class="form-group glass-input">
+                            <label class="form-label">标题</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="localNode.data.title"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            />
+                        </div>
+                        <div class="form-group glass-input">
+                            <label class="form-label">摘要</label>
+                            <textarea
+                                class="form-textarea"
+                                v-model="localNode.data.summary"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                            ></textarea>
+                        </div>
+
+                        <div class="form-group glass-input">
+                            <label class="form-label">路线分支</label>
+                            <div
+                                v-for="(branch, branchIndex) in localNode.data.branches"
+                                :key="`rail-branch-${branchIndex}`"
+                                class="condition-branch"
+                            >
+                                <div class="condition-branch-header">
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        v-model="branch.label"
+                                        placeholder="分支标签"
+                                        @compositionstart="handleCompositionStart"
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                    <select
+                                        class="form-input condition-logic-select"
+                                        v-model="branch.logic"
+                                        @change="handleUpdate"
+                                    >
+                                        <option value="All">All</option>
+                                        <option value="Any">Any</option>
+                                    </select>
+                                    <button
+                                        class="remove-choice-btn"
+                                        @click="removeRailBranch(branchIndex)"
+                                    >
+                                        <IconGlyph name="close" />
+                                    </button>
+                                </div>
+
+                                <div
+                                    v-for="(term, termIndex) in branch.terms"
+                                    :key="`rail-branch-term-${branchIndex}-${termIndex}`"
+                                    class="choice-item"
+                                >
+                                    <select
+                                        class="form-input"
+                                        :value="term.variable?.name || ''"
+                                        @change="
+                                            updateRailTermVariable(
+                                                branchIndex,
+                                                termIndex,
+                                                $event.target.value,
+                                            )
+                                        "
+                                    >
+                                        <option value="">（选择变量）</option>
+                                        <option
+                                            v-for="variable in availableVariables"
+                                            :key="`rail-condition-var-${variable.name}`"
+                                            :value="variable.name"
+                                        >
+                                            {{ formatVariableOption(variable) }}
+                                        </option>
+                                    </select>
+                                    <select
+                                        class="form-input"
+                                        v-model="term.operator"
+                                        @change="handleUpdate"
+                                    >
+                                        <option value="==">==</option>
+                                        <option value="!=">!=</option>
+                                        <option value=">">&gt;</option>
+                                        <option value=">=">&gt;=</option>
+                                        <option value="<">&lt;</option>
+                                        <option value="<=">&lt;=</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        v-model="term.compareValue"
+                                        placeholder="比较值"
+                                        @compositionstart="handleCompositionStart"
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                    <button
+                                        class="remove-choice-btn"
+                                        @click="removeRailTerm(branchIndex, termIndex)"
+                                    >
+                                        <IconGlyph name="close" />
+                                    </button>
+                                </div>
+
+                                <button
+                                    class="add-choice-btn condition-term-add"
+                                    @click="addRailTerm(branchIndex)"
+                                >
+                                    <IconGlyph name="add" />
+                                    <span>添加条件项</span>
+                                </button>
+                                <p class="choice-hint">
+                                    输出句柄：branch-{{ branchIndex }}
+                                </p>
+                            </div>
+
+                            <button class="add-choice-btn" @click="addRailBranch">
+                                <IconGlyph name="add" />
+                                <span>添加路线分支</span>
+                            </button>
+                            <p class="choice-hint">
+                                未匹配时走 branch-fallback（可选）
+                            </p>
+                        </div>
+                    </template>
+
+                    <template v-else-if="localNode.type === 'dialogue'">
                         <div class="form-group glass-input">
                             <label class="form-label">角色 ID</label>
                             <select
@@ -1207,6 +1415,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    storyEntries: {
+        type: Array,
+        default: () => [],
+    },
+    assetMode: {
+        type: String,
+        default: "story",
+    },
     isDarkMode: {
         type: Boolean,
         default: false,
@@ -1393,6 +1609,24 @@ function normalizeConditionData(condition) {
     return normalized;
 }
 
+function normalizeRailBranches(branches) {
+    return (Array.isArray(branches) ? branches : []).map((branch, index) => ({
+        label: String(branch?.label || `分支 ${index + 1}`).trim(),
+        logic: branch?.logic === "Any" ? "Any" : "All",
+        terms: (Array.isArray(branch?.terms) ? branch.terms : []).map(
+            (term) => ({
+                variable: {
+                    name: String(term?.variable?.name || "").trim(),
+                    type: term?.variable?.type || "String",
+                    scope: term?.variable?.scope || "Global",
+                },
+                operator: term?.operator || "==",
+                compareValue: String(term?.compareValue ?? ""),
+            }),
+        ),
+    }));
+}
+
 function getConditionTermVariableName(term) {
     return String(term?.variable?.name || "").trim();
 }
@@ -1422,6 +1656,69 @@ function handleSetVariableSelect() {
     localNode.value.data.variableName = String(
         localNode.value.data.variableName || "",
     ).trim();
+    handleUpdate();
+}
+
+function addRailBranch() {
+    if (!localNode.value || localNode.value.type !== "railbranch") return;
+    const branches = normalizeRailBranches(localNode.value.data?.branches);
+    branches.push({
+        label: `分支 ${branches.length + 1}`,
+        logic: "All",
+        terms: [],
+    });
+    localNode.value.data.branches = branches;
+    handleUpdate();
+}
+
+function removeRailBranch(index) {
+    if (!localNode.value || localNode.value.type !== "railbranch") return;
+    const branches = normalizeRailBranches(localNode.value.data?.branches);
+    branches.splice(index, 1);
+    localNode.value.data.branches = branches;
+    handleUpdate();
+}
+
+function addRailTerm(branchIndex) {
+    if (!localNode.value || localNode.value.type !== "railbranch") return;
+    const branches = normalizeRailBranches(localNode.value.data?.branches);
+    if (!branches[branchIndex]) return;
+    const firstVariable = availableVariables.value[0] || null;
+    branches[branchIndex].terms.push({
+        variable: {
+            name: firstVariable?.name || "",
+            type: firstVariable ? getVariableType(firstVariable) : "String",
+            scope: firstVariable ? getVariableScope(firstVariable) : "Global",
+        },
+        operator: "==",
+        compareValue: "",
+    });
+    localNode.value.data.branches = branches;
+    handleUpdate();
+}
+
+function removeRailTerm(branchIndex, termIndex) {
+    if (!localNode.value || localNode.value.type !== "railbranch") return;
+    const branches = normalizeRailBranches(localNode.value.data?.branches);
+    branches[branchIndex]?.terms?.splice(termIndex, 1);
+    localNode.value.data.branches = branches;
+    handleUpdate();
+}
+
+function updateRailTermVariable(branchIndex, termIndex, variableName) {
+    if (!localNode.value || localNode.value.type !== "railbranch") return;
+    const branches = normalizeRailBranches(localNode.value.data?.branches);
+    const term = branches[branchIndex]?.terms?.[termIndex];
+    if (!term) return;
+    const selectedVariable = findVariableByName(variableName);
+    term.variable = {
+        name: selectedVariable
+            ? selectedVariable.name
+            : String(variableName || "").trim(),
+        type: selectedVariable ? getVariableType(selectedVariable) : "String",
+        scope: selectedVariable ? getVariableScope(selectedVariable) : "Global",
+    };
+    localNode.value.data.branches = branches;
     handleUpdate();
 }
 
@@ -1493,6 +1790,44 @@ watch(
                 localNode.value.data.variableName = String(
                     localNode.value.data.variableName || "",
                 ).trim();
+            }
+            if (localNode.value.type === "railstory") {
+                localNode.value.data = {
+                    title: "剧情脚本",
+                    summary: "",
+                    storyId: "",
+                    ...(localNode.value.data || {}),
+                };
+            }
+            if (
+                localNode.value.type === "railnote" ||
+                localNode.value.type === "railend"
+            ) {
+                localNode.value.data = {
+                    title:
+                        localNode.value.type === "railend"
+                            ? "总纲结束"
+                            : "章节标记",
+                    summary: "",
+                    ...(localNode.value.data || {}),
+                };
+            }
+            if (localNode.value.type === "railbranch") {
+                localNode.value.data = {
+                    title: "路线判断",
+                    summary: "",
+                    ...(localNode.value.data || {}),
+                };
+                localNode.value.data.branches = normalizeRailBranches(
+                    localNode.value.data.branches,
+                );
+                if (localNode.value.data.branches.length === 0) {
+                    localNode.value.data.branches.push({
+                        label: "分支 1",
+                        logic: "All",
+                        terms: [],
+                    });
+                }
             }
             isExpanded.value = true; // 选中节点时自动展开
         } else {

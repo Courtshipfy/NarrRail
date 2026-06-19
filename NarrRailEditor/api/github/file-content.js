@@ -166,7 +166,8 @@ export default async function handler(req, res) {
         }))
         .filter((item) => {
           const lower = item.path.toLowerCase();
-          const isStoryScript = lower.endsWith(".nrstory");
+          const isStoryScript =
+            lower.endsWith(".nrstory") || lower.endsWith(".nrrail");
           const inRoot = rootPath ? item.path.startsWith(rootPath) : true;
           return isStoryScript && inRoot;
         });
@@ -189,6 +190,9 @@ export default async function handler(req, res) {
           }).catch(() => null),
         ]);
 
+        const extension = item.path.toLowerCase().endsWith(".nrrail")
+          ? ".nrrail"
+          : ".nrstory";
         const counts = contentInfo
           ? deriveNarrRailCounts(contentInfo.content)
           : { nodeCount: null, edgeCount: null };
@@ -197,11 +201,15 @@ export default async function handler(req, res) {
           id: item.path,
           path: item.path,
           fileName: item.path.split("/").pop(),
-          extension: ".nrstory",
+          extension,
           storyId: (item.path.split("/").pop() || "").replace(
-            /\.nrstory$/i,
+            /\.(nrstory|nrrail)$/i,
             "",
           ),
+          railId:
+            extension === ".nrrail"
+              ? (item.path.split("/").pop() || "").replace(/\.nrrail$/i, "")
+              : undefined,
           size: item.size,
           updatedAt,
           nodeCount: counts.nodeCount,

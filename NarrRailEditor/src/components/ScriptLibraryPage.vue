@@ -84,6 +84,15 @@
 
                 <button
                     class="btn secondary top-icon-btn"
+                    @click="openOutlineRail"
+                    title="打开剧情总纲"
+                    aria-label="打开剧情总纲"
+                >
+                    <IconGlyph name="account_tree" />
+                </button>
+
+                <button
+                    class="btn secondary top-icon-btn"
                     @click="
                         authState?.authenticated
                             ? emit('logout')
@@ -118,7 +127,8 @@
                 <div class="repo-row">
                     <div class="summary inline-summary">
                         共
-                        <strong>{{ filteredScripts.length }}</strong> 个脚本
+                        <strong>{{ filteredScripts.length }}</strong>
+                        个脚本
                     </div>
                     <select
                         v-model="selectedRepoFullName"
@@ -141,7 +151,7 @@
                 <input
                     v-model.trim="keyword"
                     type="text"
-                    placeholder="按文件名 / storyId / 路径搜索"
+                    placeholder="按文件名 / ID / 路径搜索"
                 />
             </div>
 
@@ -512,6 +522,7 @@ const props = defineProps({
 
 const emit = defineEmits([
     "open-script",
+    "open-rail",
     "open-overview",
     "toggle-theme",
     "update-variables",
@@ -603,6 +614,8 @@ function toSortableTime(value) {
 const filteredScripts = computed(() => {
     const kw = keyword.value.toLowerCase();
     let result = mockScripts.value.filter((s) => {
+        const isRail = String(s.extension || "").toLowerCase() === ".nrrail";
+        if (isRail) return false;
         const folder = s.path.split("/")[1] || "Unknown";
         const inFolder =
             selectedFolder.value === "all" || folder === selectedFolder.value;
@@ -899,6 +912,27 @@ async function deleteScript(script) {
 }
 
 function openScript(script) {
+    if (String(script?.extension || "").toLowerCase() === ".nrrail") {
+        emit("open-rail", {
+            id: script.id,
+            railId: script.railId || script.storyId,
+            fileName: script.fileName,
+            path: script.path,
+            source:
+                script.source ||
+                (usingMockData.value ? "mock-repository" : "github"),
+            owner: script.owner || selectedOwner.value,
+            repo: script.repo || selectedRepoName.value,
+            branch: script.branch || selectedRepoBranch.value,
+            localStorageKey:
+                script.localStorageKey ||
+                (script.source === "mock-repository"
+                    ? getLocalScriptStorageKey(script.path)
+                    : ""),
+        });
+        return;
+    }
+
     emit("open-script", {
         id: script.id,
         storyId: script.storyId,
@@ -1147,6 +1181,10 @@ function buildNewStoryYaml(storyId) {
     return `meta:\n  schemaVersion: 1\n  storyId: ${toYamlDoubleQuoted(storyId)}\n  entryNodeId: \"\"\nvariables: []\nnodes: []\nedges: []\n`;
 }
 
+function buildNewRailYaml(railId) {
+    return `meta:\n  schemaVersion: 1\n  railId: ${toYamlDoubleQuoted(railId)}\n  title: ${toYamlDoubleQuoted("剧情总纲")}\n  entryNodeId: "rail-start"\nnodes:\n  - nodeId: rail-start\n    nodeType: Note\n    title: "总纲开始"\n    summary: ""\n  - nodeId: rail-end\n    nodeType: End\n    title: "总纲结束"\n    summary: ""\nedges:\n  - sourceNodeId: rail-start\n    sourceHandle: ""\n    targetNodeId: rail-end\n    priority: 0\n`;
+}
+
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1186,6 +1224,7 @@ async function renameScript(script) {
     const oldPath = String(script?.path || "");
     const oldFileName = String(script?.fileName || "");
     const oldStem = formatScriptDisplayName(oldFileName);
+    const isRail = String(script?.extension || "").toLowerCase() === ".nrrail";
     if (!oldPath || !oldFileName) return;
 
     const baseName = prompt("请输入新的脚本名称（不含扩展名）", oldStem);
@@ -1197,7 +1236,7 @@ async function renameScript(script) {
         return;
     }
 
-    const newFileName = `${safeStem}.nrstory`;
+    const newFileName = `${safeStem}${isRail ? ".nrrail" : ".nrstory"}`;
     const newPath = `Stories/${newFileName}`;
 
     if (newPath === oldPath) return;
@@ -1228,10 +1267,12 @@ async function renameScript(script) {
                 throw new Error(readData?.error || "读取原脚本失败");
             }
 
-            const updatedContent = replaceStoryIdInYaml(
-                String(readData?.content || ""),
-                safeStem,
-            );
+            const updatedContent = isRail
+                ? String(readData?.content || "").replace(
+                      /^([ \t]*railId\s*:\s*)(.*)$/m,
+                      `$1"${safeStem.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
+                  )
+                : replaceStoryIdInYaml(String(readData?.content || ""), safeStem);
 
             const createRes = await fetch("/api/github/commit-file", {
                 method: "POST",
@@ -1243,7 +1284,7 @@ async function renameScript(script) {
                     branch: selectedRepoBranch.value,
                     path: newPath,
                     content: updatedContent,
-                    message: `feat(script): rename ${oldPath} -> ${newPath}`,
+                    message: `${isRail ? "feat(rail)" : "feat(script)"}: rename ${oldPath} -> ${newPath}`,
                 }),
             });
             const createData = await createRes.json();
@@ -1261,7 +1302,7 @@ async function renameScript(script) {
                     branch: selectedRepoBranch.value,
                     path: oldPath,
                     sha: readData?.sha,
-                    message: `chore(script): delete old name ${oldPath}`,
+                    message: `${isRail ? "chore(rail)" : "chore(script)"}: delete old name ${oldPath}`,
                 }),
             });
             const delData = await delRes.json();
@@ -1290,6 +1331,15 @@ async function renameScript(script) {
     }
 
     if (localData && localData.meta && typeof localData.meta === "object") {
+        if (isRail) localData.meta.railId = safeStem;
+        else localData.meta.storyId = safeStem;
+    }
+    if (isRail && localData?.yaml) {
+        localData.yaml = String(localData.yaml).replace(
+            /^([ \t]*railId\s*:\s*)(.*)$/m,
+            `$1"${safeStem.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
+        );
+    } else if (localData && localData.meta && typeof localData.meta === "object") {
         localData.meta.storyId = safeStem;
     }
 
@@ -1312,6 +1362,8 @@ async function renameScript(script) {
             fileName: newFileName,
             path: newPath,
             storyId: safeStem,
+            railId: isRail ? safeStem : entry.railId,
+            extension: isRail ? ".nrrail" : entry.extension,
             updatedAt: new Date().toISOString(),
             localStorageKey: targetStorageKey,
         };
@@ -1343,6 +1395,55 @@ function createLocalScriptEntry({ safeStem, fileName, createdPath }) {
     keyword.value = "";
     mockScripts.value = [created, ...mockScripts.value];
     saveScriptListToStorage();
+}
+
+function createLocalRailEntry({ safeStem, fileName, createdPath }) {
+    const created = {
+        id: `r-${Date.now()}`,
+        fileName,
+        extension: ".nrrail",
+        path: createdPath,
+        storyId: safeStem,
+        railId: safeStem,
+        size: 0,
+        nodeCount: 2,
+        edgeCount: 1,
+        updatedAt: new Date().toISOString(),
+        tags: ["Outline", "Local"],
+        source: "mock-repository",
+        localStorageKey: getLocalScriptStorageKey(createdPath),
+    };
+
+    saveLocalScriptContent(createdPath, {
+        yaml: buildNewRailYaml(safeStem),
+        updatedAt: new Date().toISOString(),
+    });
+
+    usingMockData.value = true;
+    selectedFolder.value = "all";
+    keyword.value = "";
+    mockScripts.value = [created, ...mockScripts.value];
+    saveScriptListToStorage();
+    return created;
+}
+
+function openOutlineRail() {
+    const existing =
+        mockScripts.value.find(
+            (s) => String(s.extension || "").toLowerCase() === ".nrrail",
+        ) || null;
+
+    if (existing) {
+        openScript(existing);
+        return;
+    }
+
+    const created = createLocalRailEntry({
+        safeStem: "main_story",
+        fileName: "main_story.nrrail",
+        createdPath: "Stories/main_story.nrrail",
+    });
+    openScript(created);
 }
 
 async function createNewScript() {
@@ -1448,7 +1549,7 @@ function formatDate(iso) {
 }
 
 function formatScriptDisplayName(fileName) {
-    return String(fileName || "").replace(/\.nrstory$/i, "");
+    return String(fileName || "").replace(/\.(nrstory|nrrail)$/i, "");
 }
 
 onMounted(async () => {
