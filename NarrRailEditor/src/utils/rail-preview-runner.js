@@ -17,6 +17,27 @@ function sortEdges(edges) {
   });
 }
 
+function formatTermValue(value) {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return String(value);
+  const text = toText(value);
+  return text || "空值";
+}
+
+function formatRailBranchExpression(branch) {
+  const terms = Array.isArray(branch?.terms) ? branch.terms : [];
+  if (terms.length === 0) return "无条件";
+
+  const joiner = branch?.logic === "Any" ? " 或 " : " 且 ";
+  return terms
+    .map((term) => {
+      const variableName = toText(term?.variable?.name) || "未选择变量";
+      const operator = toText(term?.operator) || "==";
+      return `${variableName} ${operator} ${formatTermValue(term?.compareValue)}`;
+    })
+    .join(joiner);
+}
+
 export function createRailPreviewRunner(rail, options = {}) {
   const nodes = Array.isArray(rail?.nodes) ? rail.nodes : [];
   const edges = Array.isArray(rail?.edges) ? rail.edges : [];
@@ -143,20 +164,51 @@ export function createRailPreviewRunner(rail, options = {}) {
         const index = branches.findIndex((branch) => evaluateTerms(branch, state.vars));
         const handle = index >= 0 ? `branch-${index}` : "branch-fallback";
         const edge = getHandleEdge(node.id, handle);
+        const matchedBranch = index >= 0 ? branches[index] : null;
+        const branchLabel = matchedBranch ? toText(matchedBranch?.label) : "未匹配";
+        const expression = matchedBranch
+          ? formatRailBranchExpression(matchedBranch)
+          : "未匹配任何分支";
         if (!edge?.target) {
           setEnded(`Branch 节点 ${node.id} 缺少 ${handle} 出口`);
           return state;
         }
+        state.timeline.push({
+          kind: "railbranch",
+          nodeId: node.id,
+          text: title,
+          summary: [
+            toText(node?.data?.summary),
+            `判断：${expression}`,
+            `结果：${branchLabel || handle}`,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        });
         state.currentRailNodeId = edge.target;
-        continue;
+        return state;
       }
 
       if (type === "note" || type === "railnote") {
-        enterNextRailNodeFrom(node.id);
-        continue;
+        state.timeline.push({
+          kind: "railnote",
+          nodeId: node.id,
+          text: title,
+          summary: toText(node?.data?.summary),
+        });
+        const next = firstNextTarget(node.id);
+        if (!next) setEnded();
+        else state.currentRailNodeId = next;
+        return state;
       }
 
       if (type === "end" || type === "railend") {
+        state.timeline.push({
+          kind: "railend",
+          nodeId: node.id,
+          text: title,
+          summary: toText(node?.data?.summary) || "总纲预览结束",
+        });
         setEnded();
         return state;
       }

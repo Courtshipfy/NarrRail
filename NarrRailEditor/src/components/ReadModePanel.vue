@@ -33,6 +33,12 @@
                                 v-for="(item, index) in state.timeline"
                                 :key="`${item.nodeId}-${item.kind}-${index}`"
                                 class="timeline-item"
+                                :class="{
+                                    'timeline-item--chapter':
+                                        item.kind === 'railnote' ||
+                                        item.kind === 'railbranch' ||
+                                        item.kind === 'railend',
+                                }"
                             >
                                 <template
                                     v-if="
@@ -170,6 +176,46 @@
                                                 item.text
                                             }}</span>
                                         </span>
+                                    </div>
+                                </template>
+
+                                <template
+                                    v-else-if="
+                                        item.kind === 'railnote' ||
+                                        item.kind === 'railbranch' ||
+                                        item.kind === 'railend'
+                                    "
+                                >
+                                    <div
+                                        class="chapter-marker"
+                                        :class="{
+                                            'chapter-marker--branch':
+                                                item.kind === 'railbranch',
+                                            'chapter-marker--end':
+                                                item.kind === 'railend',
+                                        }"
+                                    >
+                                        <div class="chapter-line"></div>
+                                        <div class="chapter-content">
+                                            <div class="chapter-title">
+                                                {{
+                                                    item.text ||
+                                                    (item.kind === "railbranch"
+                                                        ? "总纲分支"
+                                                        : item.kind ===
+                                                            "railend"
+                                                          ? "总纲结束"
+                                                          : "章节标记")
+                                                }}
+                                            </div>
+                                            <div
+                                                v-if="item.summary"
+                                                class="chapter-summary"
+                                            >
+                                                {{ item.summary }}
+                                            </div>
+                                        </div>
+                                        <div class="chapter-line"></div>
                                     </div>
                                 </template>
                             </div>
@@ -1230,6 +1276,65 @@ watch(
     color: #111827;
 }
 
+.timeline-item--chapter {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px 2px;
+}
+
+.chapter-marker {
+    --chapter-marker-color: #10b981;
+    --chapter-marker-text: #047857;
+    --chapter-marker-line: rgba(16, 185, 129, 0.38);
+    display: grid;
+    grid-template-columns: minmax(24px, 1fr) auto minmax(24px, 1fr);
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    color: var(--chapter-marker-text);
+}
+
+.chapter-marker--branch {
+    --chapter-marker-color: #8b5cf6;
+    --chapter-marker-text: #7c3aed;
+    --chapter-marker-line: rgba(139, 92, 246, 0.42);
+}
+
+.chapter-marker--end {
+    --chapter-marker-color: #f43f5e;
+    --chapter-marker-text: #e11d48;
+    --chapter-marker-line: rgba(244, 63, 94, 0.42);
+}
+
+.chapter-line {
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--chapter-marker-line),
+        transparent
+    );
+}
+
+.chapter-content {
+    max-width: min(520px, 70vw);
+    text-align: center;
+}
+
+.chapter-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.chapter-summary {
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
 .line-row,
 .event-row {
     --speaker-col-width: 9ch;
@@ -1327,6 +1432,35 @@ watch(
     color: #b8cde0 !important;
 }
 
+.preview-mode-root.is-dark-mode .chapter-marker {
+    --chapter-marker-text: #34d399;
+    --chapter-marker-line: rgba(52, 211, 153, 0.42);
+    color: var(--chapter-marker-text) !important;
+}
+
+.preview-mode-root.is-dark-mode .chapter-marker--branch {
+    --chapter-marker-text: #a78bfa;
+    --chapter-marker-line: rgba(167, 139, 250, 0.48);
+}
+
+.preview-mode-root.is-dark-mode .chapter-marker--end {
+    --chapter-marker-text: #fb7185;
+    --chapter-marker-line: rgba(251, 113, 133, 0.5);
+}
+
+.preview-mode-root.is-dark-mode .chapter-line {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--chapter-marker-line),
+        transparent
+    ) !important;
+}
+
+.preview-mode-root.is-dark-mode .chapter-summary {
+    color: #9fb3c8 !important;
+}
+
 :global(body.dark-theme) .preview-mode-root .timeline-item,
 :global(body[data-theme="dark"]) .preview-mode-root .timeline-item {
     color: #b8cde0 !important;
@@ -1395,6 +1529,40 @@ watch(
 :global(body.dark-theme) .preview-mode-root .text,
 :global(body[data-theme="dark"]) .preview-mode-root .text {
     color: #b8cde0 !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .chapter-marker,
+:global(body[data-theme="dark"]) .preview-mode-root .chapter-marker {
+    --chapter-marker-text: #34d399;
+    --chapter-marker-line: rgba(52, 211, 153, 0.42);
+    color: var(--chapter-marker-text) !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .chapter-marker--branch,
+:global(body[data-theme="dark"]) .preview-mode-root .chapter-marker--branch {
+    --chapter-marker-text: #a78bfa;
+    --chapter-marker-line: rgba(167, 139, 250, 0.48);
+}
+
+:global(body.dark-theme) .preview-mode-root .chapter-marker--end,
+:global(body[data-theme="dark"]) .preview-mode-root .chapter-marker--end {
+    --chapter-marker-text: #fb7185;
+    --chapter-marker-line: rgba(251, 113, 133, 0.5);
+}
+
+:global(body.dark-theme) .preview-mode-root .chapter-line,
+:global(body[data-theme="dark"]) .preview-mode-root .chapter-line {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--chapter-marker-line),
+        transparent
+    ) !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .chapter-summary,
+:global(body[data-theme="dark"]) .preview-mode-root .chapter-summary {
+    color: #9fb3c8 !important;
 }
 
 .meta-content {

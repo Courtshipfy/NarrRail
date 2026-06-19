@@ -1699,6 +1699,39 @@ watch(
     pointer-events: auto;
 }
 
+:global(body.dark-theme) .script-library-page,
+:global(body[data-theme="dark"]) .script-library-page {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(2, 6, 23, 0.72),
+            rgba(2, 6, 23, 0.86)
+        ),
+        radial-gradient(
+            circle at 50% 28%,
+            rgba(14, 165, 233, 0.08),
+            transparent 42%
+        );
+}
+
+:global(body.dark-theme) .script-library-page .glass-morphism,
+:global(body.dark-theme) .script-library-page .glass-morphism-strong,
+:global(body[data-theme="dark"]) .script-library-page .glass-morphism,
+:global(body[data-theme="dark"]) .script-library-page .glass-morphism-strong {
+    background: rgba(15, 23, 42, 0.82) !important;
+    border-color: rgba(148, 163, 184, 0.22) !important;
+    box-shadow:
+        0 14px 32px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+:global(body.dark-theme) .script-library-page .top-bar,
+:global(body.dark-theme) .script-library-page .filters,
+:global(body[data-theme="dark"]) .script-library-page .top-bar,
+:global(body[data-theme="dark"]) .script-library-page .filters {
+    background: rgba(15, 23, 42, 0.78) !important;
+}
+
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -2300,5 +2333,26 @@ watch(
 :global(body[data-theme="dark"]) .script-library-page .card-head h3,
 :global(body.dark-theme) .script-library-page .card-head h3 {
     color: #e5e7eb;
+}
+
+:global(body[data-theme="dark"]) .script-library-page .field input,
+:global(body[data-theme="dark"]) .script-library-page .field select,
+:global(body[data-theme="dark"]) .script-library-page .inline-form input,
+:global(body[data-theme="dark"]) .script-library-page .inline-form select,
+:global(body.dark-theme) .script-library-page .field input,
+:global(body.dark-theme) .script-library-page .field select,
+:global(body.dark-theme) .script-library-page .inline-form input,
+:global(body.dark-theme) .script-library-page .inline-form select {
+    background: rgba(15, 23, 42, 0.86);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: #e5e7eb;
+}
+
+:global(body[data-theme="dark"]) .script-library-page .config-card,
+:global(body[data-theme="dark"]) .script-library-page .script-card,
+:global(body.dark-theme) .script-library-page .config-card,
+:global(body.dark-theme) .script-library-page .script-card {
+    background: rgba(15, 23, 42, 0.68);
+    border-color: rgba(148, 163, 184, 0.18);
 }
 </style>
