@@ -121,6 +121,45 @@ function deriveNarrRailCounts(yamlText) {
   };
 }
 
+function unquoteYamlScalar(value) {
+  const text = String(value || "")
+    .replace(/\s+#.*$/, "")
+    .trim();
+  if (!text) return "";
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    return text.slice(1, -1).trim();
+  }
+  return text.replace(/\s+#.*$/, "").trim();
+}
+
+function extractMetaScalar(yamlText, key) {
+  const lines = String(yamlText || "").split(/\r?\n/);
+  let inMeta = false;
+  const keyRegex = new RegExp(`^\\s{2,}${key}\\s*:\\s*(.*)$`);
+
+  for (const line of lines) {
+    if (!inMeta) {
+      if (/^meta\s*:\s*$/.test(line)) {
+        inMeta = true;
+      }
+      continue;
+    }
+
+    if (/^[^\s][^:]*:\s*/.test(line)) {
+      break;
+    }
+
+    const match = line.match(keyRegex);
+    if (!match) continue;
+    return unquoteYamlScalar(match[1]);
+  }
+
+  return "";
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
@@ -196,20 +235,28 @@ export default async function handler(req, res) {
         const counts = contentInfo
           ? deriveNarrRailCounts(contentInfo.content)
           : { nodeCount: null, edgeCount: null };
+        const fileStem = (item.path.split("/").pop() || "").replace(
+          /\.(nrstory|nrrail)$/i,
+          "",
+        );
+        const storyId =
+          extension === ".nrstory" && contentInfo
+            ? extractMetaScalar(contentInfo.content, "storyId") || fileStem
+            : fileStem;
+        const railId =
+          extension === ".nrrail"
+            ? contentInfo
+              ? extractMetaScalar(contentInfo.content, "railId") || fileStem
+              : fileStem
+            : undefined;
 
         return {
           id: item.path,
           path: item.path,
           fileName: item.path.split("/").pop(),
           extension,
-          storyId: (item.path.split("/").pop() || "").replace(
-            /\.(nrstory|nrrail)$/i,
-            "",
-          ),
-          railId:
-            extension === ".nrrail"
-              ? (item.path.split("/").pop() || "").replace(/\.nrrail$/i, "")
-              : undefined,
+          storyId,
+          railId,
           size: item.size,
           updatedAt,
           nodeCount: counts.nodeCount,
