@@ -1427,7 +1427,7 @@ function createLocalRailEntry({ safeStem, fileName, createdPath }) {
     return created;
 }
 
-function openOutlineRail() {
+async function openOutlineRail() {
     const existing =
         mockScripts.value.find(
             (s) => String(s.extension || "").toLowerCase() === ".nrrail",
@@ -1438,10 +1438,77 @@ function openOutlineRail() {
         return;
     }
 
+    const safeStem = "main_story";
+    const fileName = "main_story.nrrail";
+    const createdPath = "Stories/main_story.nrrail";
+
+    if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
+        isCreatingScript.value = true;
+        createScriptStatus.value = "正在创建剧情总纲...";
+        try {
+            const response = await fetch("/api/github/commit-file", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    owner: selectedOwner.value,
+                    repo: selectedRepoName.value,
+                    branch: selectedRepoBranch.value,
+                    path: createdPath,
+                    content: buildNewRailYaml(safeStem),
+                    message: `feat(rail): create ${createdPath}`,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || "创建仓库总纲失败");
+            }
+
+            const created = {
+                id: createdPath,
+                fileName,
+                extension: ".nrrail",
+                path: createdPath,
+                storyId: safeStem,
+                railId: safeStem,
+                nodeCount: 2,
+                edgeCount: 1,
+                updatedAt: new Date().toISOString(),
+                tags: ["GitHub"],
+                source: "github",
+                owner: selectedOwner.value,
+                repo: selectedRepoName.value,
+                branch: selectedRepoBranch.value,
+            };
+
+            selectedFolder.value = "all";
+            keyword.value = "";
+            mockScripts.value = [created, ...mockScripts.value];
+            createScriptStatus.value = "剧情总纲已创建";
+
+            await reloadScriptsFromRepo();
+            const latest =
+                mockScripts.value.find((s) => s.path === createdPath) ||
+                created;
+            openScript(latest);
+
+            setTimeout(() => {
+                createScriptStatus.value = "";
+            }, 2200);
+            return;
+        } catch (error) {
+            createScriptStatus.value = "";
+            alert(`创建仓库总纲失败: ${error.message}`);
+            return;
+        } finally {
+            isCreatingScript.value = false;
+        }
+    }
+
     const created = createLocalRailEntry({
-        safeStem: "main_story",
-        fileName: "main_story.nrrail",
-        createdPath: "Stories/main_story.nrrail",
+        safeStem,
+        fileName,
+        createdPath,
     });
     openScript(created);
 }
