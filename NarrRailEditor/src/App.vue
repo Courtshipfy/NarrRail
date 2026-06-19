@@ -7,6 +7,7 @@
         :auth-state="authState"
         @toggle-theme="handleToggleDarkMode"
         @open-script="handleOpenScriptFromLibrary"
+        @open-rail="handleOpenRailFromLibrary"
         @open-empty="handleOpenEmptyEditor"
         @open-overview="handleOpenOverview"
         @update-variables="handleVariablesUpdate"
@@ -28,17 +29,25 @@
             <div class="graph-editor-wrapper">
                 <GraphEditorWrapper
                     v-if="editorMode === 'graph'"
-                    :nodes="nodes"
-                    :edges="edges"
+                    :nodes="activeNodes"
+                    :edges="activeEdges"
                     :edge-render-mode="edgeRenderMode"
                     :preset-speakers="presetSpeakers"
+                    :graph-mode="assetMode"
                 />
                 <ReadModePanel
                     v-else
-                    :nodes="nodes"
-                    :edges="edges"
+                    :preview-mode="assetMode"
+                    :nodes="assetMode === 'story' ? nodes : railNodes"
+                    :edges="assetMode === 'story' ? edges : railEdges"
                     :variables="variables"
-                    :entry-node-id="storyMeta.entryNodeId"
+                    :entry-node-id="
+                        assetMode === 'story'
+                            ? storyMeta.entryNodeId
+                            : railMeta.entryNodeId
+                    "
+                    :rail="{ meta: railMeta, nodes: railNodes, edges: railEdges }"
+                    :resolve-story-by-id="resolveStoryById"
                     :is-dark-mode="darkModeEnabled"
                 />
             </div>
@@ -65,19 +74,21 @@
         />
 
         <StatusBar
-            :node-count="nodes.length"
-            :edge-count="edges.length"
-            :story-id="storyMeta.storyId"
-            :entry-node-id="storyMeta.entryNodeId"
+            :node-count="activeNodes.length"
+            :edge-count="activeEdges.length"
+            :story-id="activeAssetId"
+            :entry-node-id="activeEntryNodeId"
             :last-saved-at="lastSavedAt"
         />
 
         <PropertyPanel
             v-if="editorMode === 'graph'"
             :selected-node="selectedNode"
-            :entry-node-id="storyMeta.entryNodeId"
+            :entry-node-id="activeEntryNodeId"
             :variables="variables"
             :preset-speakers="presetSpeakers"
+            :asset-mode="assetMode"
+            :story-entries="availableStoryEntries"
             :is-dark-mode="darkModeEnabled"
             :open-multi-dialogue-request="multiDialogueOpenRequest"
             :open-dialogue-request="dialogueOpenRequest"
@@ -88,7 +99,7 @@
         />
 
         <VariablePanel
-            v-if="editorMode === 'graph'"
+            v-if="editorMode === 'graph' && assetMode === 'story'"
             :variables="variables"
             :preset-speakers="presetSpeakers"
             @update="handleVariablesUpdate"
@@ -138,7 +149,7 @@
         <input
             ref="fileInput"
             type="file"
-            accept=".nrstory"
+            accept=".nrstory,.nrrail"
             style="display: none"
             @change="handleFileChange"
         />
@@ -157,6 +168,13 @@ import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
 import OverviewPage from "./components/OverviewPage.vue";
 import { buildYAMLString, exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
+import {
+    buildEmptyRailData,
+    buildRailYAMLString,
+    exportRailToYAML,
+    importRailFromYAML,
+} from "./utils/rail-yaml.js";
+import { validateRail } from "./utils/rail-validation.js";
 import { validateStory } from "./utils/validation.js";
 import { serializeGlobalConfigToYAML } from "./utils/global-config-yaml.js";
 import storage from "./utils/storage.js";
@@ -239,6 +257,7 @@ const recentDragSuppressUntil = ref(0);
 const focusModeEnabled = ref(false);
 const darkModeEnabled = ref(false);
 const editorMode = ref("graph");
+const assetMode = ref("story");
 const edgeRenderMode = ref("straight");
 const DARK_MODE_STORAGE_KEY = "narrrail_editor_theme";
 const EVER_LOGGED_IN_STORAGE_KEY = "narrrail_ever_logged_in";
@@ -261,6 +280,7 @@ const currentView = ref(
         : "overview",
 );
 const selectedScriptEntry = ref(null);
+const selectedRailEntry = ref(null);
 const selectedGithubFileContext = ref(null);
 const isSavingToGithub = ref(false);
 const isSyncingGlobalConfigFromEditor = ref(false);
@@ -283,6 +303,29 @@ const storyMeta = ref({
     schemaVersion: 1,
 });
 
+const emptyRail = buildEmptyRailData("main_story");
+const railMeta = ref(safeClone(emptyRail.meta));
+const railNodes = ref(safeClone(emptyRail.nodes));
+const railEdges = ref(safeClone(emptyRail.edges));
+const railValidationResult = ref({ errors: [], warnings: [] });
+
+const activeNodes = computed(() =>
+    assetMode.value === "rail" ? railNodes.value : nodes.value,
+);
+const activeEdges = computed(() =>
+    assetMode.value === "rail" ? railEdges.value : edges.value,
+);
+const activeAssetId = computed(() =>
+    assetMode.value === "rail"
+        ? railMeta.value.railId || "main_story"
+        : storyMeta.value.storyId || "NewStory",
+);
+const activeEntryNodeId = computed(() =>
+    assetMode.value === "rail"
+        ? railMeta.value.entryNodeId || ""
+        : storyMeta.value.entryNodeId || "",
+);
+
 const variables = ref([]);
 const presetSpeakers = ref([]);
 const fileInput = ref(null);
@@ -297,6 +340,7 @@ const edgeDraft = reactive({
 });
 
 const validationDebounceTimer = ref(null);
+const libraryRefreshKey = ref(0);
 
 let autoSaveTimer = null;
 let autoSaveDirty = false;
@@ -313,6 +357,131 @@ function safeClone(obj) {
 
 function getLocalScriptStorageKeyByPath(path) {
     return `${LOCAL_SCRIPT_CONTENT_PREFIX}${String(path || "")}`;
+}
+
+function getStoredLibraryEntries() {
+    try {
+        const raw = localStorage.getItem("narrrail_mock_script_list");
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+const availableStoryEntries = computed(() =>
+    (libraryRefreshKey.value, getStoredLibraryEntries())
+        .filter((entry) => String(entry?.extension || ".nrstory") === ".nrstory")
+        .map((entry) => ({
+            ...entry,
+            storyId:
+                entry.storyId ||
+                String(entry.fileName || "").replace(/\.nrstory$/i, ""),
+        })),
+);
+
+function normalizeRailPayload(payload) {
+    if (payload?.yaml) {
+        return importRailFromYAML(String(payload.yaml || ""));
+    }
+    return {
+        meta: payload?.meta || buildEmptyRailData("main_story").meta,
+        nodes: Array.isArray(payload?.nodes) ? payload.nodes : [],
+        edges: Array.isArray(payload?.edges) ? payload.edges : [],
+    };
+}
+
+function persistCurrentRailToLocal() {
+    const entry = selectedRailEntry.value;
+    if (!entry || entry.source !== "mock-repository") return;
+
+    const storageKey =
+        entry.localStorageKey || getLocalScriptStorageKeyByPath(entry.path);
+    if (!storageKey) return;
+
+    saveLocalScriptContent(storageKey, {
+        meta: safeClone(railMeta.value),
+        nodes: safeClone(railNodes.value),
+        edges: safeClone(railEdges.value),
+        yaml: buildRailYAMLString(
+            railNodes.value,
+            railEdges.value,
+            railMeta.value,
+        ),
+    });
+}
+
+async function resolveStoryById(storyId) {
+    const normalized = String(storyId || "").trim();
+    if (!normalized) return null;
+
+    const localEntries = getStoredLibraryEntries();
+    const localMatch = localEntries.find(
+        (entry) =>
+            String(entry?.extension || ".nrstory") === ".nrstory" &&
+            String(entry?.storyId || "").trim() === normalized,
+    );
+
+    if (localMatch?.source === "mock-repository" || localMatch?.localStorageKey) {
+        const storageKey =
+            localMatch.localStorageKey ||
+            getLocalScriptStorageKeyByPath(localMatch.path);
+        const localData = loadLocalScriptContent(storageKey);
+        if (localData?.nodes || localData?.edges) {
+            return {
+                meta: {
+                    schemaVersion: localData?.meta?.schemaVersion ?? 1,
+                    storyId: localData?.meta?.storyId || normalized,
+                    entryNodeId: localData?.meta?.entryNodeId || "",
+                },
+                nodes: safeClone(localData.nodes || []),
+                edges: safeClone(localData.edges || []),
+            };
+        }
+    }
+
+    const githubContext =
+        selectedRailEntry.value?.source === "github"
+            ? selectedRailEntry.value
+            : selectedGithubFileContext.value;
+    if (githubContext?.owner && githubContext?.repo) {
+        const listUrl = new URL(
+            window.location.origin + "/api/github/file-content",
+        );
+        listUrl.searchParams.set("mode", "list");
+        listUrl.searchParams.set("owner", githubContext.owner);
+        listUrl.searchParams.set("repo", githubContext.repo);
+        listUrl.searchParams.set("branch", githubContext.branch || "main");
+        const listRes = await fetch(listUrl.toString(), {
+            method: "GET",
+            credentials: "include",
+        });
+        const listData = await listRes.json();
+        if (!listRes.ok) throw new Error(listData?.error || "读取脚本列表失败");
+        const match = (Array.isArray(listData?.files) ? listData.files : []).find(
+            (entry) =>
+                String(entry?.extension || "") === ".nrstory" &&
+                String(entry?.storyId || "") === normalized,
+        );
+        if (!match?.path) return null;
+
+        const contentUrl = new URL(
+            window.location.origin + "/api/github/file-content",
+        );
+        contentUrl.searchParams.set("owner", githubContext.owner);
+        contentUrl.searchParams.set("repo", githubContext.repo);
+        contentUrl.searchParams.set("branch", githubContext.branch || "main");
+        contentUrl.searchParams.set("path", match.path);
+        const res = await fetch(contentUrl.toString(), {
+            method: "GET",
+            credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "读取脚本内容失败");
+        return importFromYAML(String(data?.content || ""));
+    }
+
+    return null;
 }
 
 function getVariableNameSet(variableList) {
@@ -595,7 +764,8 @@ function handleNodeDragStop() {
 
     if (pendingMockRepoPersistAfterDrag) {
         pendingMockRepoPersistAfterDrag = false;
-        persistCurrentMockRepoScriptToLocal();
+        if (assetMode.value === "rail") persistCurrentRailToLocal();
+        else persistCurrentMockRepoScriptToLocal();
     }
 
     if (pendingEdgeStyleAfterDrag) {
@@ -754,6 +924,19 @@ function isValidConditionHandle(node, sourceHandle) {
     return Number.isInteger(index) && index >= 0 && index < branches.length;
 }
 
+function isValidRailHandle(node, sourceHandle) {
+    if (!node || node.type !== "railbranch") return true;
+    if (!sourceHandle) return false;
+    if (sourceHandle === "branch-fallback") return true;
+    const match = /^branch-(\d+)$/.exec(sourceHandle);
+    if (!match) return false;
+    const index = Number(match[1]);
+    const branches = Array.isArray(node.data?.branches)
+        ? node.data.branches
+        : [];
+    return Number.isInteger(index) && index >= 0 && index < branches.length;
+}
+
 function sanitizeEdges(rawEdges, nodeList = nodes.value) {
     const seenIds = new Set();
     const nodeMap = new Map((nodeList || []).map((n) => [n.id, n]));
@@ -770,6 +953,22 @@ function sanitizeEdges(rawEdges, nodeList = nodes.value) {
             isValidChoiceHandle(sourceNode, edge.sourceHandle) &&
             isValidConditionHandle(sourceNode, edge.sourceHandle)
         );
+    });
+}
+
+function sanitizeRailEdges(rawEdges, nodeList = railNodes.value) {
+    const seenIds = new Set();
+    const nodeMap = new Map((nodeList || []).map((n) => [n.id, n]));
+
+    return (rawEdges || []).map(normalizeEdge).filter((edge) => {
+        if (!edge?.id || seenIds.has(edge.id)) return false;
+        seenIds.add(edge.id);
+
+        const sourceNode = nodeMap.get(edge.source);
+        const targetNode = nodeMap.get(edge.target);
+        if (!sourceNode || !targetNode) return false;
+
+        return isValidRailHandle(sourceNode, edge.sourceHandle);
     });
 }
 
@@ -933,12 +1132,13 @@ function buildParallelEdgeOffsetMap(edgesList) {
 }
 
 function applyEdgeVisualStyles() {
-    const sourceFanOutOffsets = buildSourceFanOutOffsetMap(edges.value);
-    const parallelOffsets = buildParallelEdgeOffsetMap(edges.value);
+    const currentEdges = activeEdges.value;
+    const sourceFanOutOffsets = buildSourceFanOutOffsetMap(currentEdges);
+    const parallelOffsets = buildParallelEdgeOffsetMap(currentEdges);
     const isBezier = edgeRenderMode.value === "bezier";
     const edgeType = isBezier ? "default" : "straight";
 
-    const next = edges.value.map((edge) => {
+    const next = currentEdges.map((edge) => {
         const sourceOffset = sourceFanOutOffsets.get(edge.id) ?? 0;
         const parallelOffset = parallelOffsets.get(edge.id) ?? 0;
         const visualOffset = sourceOffset + parallelOffset;
@@ -981,18 +1181,40 @@ function applyEdgeVisualStyles() {
 
     let changed = false;
     for (let i = 0; i < next.length; i++) {
-        if (next[i] !== edges.value[i]) {
+        if (next[i] !== currentEdges[i]) {
             changed = true;
             break;
         }
     }
 
     if (changed) {
-        edges.value = next;
+        if (assetMode.value === "rail") railEdges.value = next;
+        else edges.value = next;
     }
 }
 
 function runRealtimeValidation() {
+    if (assetMode.value === "rail") {
+        railValidationResult.value = validateRail(
+            railNodes.value,
+            railEdges.value,
+            railMeta.value,
+            {
+                storyEntries: availableStoryEntries.value,
+                variables: variables.value,
+            },
+        );
+        validationResult.value = {
+            errors: railValidationResult.value.errors.map((message) => ({
+                message,
+            })),
+            warnings: railValidationResult.value.warnings.map((message) => ({
+                message,
+            })),
+        };
+        return;
+    }
+
     validationResult.value = validateStory(
         nodes.value,
         edges.value,
@@ -1178,6 +1400,51 @@ function handleEdgeClick(event) {
 }
 
 function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
+    if (assetMode.value === "rail") {
+        const nextNodes = Array.isArray(nextNodesInput) ? nextNodesInput : [];
+        const nextEdgesRaw = Array.isArray(nextEdgesInput) ? nextEdgesInput : [];
+        const sanitizedEdges = isNodeDragInProgress.value
+            ? railEdges.value
+            : sanitizeRailEdges(nextEdgesRaw, nextNodes);
+
+        const shouldUpdateNodes = isNodeDragInProgress.value
+            ? hasNodePositionChanged(nextNodes, railNodes.value)
+            : !isDeepEqual(nextNodes, railNodes.value);
+        const shouldUpdateEdges = isNodeDragInProgress.value
+            ? false
+            : !isDeepEqual(sanitizedEdges, railEdges.value);
+
+        if (shouldUpdateNodes) {
+            railNodes.value = safeClone(nextNodes);
+        }
+        if (shouldUpdateEdges) {
+            railEdges.value = safeClone(sanitizedEdges);
+        }
+
+        if (!isNodeDragInProgress.value && selectedNode.value) {
+            const latestNode = railNodes.value.find(
+                (n) => n.id === selectedNode.value.id,
+            );
+            selectedNode.value = latestNode ? safeClone(latestNode) : null;
+        }
+
+        if (!isNodeDragInProgress.value && selectedEdge.value) {
+            const latestEdge = railEdges.value.find(
+                (e) => e.id === selectedEdge.value.id,
+            );
+            selectedEdge.value = latestEdge
+                ? normalizeEdge(safeClone(latestEdge))
+                : null;
+            syncEdgeDraftFromSelection();
+        }
+
+        if (!isNodeDragInProgress.value) {
+            applyEdgeVisualStyles();
+            persistCurrentRailToLocal();
+        }
+        return;
+    }
+
     const nextNodes = Array.isArray(nextNodesInput) ? nextNodesInput : [];
     const nextEdgesRaw = Array.isArray(nextEdgesInput) ? nextEdgesInput : [];
     const isDragging = isNodeDragInProgress.value;
@@ -1311,10 +1578,18 @@ function orderNodesWithinLayer(list, desiredYById = null) {
         return ay - by;
     });
 
-    const choiceNodes = byY.filter((n) => n.type === "choice");
-    const endNodes = byY.filter((n) => n.type === "end");
+    const choiceNodes = byY.filter(
+        (n) => n.type === "choice" || n.type === "railbranch",
+    );
+    const endNodes = byY.filter(
+        (n) => n.type === "end" || n.type === "railend",
+    );
     const regularNodes = byY.filter(
-        (n) => n.type !== "choice" && n.type !== "end",
+        (n) =>
+            n.type !== "choice" &&
+            n.type !== "railbranch" &&
+            n.type !== "end" &&
+            n.type !== "railend",
     );
 
     const centered = [...regularNodes];
@@ -1326,9 +1601,9 @@ function orderNodesWithinLayer(list, desiredYById = null) {
 
 function getChoiceHandleIndex(sourceHandle) {
     if (!sourceHandle) return null;
-    const match = /^choice-(\d+)$/.exec(sourceHandle);
+    const match = /^(choice|branch)-(\d+)$/.exec(sourceHandle);
     if (!match) return null;
-    return Number(match[1]);
+    return Number(match[2]);
 }
 
 function estimateNodeHeight(node) {
@@ -1464,9 +1739,16 @@ function computeIncomingDesiredY(
         const sourceCenterY = getNodeCenterY(sourceNode, sourceTopY);
         const handleIndex = getChoiceHandleIndex(edge.sourceHandle);
 
-        if (handleIndex != null && sourceNode?.type === "choice") {
-            const choiceCount = Array.isArray(sourceNode.data?.choices)
-                ? sourceNode.data.choices.length
+        if (
+            handleIndex != null &&
+            (sourceNode?.type === "choice" || sourceNode?.type === "railbranch")
+        ) {
+            const sourceItems =
+                sourceNode.type === "railbranch"
+                    ? sourceNode.data?.branches
+                    : sourceNode.data?.choices;
+            const choiceCount = Array.isArray(sourceItems)
+                ? sourceItems.length
                 : 0;
             const center = (Math.max(choiceCount, 1) - 1) / 2;
             const offset = (handleIndex - center) * fanOutSpread;
@@ -1558,29 +1840,27 @@ function enforceForwardLayers(initialLayerMap, edgeList, nodeList) {
     return adjusted;
 }
 
-function handleAutoLayout() {
-    if (nodes.value.length === 0) return;
-
+function computeAutoLayoutNodes(graphNodes, graphEdges, entryNodeId) {
     const rankSep = 180;
     const nodeSep = 210;
     const startX = 140;
     const startY = 110;
 
     const rawLayerMap = buildLayers(
-        nodes.value,
-        edges.value,
-        storyMeta.value.entryNodeId,
+        graphNodes,
+        graphEdges,
+        entryNodeId,
     );
     const layerMap = enforceForwardLayers(
         rawLayerMap,
-        edges.value,
-        nodes.value,
+        graphEdges,
+        graphNodes,
     );
-    const nodeMap = new Map(nodes.value.map((n) => [n.id, n]));
+    const nodeMap = new Map(graphNodes.map((n) => [n.id, n]));
     const incomingByTarget = new Map();
     const outgoingBySource = new Map();
 
-    edges.value.forEach((edge) => {
+    graphEdges.forEach((edge) => {
         if (!incomingByTarget.has(edge.target))
             incomingByTarget.set(edge.target, []);
         incomingByTarget.get(edge.target).push(edge);
@@ -1592,7 +1872,7 @@ function handleAutoLayout() {
     });
 
     const grouped = new Map();
-    nodes.value.forEach((node) => {
+    graphNodes.forEach((node) => {
         const l = layerMap.get(node.id) ?? 0;
         if (!grouped.has(l)) grouped.set(l, []);
         grouped.get(l).push(node);
@@ -1710,7 +1990,7 @@ function handleAutoLayout() {
         });
     });
 
-    const nextNodes = nodes.value.map((node) => {
+    return graphNodes.map((node) => {
         const l = layerMap.get(node.id) ?? 0;
         const y = assignedYById.get(node.id) ?? startY;
         const x = nodeXById.get(node.id) ?? layerX.get(l) ?? startX;
@@ -1719,11 +1999,35 @@ function handleAutoLayout() {
             position: { x, y },
         };
     });
+}
 
-    if (!isDeepEqual(nextNodes, nodes.value)) {
+function handleAutoLayout() {
+    const graphNodes = assetMode.value === "rail" ? railNodes.value : nodes.value;
+    const graphEdges = assetMode.value === "rail" ? railEdges.value : edges.value;
+    const entryNodeId =
+        assetMode.value === "rail"
+            ? railMeta.value.entryNodeId
+            : storyMeta.value.entryNodeId;
+
+    if (graphNodes.length === 0) return;
+
+    const nextNodes = computeAutoLayoutNodes(
+        graphNodes,
+        graphEdges,
+        entryNodeId,
+    );
+
+    if (!isDeepEqual(nextNodes, graphNodes)) {
         pushHistorySnapshot();
-        nodes.value = safeClone(nextNodes);
+        if (assetMode.value === "rail") {
+            railNodes.value = safeClone(nextNodes);
+            persistCurrentRailToLocal();
+        } else {
+            nodes.value = safeClone(nextNodes);
+        }
     }
+
+    applyEdgeVisualStyles();
 }
 
 function getNodeById(nodeId) {
@@ -1835,11 +2139,112 @@ function handleOpenOverview() {
 
 function handleOpenEmptyEditor() {
     selectedScriptEntry.value = null;
+    selectedRailEntry.value = null;
+    selectedGithubFileContext.value = null;
+    assetMode.value = "story";
+    editorMode.value = "graph";
     currentView.value = "editor";
+}
+
+function openRailData(imported, railEntry = null) {
+    selectedRailEntry.value = railEntry ? safeClone(railEntry) : null;
+    selectedScriptEntry.value = null;
+    if (!railEntry || railEntry.source !== "github") {
+        selectedGithubFileContext.value = null;
+    }
+    railMeta.value = {
+        schemaVersion: imported.meta?.schemaVersion ?? 1,
+        railId: imported.meta?.railId || railEntry?.railId || "main_story",
+        title: imported.meta?.title || "",
+        entryNodeId: imported.meta?.entryNodeId || "",
+    };
+    railNodes.value = safeClone(imported.nodes || []);
+    railEdges.value = safeClone(imported.edges || []);
+    const layoutNodes = computeAutoLayoutNodes(
+        railNodes.value,
+        railEdges.value,
+        railMeta.value.entryNodeId,
+    );
+    if (!isDeepEqual(layoutNodes, railNodes.value)) {
+        railNodes.value = safeClone(layoutNodes);
+    }
+    railValidationResult.value = validateRail(
+        railNodes.value,
+        railEdges.value,
+        railMeta.value,
+        { storyEntries: availableStoryEntries.value, variables: variables.value },
+    );
+    libraryRefreshKey.value += 1;
+    assetMode.value = "rail";
+    editorMode.value = "graph";
+    selectedNode.value = null;
+    selectedEdge.value = null;
+    currentView.value = "editor";
+}
+
+async function handleOpenRailFromLibrary(railEntry) {
+    selectedRailEntry.value = safeClone(railEntry || null);
+    selectedScriptEntry.value = null;
+
+    if (
+        railEntry?.source === "github" &&
+        railEntry?.owner &&
+        railEntry?.repo &&
+        railEntry?.path
+    ) {
+        try {
+            const url = new URL(
+                window.location.origin + "/api/github/file-content",
+            );
+            url.searchParams.set("owner", railEntry.owner);
+            url.searchParams.set("repo", railEntry.repo);
+            url.searchParams.set("branch", railEntry.branch || "main");
+            url.searchParams.set("path", railEntry.path);
+
+            const response = await fetch(url.toString(), {
+                method: "GET",
+                credentials: "include",
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.error || "读取总纲内容失败");
+            }
+
+            selectedGithubFileContext.value = {
+                owner: railEntry.owner,
+                repo: railEntry.repo,
+                branch: railEntry.branch || "main",
+                path: railEntry.path,
+                sha: data?.sha || "",
+            };
+
+            openRailData(importRailFromYAML(String(data?.content || "")), railEntry);
+            return;
+        } catch (error) {
+            alert(`打开 GitHub 总纲失败: ${error.message}`);
+            return;
+        }
+    }
+
+    if (railEntry?.source === "mock-repository") {
+        const storageKey =
+            railEntry.localStorageKey ||
+            getLocalScriptStorageKeyByPath(railEntry.path || "");
+        const localData = loadLocalScriptContent(storageKey);
+        if (localData) {
+            openRailData(normalizeRailPayload(localData), railEntry);
+            return;
+        }
+    }
+
+    openRailData(buildEmptyRailData(railEntry?.railId || "main_story"), railEntry);
 }
 
 async function handleOpenScriptFromLibrary(scriptEntry) {
     selectedScriptEntry.value = safeClone(scriptEntry || null);
+    selectedRailEntry.value = null;
+    assetMode.value = "story";
+    editorMode.value = "graph";
 
     if (
         scriptEntry?.source === "github" &&
@@ -1905,6 +2310,7 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
     }
 
     if (scriptEntry?.source === "mock-repository") {
+        selectedGithubFileContext.value = null;
         const storageKey =
             scriptEntry?.localStorageKey ||
             getLocalScriptStorageKeyByPath(scriptEntry?.path || "");
@@ -1946,6 +2352,7 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
     }
 
     if (scriptEntry?.storyId) {
+        selectedGithubFileContext.value = null;
         storyMeta.value = {
             ...storyMeta.value,
             storyId: scriptEntry.storyId,
@@ -2052,7 +2459,16 @@ onUnmounted(() => {
 });
 
 watch(
-    () => [nodes.value, edges.value, storyMeta.value.entryNodeId],
+    () => [
+        assetMode.value,
+        nodes.value,
+        edges.value,
+        storyMeta.value.entryNodeId,
+        railNodes.value,
+        railEdges.value,
+        railMeta.value.entryNodeId,
+        variables.value,
+    ],
     () => {
         if (isNodeDragInProgress.value) {
             pendingValidationAfterDrag = true;
@@ -2064,7 +2480,7 @@ watch(
 );
 
 watch(
-    () => storyMeta.value.storyId,
+    () => [assetMode.value, storyMeta.value.storyId, railMeta.value.railId],
     () => {
         if (autoSaveTimer) {
             clearInterval(autoSaveTimer);
@@ -2077,9 +2493,13 @@ watch(
 
 watch(
     () => [
+        assetMode.value,
         nodes.value,
         edges.value,
         storyMeta.value,
+        railNodes.value,
+        railEdges.value,
+        railMeta.value,
         variables.value,
         presetSpeakers.value,
     ],
@@ -2111,6 +2531,25 @@ watch(
 
 watch(
     () => [
+        selectedRailEntry.value?.path,
+        selectedRailEntry.value?.source,
+        railMeta.value,
+        railNodes.value,
+        railEdges.value,
+    ],
+    () => {
+        if (assetMode.value !== "rail") return;
+        if (isNodeDragInProgress.value) {
+            pendingMockRepoPersistAfterDrag = true;
+            return;
+        }
+        persistCurrentRailToLocal();
+    },
+    { deep: true },
+);
+
+watch(
+    () => [
         selectedNode.value?.id,
         selectedEdge.value?.id,
         focusModeEnabled.value,
@@ -2128,6 +2567,27 @@ watch(
 );
 
 function handleNew() {
+    if (assetMode.value === "rail") {
+        if (
+            (railNodes.value.length > 0 || railEdges.value.length > 0) &&
+            !confirm("创建新总纲将清空当前内容，是否继续？")
+        ) {
+            return;
+        }
+        const empty = buildEmptyRailData("main_story");
+        railMeta.value = safeClone(empty.meta);
+        railNodes.value = safeClone(empty.nodes);
+        railEdges.value = safeClone(empty.edges);
+        railValidationResult.value = validateRail(
+            railNodes.value,
+            railEdges.value,
+            railMeta.value,
+            { storyEntries: availableStoryEntries.value, variables: variables.value },
+        );
+        persistCurrentRailToLocal();
+        return;
+    }
+
     if (
         nodes.value.length > 0 &&
         !confirm("创建新剧情将清空当前内容，是否继续？")
@@ -2164,6 +2624,37 @@ function handleImport() {
 function handleFileChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (String(file.name || "").toLowerCase().endsWith(".nrrail")) {
+        const hasRailData = railNodes.value.length > 0 || railEdges.value.length > 0;
+        if (
+            assetMode.value === "rail" &&
+            hasRailData &&
+            !confirm("导入总纲将覆盖当前总纲内容，是否继续？")
+        ) {
+            event.target.value = "";
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const imported = importRailFromYAML(String(e.target?.result || ""));
+                openRailData(imported, null);
+                alert(
+                    `总纲导入成功！\n节点数: ${railNodes.value.length}\n边数: ${railEdges.value.length}`,
+                );
+            } catch (error) {
+                alert(`总纲导入失败: ${error.message}`);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = "";
+        return;
+    }
+
+    assetMode.value = "story";
+    editorMode.value = "graph";
 
     const hasCurrentData =
         nodes.value.length > 0 ||
@@ -2245,6 +2736,85 @@ function handleFileChange(event) {
 }
 
 async function handleExport() {
+    if (assetMode.value === "rail") {
+        if (railNodes.value.length === 0) {
+            alert("没有可导出的总纲内容");
+            return;
+        }
+
+        const result = validateRail(railNodes.value, railEdges.value, railMeta.value, {
+            storyEntries: availableStoryEntries.value,
+            variables: variables.value,
+        });
+        railValidationResult.value = result;
+        if (result.errors.length > 0) {
+            alert(
+                `总纲导出已阻止：存在 ${result.errors.length} 个错误。\n\n${result.errors
+                    .slice(0, 8)
+                    .map((err) => `- ${err}`)
+                    .join("\n")}`,
+            );
+            return;
+        }
+        if (result.warnings.length > 0) {
+            const proceed = confirm(
+                `当前总纲有 ${result.warnings.length} 个警告，是否仍然导出？`,
+            );
+            if (!proceed) return;
+        }
+
+        try {
+            const yamlString = buildRailYAMLString(
+                railNodes.value,
+                railEdges.value,
+                railMeta.value,
+            );
+            if (
+                selectedGithubFileContext.value?.owner &&
+                selectedGithubFileContext.value?.repo &&
+                selectedGithubFileContext.value?.path?.endsWith(".nrrail")
+            ) {
+                if (isSavingToGithub.value) return;
+                isSavingToGithub.value = true;
+                const response = await fetch("/api/github/commit-file", {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        owner: selectedGithubFileContext.value.owner,
+                        repo: selectedGithubFileContext.value.repo,
+                        branch: selectedGithubFileContext.value.branch || "main",
+                        path: selectedGithubFileContext.value.path,
+                        sha: selectedGithubFileContext.value.sha || undefined,
+                        content: yamlString,
+                        message: `feat(rail): update ${selectedGithubFileContext.value.path}`,
+                    }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.error || "提交总纲到 GitHub 失败");
+                }
+                selectedGithubFileContext.value = {
+                    ...selectedGithubFileContext.value,
+                    sha: data?.content?.sha || selectedGithubFileContext.value.sha,
+                };
+                alert(`总纲已提交到 GitHub！\ncommit: ${data?.commit?.sha || "(unknown)"}`);
+                return;
+            }
+
+            exportRailToYAML(railNodes.value, railEdges.value, railMeta.value);
+            persistCurrentRailToLocal();
+            alert(
+                `总纲导出成功！\n节点数: ${railNodes.value.length}\n边数: ${railEdges.value.length}`,
+            );
+        } catch (error) {
+            alert(`总纲导出失败: ${error.message}`);
+        } finally {
+            isSavingToGithub.value = false;
+        }
+        return;
+    }
+
     if (nodes.value.length === 0) {
         alert("没有可导出的内容");
         return;
@@ -2341,6 +2911,30 @@ async function handleExport() {
 }
 
 function handleValidate() {
+    if (assetMode.value === "rail") {
+        const result = validateRail(railNodes.value, railEdges.value, railMeta.value, {
+            storyEntries: availableStoryEntries.value,
+            variables: variables.value,
+        });
+        railValidationResult.value = result;
+        if (result.errors.length === 0 && result.warnings.length === 0) {
+            alert("总纲验证通过！没有发现错误。");
+            return;
+        }
+
+        let message = "总纲验证结果：\n\n";
+        if (result.errors.length > 0) {
+            message += `错误 (${result.errors.length}):\n`;
+            result.errors.forEach((err) => (message += `- ${err}\n`));
+        }
+        if (result.warnings.length > 0) {
+            message += `\n警告 (${result.warnings.length}):\n`;
+            result.warnings.forEach((warn) => (message += `- ${warn}\n`));
+        }
+        alert(message);
+        return;
+    }
+
     runRealtimeValidation();
     const result = validationResult.value;
     if (result.errors.length === 0 && result.warnings.length === 0) {
@@ -2376,6 +2970,39 @@ function handleHelp() {
 
 function handleNodeUpdate(updatedNode) {
     if (!updatedNode) return;
+
+    if (assetMode.value === "rail") {
+        const prevId = selectedNode.value?.id;
+        let index = -1;
+        if (prevId) index = railNodes.value.findIndex((n) => n.id === prevId);
+        if (index === -1)
+            index = railNodes.value.findIndex((n) => n.id === updatedNode.id);
+        if (index === -1) return;
+
+        const oldId = railNodes.value[index].id;
+        const nextNode = safeClone(updatedNode);
+        if (isDeepEqual(railNodes.value[index], nextNode)) return;
+        railNodes.value[index] = nextNode;
+
+        let nextEdges = [...railEdges.value];
+        if (oldId !== nextNode.id) {
+            nextEdges = nextEdges.map((edge) => ({
+                ...edge,
+                source: edge.source === oldId ? nextNode.id : edge.source,
+                target: edge.target === oldId ? nextNode.id : edge.target,
+            }));
+
+            if (railMeta.value.entryNodeId === oldId) {
+                railMeta.value.entryNodeId = nextNode.id;
+            }
+        }
+
+        railEdges.value = safeClone(sanitizeRailEdges(nextEdges));
+        selectedNode.value = safeClone(nextNode);
+        persistCurrentRailToLocal();
+        applyEdgeVisualStyles();
+        return;
+    }
 
     const prevId = selectedNode.value?.id;
     let index = -1;
@@ -2428,6 +3055,37 @@ function handleEdgeUpdate(updatedEdge) {
     if (!edgeId) return;
 
     const normalized = normalizeEdge({ ...updatedEdge, id: edgeId });
+    if (assetMode.value === "rail") {
+        const sourceNode = railNodes.value.find((n) => n.id === normalized.source);
+        const targetNode = railNodes.value.find((n) => n.id === normalized.target);
+        if (!sourceNode || !targetNode) {
+            alert("边更新失败：源节点或目标节点不存在。");
+            return;
+        }
+
+        if (!isValidRailHandle(sourceNode, normalized.sourceHandle)) {
+            alert("边更新失败：总纲 Branch 节点 sourceHandle 无效。");
+            return;
+        }
+
+        const index = railEdges.value.findIndex((e) => e.id === edgeId);
+        const nextEdges = [...railEdges.value];
+        if (index === -1) nextEdges.push(normalized);
+        else nextEdges[index] = normalized;
+
+        const sanitizedNext = sanitizeRailEdges(nextEdges);
+        if (!isDeepEqual(sanitizedNext, railEdges.value)) {
+            railEdges.value = safeClone(sanitizedNext);
+            persistCurrentRailToLocal();
+        }
+
+        const latestEdge = railEdges.value.find((e) => e.id === edgeId);
+        selectedEdge.value = latestEdge ? safeClone(latestEdge) : null;
+        syncEdgeDraftFromSelection();
+        applyEdgeVisualStyles();
+        return;
+    }
+
     const sourceNode = nodes.value.find((n) => n.id === normalized.source);
     const targetNode = nodes.value.find((n) => n.id === normalized.target);
     if (!sourceNode || !targetNode) {
@@ -2458,6 +3116,13 @@ function handleEdgeUpdate(updatedEdge) {
 }
 
 function handleSetEntryNode(nodeId) {
+    if (assetMode.value === "rail") {
+        if (railMeta.value.entryNodeId === nodeId) return;
+        railMeta.value.entryNodeId = nodeId;
+        persistCurrentRailToLocal();
+        return;
+    }
+
     if (storyMeta.value.entryNodeId === nodeId) return;
     pushHistorySnapshot();
     storyMeta.value.entryNodeId = nodeId;

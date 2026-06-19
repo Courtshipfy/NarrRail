@@ -238,12 +238,17 @@
 
 <script setup>
 import { nextTick, onUnmounted, reactive, ref, watch } from "vue";
+import { createRailPreviewRunner } from "../utils/rail-preview-runner.js";
+import { normalizeVariableValue } from "../utils/story-preview-runner.js";
 
 const props = defineProps({
+    previewMode: { type: String, default: "story" },
     nodes: { type: Array, default: () => [] },
     edges: { type: Array, default: () => [] },
     variables: { type: Array, default: () => [] },
     entryNodeId: { type: String, default: "" },
+    rail: { type: Object, default: null },
+    resolveStoryById: { type: Function, default: null },
     isDarkMode: { type: Boolean, default: false },
 });
 
@@ -272,6 +277,11 @@ const state = reactive({
 });
 
 let choiceTimerId = null;
+let railRunner = null;
+
+function isRailPreviewMode() {
+    return props.previewMode === "rail";
+}
 
 function toNodeType(node) {
     return String(node?.type || "").toLowerCase();
@@ -292,19 +302,51 @@ function toNumberLike(value) {
     return Number.isFinite(n) ? n : 0;
 }
 
-function normalizeVariableValue(variable) {
-    const type = String(variable?.type || "");
-    if (type === "Bool") return !!variable?.boolValue;
-    if (type === "Int") return Math.trunc(toNumberLike(variable?.intValue));
-    if (type === "Float") return toNumberLike(variable?.floatValue);
-    if (type === "String") return String(variable?.stringValue || "");
-    return variable?.stringValue ?? "";
-}
-
 function refreshVarList() {
     state.varList = Object.keys(state.vars)
         .sort((a, b) => a.localeCompare(b))
         .map((name) => ({ name, value: state.vars[name] }));
+}
+
+function syncRunnerState(runnerState) {
+    clearChoiceTimer();
+    state.status = runnerState?.status || "idle";
+    state.currentNodeId =
+        runnerState?.currentNodeId || runnerState?.currentRailNodeId || "";
+    state.pendingChoices = Array.isArray(runnerState?.pendingChoices)
+        ? [...runnerState.pendingChoices]
+        : [];
+    state.timeline = Array.isArray(runnerState?.timeline)
+        ? [...runnerState.timeline]
+        : [];
+    state.vars = runnerState?.vars || {};
+    state.error = runnerState?.error || "";
+    resetChoiceTimerState();
+    refreshVarList();
+}
+
+function restartRailPreview() {
+    clearChoiceTimer();
+    railRunner = createRailPreviewRunner(
+        props.rail || {
+            meta: { entryNodeId: props.entryNodeId },
+            nodes: props.nodes,
+            edges: props.edges,
+        },
+        {
+            variables: props.variables,
+            resolveStoryById:
+                typeof props.resolveStoryById === "function"
+                    ? props.resolveStoryById
+                    : () => null,
+        },
+    );
+    syncRunnerState(railRunner.state);
+
+    if (!String(props.entryNodeId || props.rail?.meta?.entryNodeId || "").trim()) {
+        state.status = "idle";
+        state.error = "入口节点为空，请先设置 Entry Node。";
+    }
 }
 
 function initSessionVars() {
@@ -568,6 +610,11 @@ function handleBranchEnd() {
 }
 
 function restartPreview() {
+    if (isRailPreviewMode()) {
+        restartRailPreview();
+        return;
+    }
+
     clearChoiceTimer();
     state.timeline = [];
     state.pendingChoices = [];
@@ -857,7 +904,27 @@ function handleRestart() {
     restartPreview();
 }
 
-function handleTimelineAdvance() {
+async function advanceRailPreview() {
+    if (!railRunner) {
+        restartRailPreview();
+    }
+    if (!railRunner || state.status === "await-choice") return;
+    await railRunner.advance();
+    syncRunnerState(railRunner.state);
+    scrollTimelineToBottom();
+}
+
+async function handleTimelineAdvance() {
+    if (isRailPreviewMode()) {
+        if (state.status === "idle") {
+            restartRailPreview();
+        }
+        if (state.status === "running") {
+            await advanceRailPreview();
+        }
+        return;
+    }
+
     if (state.status === "await-choice") return;
 
     if (state.status === "idle") {
@@ -880,7 +947,15 @@ function handleTimelineAdvance() {
     }
 }
 
-function handleChoose(handle, options = {}) {
+async function handleChoose(handle, options = {}) {
+    if (isRailPreviewMode()) {
+        if (state.status !== "await-choice" || !railRunner) return;
+        await railRunner.choose(handle);
+        syncRunnerState(railRunner.state);
+        scrollTimelineToBottom();
+        return;
+    }
+
     if (state.status !== "await-choice") return;
     clearChoiceTimer();
 
@@ -942,11 +1017,23 @@ onUnmounted(() => {
 });
 
 watch(
-    () => [props.nodes, props.edges, props.variables, props.entryNodeId],
-    () => {
+    () => [
+        props.previewMode,
+        props.nodes,
+        props.edges,
+        props.variables,
+        props.entryNodeId,
+        props.rail,
+        props.resolveStoryById,
+    ],
+    async () => {
         restartPreview();
         if (state.status === "running") {
-            advanceUntilPause();
+            if (isRailPreviewMode()) {
+                await advanceRailPreview();
+            } else {
+                advanceUntilPause();
+            }
             scrollTimelineToBottom();
         }
     },

@@ -4,7 +4,10 @@
 
 本文档定义 NarrRail 用于编辑器导入/导出、UE 插件导入和离线校验的脚本文件格式。
 
-当前基准格式：YAML，统一文件后缀 `.nrstory`。
+当前基准格式：YAML。
+
+- 剧情脚本与全局配置：`.nrstory`
+- 编辑器剧情总纲：`.nrrail`
 
 ## 2. 文件类型
 
@@ -12,6 +15,8 @@ NarrRail 当前支持两类 `.nrstory` 文件：
 
 - 剧情脚本：包含 `nodes` 和 `edges`，导入 UE 后生成 `UNarrRailStoryAsset`
 - 全局配置：`meta.configType: GlobalConfig`，导入 UE 后生成 `UNarrRailGlobalConfigAsset`
+
+NarrRailEditor 额外支持 `.nrrail` 剧情总纲文件。总纲用于在 Web 编辑器中把多个 `.nrstory` 串联成章节/路线图，并支持跨脚本条件分支与预览。当前 `.nrrail` 只作为编辑器资产，UE 插件暂不导入。
 
 ## 3. 剧情脚本根结构
 
@@ -339,7 +344,210 @@ presetSpeakers:
 - 同步到同一故事仓库目录下的 `UNarrRailStoryAsset` 会自动绑定该 `UNarrRailGlobalConfigAsset`
 - 运行时会把全局变量注册到 GameInstance 级 `UNarrRailGlobalStateSubsystem`，多个 Session 共享同一份全局变量状态
 
-## 15. UE 故事仓库同步
+## 15. 剧情总纲 `.nrrail`
+
+剧情总纲是单个剧情脚本之上的编排层。单个 `.nrstory` 继续负责对白、选择、变量操作和局部条件；`.nrrail` 负责决定多个脚本的顺序、分支与汇合关系。
+
+### 15.1 根结构
+
+```yaml
+meta:
+  schemaVersion: 1
+  railId: main_story
+  title: 主线总纲
+  entryNodeId: rail_start
+
+nodes: []
+edges: []
+```
+
+必需字段：
+
+- `meta`
+- `nodes`
+- `edges`
+
+### 15.2 Meta
+
+| 字段 | 类型 | 必需 | 说明 |
+|---|---|---|---|
+| `schemaVersion` | int | 是 | 当前值为 `1` |
+| `railId` | string | 是 | 唯一总纲 ID |
+| `title` | string | 否 | 展示标题 |
+| `entryNodeId` | string | 是 | 必须存在于 `nodes[].nodeId` |
+
+### 15.3 总纲节点
+
+基础结构：
+
+```yaml
+nodes:
+  - nodeId: rail_start
+    nodeType: Story
+    title: 第一章 开场
+    summary: 主角进入车站
+    storyId: chapter_01_intro
+```
+
+支持的 `nodeType`：
+
+- `Story`：引用一个已有 `.nrstory` 的 `meta.storyId`
+- `Branch`：根据全局变量快照选择下一条总纲路径
+- `Note`：章节标记或备注，预览时记录提示后自动继续
+- `End`：总纲结束
+
+### 15.4 Story 节点
+
+```yaml
+- nodeId: chapter_01
+  nodeType: Story
+  title: 第一章 开场
+  summary: 主角进入车站
+  storyId: chapter_01_intro
+```
+
+说明：
+
+- `storyId` 必须能在当前编辑器脚本库中解析到一个 `.nrstory`
+- 总纲预览进入 Story 节点时，会运行被引用脚本
+- 被引用脚本结束后，总纲继续沿 Story 节点出边前进
+- 跨脚本状态通过共享变量快照传递
+
+### 15.5 Branch 节点
+
+```yaml
+- nodeId: route_check
+  nodeType: Branch
+  title: 路线判断
+  branches:
+    - label: A路线
+      logic: All
+      terms:
+        - variable:
+            name: Route
+            type: String
+            scope: Global
+          operator: "=="
+          compareValue: "A"
+    - label: B路线
+      logic: All
+      terms:
+        - variable:
+            name: Route
+            type: String
+            scope: Global
+          operator: "=="
+          compareValue: "B"
+```
+
+分支规则：
+
+- `branches` 从上到下依次求值
+- 命中第一个满足条件的分支后立即离开 Branch 节点
+- 分支 `0` 对应出边 `sourceHandle: branch-0`
+- 分支 `1` 对应出边 `sourceHandle: branch-1`
+- 以此类推
+- 没有分支命中时走 `sourceHandle: branch-fallback`
+
+### 15.6 总纲边
+
+```yaml
+edges:
+  - sourceNodeId: chapter_01
+    sourceHandle: ""
+    targetNodeId: route_check
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-0
+    targetNodeId: route_a_01
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-fallback
+    targetNodeId: route_b_01
+    priority: 99
+```
+
+### 15.7 总纲校验规则
+
+硬错误：
+
+- 空或重复的 `nodeId`
+- `entryNodeId` 不存在
+- 边引用不存在的节点
+- `Story.storyId` 为空或无法在脚本库解析
+- `Branch` 的 `branch-N` 没有对应分支
+- `Branch` 缺少所有可用出边
+
+警告：
+
+- 不可达总纲节点
+- 非 `End` 节点没有出边
+- `Branch` 缺少 `branch-fallback`
+- 条件变量未在全局配置中定义
+- 存在循环路径，预览会使用步数上限保护
+
+### 15.8 最小总纲示例
+
+```yaml
+meta:
+  schemaVersion: 1
+  railId: main_story
+  title: 主线总纲
+  entryNodeId: chapter_01
+
+nodes:
+  - nodeId: chapter_01
+    nodeType: Story
+    title: 第一章
+    summary: 开场剧情
+    storyId: chapter_01_intro
+
+  - nodeId: route_check
+    nodeType: Branch
+    title: 路线判断
+    branches:
+      - label: A路线
+        logic: All
+        terms:
+          - variable:
+              name: Route
+              type: String
+              scope: Global
+            operator: "=="
+            compareValue: "A"
+
+  - nodeId: route_a
+    nodeType: Story
+    title: A路线开场
+    storyId: route_a_start
+
+  - nodeId: end
+    nodeType: End
+    title: 总纲结束
+
+edges:
+  - sourceNodeId: chapter_01
+    targetNodeId: route_check
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-0
+    targetNodeId: route_a
+    priority: 0
+
+  - sourceNodeId: route_check
+    sourceHandle: branch-fallback
+    targetNodeId: end
+    priority: 99
+
+  - sourceNodeId: route_a
+    targetNodeId: end
+    priority: 0
+```
+
+## 16. UE 故事仓库同步
 
 UE 插件通过 `Sync Stories` 同步本地故事仓库：
 
@@ -362,8 +570,9 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - 全局配置生成或更新 `UNarrRailGlobalConfigAsset`
 - 同一仓库下的剧情资产会自动引用该仓库的 GlobalConfig 资产
 - 仓库删除的文件会删除对应 UE 资产，删除前弹确认
+- 当前仅扫描 `*.nrstory`；`.nrrail` 总纲暂只在 NarrRailEditor 中使用，后续 UE 总纲资产实现时再接入同步。
 
-## 16. 校验规则
+## 17. 校验规则
 
 硬错误：
 
@@ -387,7 +596,7 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - Condition 分支内部存在明显矛盾
 - 多个 Condition 分支可能同时满足，运行时会按顺序命中第一个分支
 
-## 17. 最小剧情示例
+## 18. 最小剧情示例
 
 该示例假设同一故事仓库的 GlobalConfig 中已经定义了 `Affinity`：
 

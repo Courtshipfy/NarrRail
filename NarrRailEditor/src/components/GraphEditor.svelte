@@ -13,11 +13,16 @@
   import SetVariableNode from '../nodes/SetVariableNode.svelte';
   import EmitEventNode from '../nodes/EmitEventNode.svelte';
   import ConditionNode from '../nodes/ConditionNode.svelte';
+  import RailStoryNode from '../nodes/RailStoryNode.svelte';
+  import RailBranchNode from '../nodes/RailBranchNode.svelte';
+  import RailNoteNode from '../nodes/RailNoteNode.svelte';
+  import RailEndNode from '../nodes/RailEndNode.svelte';
 
   export let nodes = [];
   export let edges = [];
   export let edgeRenderMode = 'straight';
   export let presetSpeakers = [];
+  export let graphMode = 'story';
 
   const nodesStore = writable([]);
   const edgesStore = writable([]);
@@ -263,7 +268,11 @@
     jump: JumpNode,
     setvariable: SetVariableNode,
     emitevent: EmitEventNode,
-    condition: ConditionNode
+    condition: ConditionNode,
+    railstory: RailStoryNode,
+    railbranch: RailBranchNode,
+    railnote: RailNoteNode,
+    railend: RailEndNode
   };
 
   // 处理节点变化
@@ -629,6 +638,24 @@
         };
       case 'end':
         return {};
+      case 'railstory':
+        return { title: '剧情脚本', summary: '', storyId: '' };
+      case 'railbranch':
+        return {
+          title: '路线判断',
+          summary: '',
+          branches: [
+            {
+              label: '分支 1',
+              logic: 'All',
+              terms: []
+            }
+          ]
+        };
+      case 'railnote':
+        return { title: '章节标记', summary: '' };
+      case 'railend':
+        return { title: '总纲结束', summary: '' };
       default:
         return {};
     }
@@ -690,38 +717,57 @@
   {#if contextMenu.show}
     <div bind:this={contextMenuRef} class="context-menu" style="left: {contextMenu.x}px; top: {contextMenu.y}px;">
       <div class="context-menu-header">添加节点</div>
-      <button class="context-menu-item" on:click={() => createNode('dialogue')}>
-        <IconGlyph name="chat" />
-        <span>对话节点</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('multidialogue')}>
-        <IconGlyph name="speaker_notes" />
-        <span>多行对话</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('choice')}>
-        <IconGlyph name="fork_right" />
-        <span>选择节点</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('jump')}>
-        <IconGlyph name="arrow_forward" />
-        <span>跳转节点</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('setvariable')}>
-        <IconGlyph name="edit_square" />
-        <span>设置变量</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('emitevent')}>
-        <IconGlyph name="notifications_active" />
-        <span>触发事件</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('condition')}>
-        <IconGlyph name="rule" />
-        <span>条件判断</span>
-      </button>
-      <button class="context-menu-item" on:click={() => createNode('end')}>
-        <IconGlyph name="stop_circle" />
-        <span>结束节点</span>
-      </button>
+      {#if graphMode === 'rail'}
+        <button class="context-menu-item" on:click={() => createNode('railstory')}>
+          <IconGlyph name="article" />
+          <span>脚本节点</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('railbranch')}>
+          <IconGlyph name="rule" />
+          <span>路线分支</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('railnote')}>
+          <IconGlyph name="sticky_note_2" />
+          <span>章节标记</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('railend')}>
+          <IconGlyph name="stop_circle" />
+          <span>总纲结束</span>
+        </button>
+      {:else}
+        <button class="context-menu-item" on:click={() => createNode('dialogue')}>
+          <IconGlyph name="chat" />
+          <span>对话节点</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('multidialogue')}>
+          <IconGlyph name="speaker_notes" />
+          <span>多行对话</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('choice')}>
+          <IconGlyph name="fork_right" />
+          <span>选择节点</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('jump')}>
+          <IconGlyph name="arrow_forward" />
+          <span>跳转节点</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('setvariable')}>
+          <IconGlyph name="edit_square" />
+          <span>设置变量</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('emitevent')}>
+          <IconGlyph name="notifications_active" />
+          <span>触发事件</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('condition')}>
+          <IconGlyph name="rule" />
+          <span>条件判断</span>
+        </button>
+        <button class="context-menu-item" on:click={() => createNode('end')}>
+          <IconGlyph name="stop_circle" />
+          <span>结束节点</span>
+        </button>
+      {/if}
     </div>
   {/if}
 </div>
