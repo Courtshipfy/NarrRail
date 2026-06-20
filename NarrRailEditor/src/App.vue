@@ -388,6 +388,13 @@ function normalizeRailPayload(payload) {
         meta: payload?.meta || buildEmptyRailData("main_story").meta,
         nodes: Array.isArray(payload?.nodes) ? payload.nodes : [],
         edges: Array.isArray(payload?.edges) ? payload.edges : [],
+        hasNodePositions: Array.isArray(payload?.nodes)
+            ? payload.nodes.some(
+                  (node) =>
+                      Number.isFinite(Number(node?.position?.x)) &&
+                      Number.isFinite(Number(node?.position?.y)),
+              )
+            : false,
     };
 }
 
@@ -2160,13 +2167,15 @@ function openRailData(imported, railEntry = null) {
     };
     railNodes.value = safeClone(imported.nodes || []);
     railEdges.value = safeClone(imported.edges || []);
-    const layoutNodes = computeAutoLayoutNodes(
-        railNodes.value,
-        railEdges.value,
-        railMeta.value.entryNodeId,
-    );
-    if (!isDeepEqual(layoutNodes, railNodes.value)) {
-        railNodes.value = safeClone(layoutNodes);
+    if (!imported.hasNodePositions) {
+        const layoutNodes = computeAutoLayoutNodes(
+            railNodes.value,
+            railEdges.value,
+            railMeta.value.entryNodeId,
+        );
+        if (!isDeepEqual(layoutNodes, railNodes.value)) {
+            railNodes.value = safeClone(layoutNodes);
+        }
     }
     railValidationResult.value = validateRail(
         railNodes.value,

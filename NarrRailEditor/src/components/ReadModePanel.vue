@@ -367,8 +367,20 @@ function syncRunnerState(runnerState) {
         : [];
     state.vars = runnerState?.vars || {};
     state.error = runnerState?.error || "";
-    resetChoiceTimerState();
+    state.choiceTimer =
+        runnerState?.choiceTimer && runnerState.choiceTimer.enabled
+            ? { ...runnerState.choiceTimer }
+            : {
+                  enabled: false,
+                  remainingSeconds: 0,
+                  durationSeconds: 0,
+                  timeoutChoiceTextKey: "超时",
+              };
     refreshVarList();
+
+    if (state.status === "await-choice" && state.choiceTimer.enabled) {
+        startExternalChoiceTimer(state.choiceTimer);
+    }
 }
 
 function restartRailPreview() {
@@ -573,6 +585,43 @@ function startChoiceTimerForNode(node, pendingChoices) {
 
         clearChoiceTimer();
         handleChoiceTimeout(node.id, timer);
+    }, 100);
+}
+
+function startExternalChoiceTimer(timer) {
+    clearChoiceTimer();
+    const durationSeconds = Number(timer?.durationSeconds);
+    if (
+        !timer?.enabled ||
+        !Number.isFinite(durationSeconds) ||
+        durationSeconds <= 0
+    ) {
+        resetChoiceTimerState();
+        return;
+    }
+
+    state.choiceTimer = {
+        enabled: true,
+        durationSeconds,
+        remainingSeconds: durationSeconds,
+        timeoutChoiceTextKey: String(timer?.timeoutChoiceTextKey || "超时"),
+    };
+
+    const startedAt = Date.now();
+    choiceTimerId = setInterval(() => {
+        if (state.status !== "await-choice") {
+            clearChoiceTimer();
+            return;
+        }
+
+        const elapsedSeconds = (Date.now() - startedAt) / 1000;
+        const remaining = Math.max(0, durationSeconds - elapsedSeconds);
+        state.choiceTimer.remainingSeconds = remaining;
+
+        if (remaining > 0) return;
+
+        clearChoiceTimer();
+        handleChoose("choice-timeout", { timedOut: true });
     }, 100);
 }
 
