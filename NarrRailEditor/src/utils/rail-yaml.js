@@ -83,6 +83,10 @@ export function buildRailYAMLString(nodes, edges, meta) {
       const base = {
         nodeId: node.id,
         nodeType: railNodeTypeMap[node.type] || "Note",
+        position: {
+          x: Number(node.position?.x ?? 0),
+          y: Number(node.position?.y ?? 0),
+        },
         title: String(node.data?.title || ""),
         summary: String(node.data?.summary || ""),
       };
@@ -135,6 +139,11 @@ export function importRailFromYAML(yamlString) {
   }
 
   const rawNodes = Array.isArray(data.nodes) ? data.nodes : [];
+  const hasNodePositions = rawNodes.some(
+    (node) =>
+      Number.isFinite(Number(node?.position?.x)) &&
+      Number.isFinite(Number(node?.position?.y)),
+  );
   const nodes = rawNodes.map((node, index) => {
     const type = reverseRailNodeTypeMap[node.nodeType] || "note";
     return {
@@ -174,5 +183,6 @@ export function importRailFromYAML(yamlString) {
     },
     nodes,
     edges,
+    hasNodePositions,
   };
 }

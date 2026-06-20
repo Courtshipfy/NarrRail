@@ -69,7 +69,20 @@ export function evaluateTerms(branch, vars) {
   });
 
   if (logic === "Any") return checks.some(Boolean);
+  if (logic === "Not") return !checks[0];
   return checks.every(Boolean);
+}
+
+function normalizeChoiceTimer(timer) {
+  const durationSeconds = Number(timer?.durationSeconds);
+  return {
+    enabled: Boolean(timer?.enabled),
+    durationSeconds:
+      Number.isFinite(durationSeconds) && durationSeconds > 0
+        ? durationSeconds
+        : 8,
+    timeoutChoiceTextKey: toText(timer?.timeoutChoiceTextKey) || "超时",
+  };
 }
 
 export function createStoryPreviewRunner(story, vars) {
@@ -85,6 +98,14 @@ export function createStoryPreviewRunner(story, vars) {
     error: "",
     vars,
     multiLineCursor: { nodeId: "", nextIndex: 0 },
+    exhaustiveSelectedByNode: {},
+    exhaustiveReturnStack: [],
+    choiceTimer: {
+      enabled: false,
+      remainingSeconds: 0,
+      durationSeconds: 0,
+      timeoutChoiceTextKey: "超时",
+    },
   };
 
   function getOutgoingEdges(sourceId) {
@@ -108,11 +129,53 @@ export function createStoryPreviewRunner(story, vars) {
     );
   }
 
+  function getHandleEdges(nodeId, handle) {
+    return getOutgoingEdges(nodeId).filter(
+      (edge) => String(edge?.sourceHandle || "") === String(handle || ""),
+    );
+  }
+
+  function isExhaustiveChoiceNode(node) {
+    return String(node?.data?.choiceMode || "") === "ExhaustiveUntilComplete";
+  }
+
+  function isChoiceHandleSelected(nodeId, handle) {
+    return !!state.exhaustiveSelectedByNode[String(nodeId)]?.[String(handle)];
+  }
+
+  function markChoiceHandleSelected(nodeId, handle) {
+    const key = String(nodeId);
+    state.exhaustiveSelectedByNode[key] = {
+      ...(state.exhaustiveSelectedByNode[key] || {}),
+      [String(handle)]: true,
+    };
+  }
+
+  function resolveChoiceCompleteTarget(nodeId) {
+    return getHandleEdges(nodeId, "choice-complete")[0]?.target || "";
+  }
+
   function setEnded(error = "") {
     state.status = "ended";
     state.currentNodeId = "";
     state.pendingChoices = [];
     state.error = error;
+    state.choiceTimer = {
+      enabled: false,
+      remainingSeconds: 0,
+      durationSeconds: 0,
+      timeoutChoiceTextKey: "超时",
+    };
+  }
+
+  function handleBranchEnd() {
+    const returnNodeId = String(state.exhaustiveReturnStack.pop() || "").trim();
+    if (returnNodeId && nodeMap.has(returnNodeId)) {
+      state.status = "running";
+      state.currentNodeId = returnNodeId;
+      return;
+    }
+    setEnded();
   }
 
   function applySetVariable(node) {
@@ -126,6 +189,11 @@ export function createStoryPreviewRunner(story, vars) {
     if (op === "Set") next = value;
     else if (op === "Add") next = toNumberLike(current) + toNumberLike(value);
     else if (op === "Subtract") next = toNumberLike(current) - toNumberLike(value);
+    else if (op === "Multiply") next = toNumberLike(current) * toNumberLike(value);
+    else if (op === "Divide") {
+      const div = toNumberLike(value);
+      next = div === 0 ? toNumberLike(current) : toNumberLike(current) / div;
+    }
     else next = value;
 
     state.vars[name] = next;
@@ -162,7 +230,7 @@ export function createStoryPreviewRunner(story, vars) {
           });
         }
         const next = firstNextTarget(node.id);
-        if (!next) setEnded();
+        if (!next) handleBranchEnd();
         else state.currentNodeId = next;
         return state;
       }
@@ -188,7 +256,7 @@ export function createStoryPreviewRunner(story, vars) {
               : { nodeId: "", nextIndex: 0 };
           if (index + 1 >= lines.length) {
             const next = firstNextTarget(node.id);
-            if (!next) setEnded();
+            if (!next) handleBranchEnd();
             else state.currentNodeId = next;
           }
           return state;
@@ -197,13 +265,28 @@ export function createStoryPreviewRunner(story, vars) {
 
       if (kind === "choice") {
         const choices = Array.isArray(node?.data?.choices) ? node.data.choices : [];
+        const exhaustiveMode = isExhaustiveChoiceNode(node);
         const pending = choices
           .map((choice, index) => ({
             handle: `choice-${index}`,
             text: toText(choice?.textKey) || `选项 ${index + 1}`,
           }))
-          .filter((choice) => !!getHandleEdge(node.id, choice.handle));
+          .filter((choice) => {
+            if (exhaustiveMode && isChoiceHandleSelected(node.id, choice.handle)) {
+              return false;
+            }
+            return !!getHandleEdge(node.id, choice.handle);
+          });
         if (pending.length === 0) {
+          if (exhaustiveMode) {
+            const completeTarget = resolveChoiceCompleteTarget(node.id);
+            if (!completeTarget) {
+              setEnded("穷举 Choice 节点已耗尽选项，但未找到 choice-complete 出口。");
+              return state;
+            }
+            state.currentNodeId = completeTarget;
+            continue;
+          }
           const next = firstNextTarget(node.id);
           if (!next) setEnded(`Choice 节点 ${node.id} 没有可用分支`);
           else state.currentNodeId = next;
@@ -211,6 +294,16 @@ export function createStoryPreviewRunner(story, vars) {
         }
         state.pendingChoices = pending;
         state.status = "await-choice";
+        const timer = normalizeChoiceTimer(node?.data?.choiceTimer);
+        state.choiceTimer =
+          timer.enabled && pending.length > 0
+            ? { ...timer, remainingSeconds: timer.durationSeconds }
+            : {
+                enabled: false,
+                remainingSeconds: 0,
+                durationSeconds: 0,
+                timeoutChoiceTextKey: "超时",
+              };
         return state;
       }
 
@@ -232,7 +325,7 @@ export function createStoryPreviewRunner(story, vars) {
       if (kind === "setvariable") {
         state.timeline.push({ kind: "setvariable", nodeId: node.id, text: applySetVariable(node) });
         const next = firstNextTarget(node.id);
-        if (!next) setEnded();
+        if (!next) handleBranchEnd();
         else state.currentNodeId = next;
         continue;
       }
@@ -244,7 +337,7 @@ export function createStoryPreviewRunner(story, vars) {
           text: toText(node?.data?.eventId) || "(未命名事件)",
         });
         const next = firstNextTarget(node.id);
-        if (!next) setEnded();
+        if (!next) handleBranchEnd();
         else state.currentNodeId = next;
         continue;
       }
@@ -259,12 +352,12 @@ export function createStoryPreviewRunner(story, vars) {
 
       if (kind === "end") {
         state.timeline.push({ kind: "end", nodeId: node.id, text: node.id });
-        setEnded();
+        handleBranchEnd();
         return state;
       }
 
       const next = firstNextTarget(node.id);
-      if (!next) setEnded();
+      if (!next) handleBranchEnd();
       else state.currentNodeId = next;
     }
 
@@ -286,11 +379,24 @@ export function createStoryPreviewRunner(story, vars) {
     state.timeline.push({
       kind: "choice",
       nodeId: node.id,
-      text: choice?.text || String(handle || ""),
+      text:
+        String(handle || "") === "choice-timeout"
+          ? `超时选择：${toText(node?.data?.choiceTimer?.timeoutChoiceTextKey) || "超时"}`
+          : choice?.text || String(handle || ""),
     });
     state.pendingChoices = [];
+    state.choiceTimer = {
+      enabled: false,
+      remainingSeconds: 0,
+      durationSeconds: 0,
+      timeoutChoiceTextKey: "超时",
+    };
     state.status = "running";
     state.currentNodeId = edge.target;
+    if (isExhaustiveChoiceNode(node) && handle !== "choice-timeout") {
+      markChoiceHandleSelected(node.id, handle);
+      state.exhaustiveReturnStack.push(String(node.id));
+    }
     return advance();
   }
 
