@@ -219,33 +219,17 @@ export function createStoryPreviewRunner(story, vars) {
       }
 
       const kind = String(node.type || "").toLowerCase();
-      if (kind === "dialogue") {
-        const text = toText(node?.data?.textKey);
-        if (text) {
-          state.timeline.push({
-            kind: "dialogue",
-            nodeId: node.id,
-            speaker: toText(node?.data?.speakerId) || "旁白",
-            text,
-          });
-        }
-        const next = firstNextTarget(node.id);
-        if (!next) handleBranchEnd();
-        else state.currentNodeId = next;
-        return state;
-      }
-
-      if (kind === "multidialogue") {
+      if (kind === "dialogue" || kind === "multidialogue") {
         const lines = Array.isArray(node?.data?.lines)
           ? node.data.lines
               .map((line) => toText(typeof line === "string" ? line : line?.textKey))
               .filter(Boolean)
-          : [];
+          : [toText(node?.data?.textKey)].filter(Boolean);
         const same = state.multiLineCursor.nodeId === node.id;
         const index = same ? state.multiLineCursor.nextIndex : 0;
         if (index < lines.length) {
           state.timeline.push({
-            kind: "multidialogue",
+            kind: "dialogue",
             nodeId: node.id,
             speaker: toText(node?.data?.speakerId) || "旁白",
             text: lines[index],

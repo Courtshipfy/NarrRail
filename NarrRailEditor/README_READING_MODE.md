@@ -44,7 +44,7 @@
 - 一行一条可读单元；
 - 基础格式：`人物：对话内容`；
 - 说话人为空时显示：`旁白：对话内容`；
-- `MultiDialogue` 展开为多行，按原行顺序输出。
+- 多行 `Dialogue` 按原行顺序输出。
 
 ---
 
@@ -54,8 +54,7 @@
 
 ### 3.1 节点类型处理
 
-- `Dialogue`：输出 1 行
-- `MultiDialogue`：每条 line 输出 1 行
+- `Dialogue`：按台词行输出；单行输出 1 行，多行按原行顺序输出
 - `Choice`：
   - 显示可选项按钮，用户点击后进入对应分支
   - 支持 `ExhaustiveUntilComplete`：记录已选项、分支结束后返回 Choice，直至耗尽并走 `choice-complete`
@@ -117,10 +116,10 @@
 `ReadLine` 建议结构：
 
 - `nodeId: string`
-- `lineIndex?: number`（MultiDialogue 行索引）
+- `lineIndex?: number`（多行 Dialogue 行索引）
 - `speaker: string`
 - `text: string`
-- `kind: 'dialogue' | 'multidialogue' | 'choice-hint'`
+- `kind: 'dialogue' | 'choice-hint'`
 
 ### 5.2 组件层
 
@@ -164,7 +163,7 @@
 
 - 工具栏模式切换
 - 运行语义推进（含 Choice 选择）
-- `Dialogue / MultiDialogue / Choice / Jump / SetVariable / EmitEvent / End` 支持
+- `Dialogue / Choice / Jump / SetVariable / EmitEvent / End` 支持
 - 结束态保护（不重复触发）
 - `ExhaustiveUntilComplete` 穷举分支支持
 
@@ -182,7 +181,7 @@
 - 能在工具栏稳定切换阅读模式；
 - 阅读模式下无编辑副作用；
 - 文本顺序可复现、可解释；
-- `Dialogue / MultiDialogue` 文本格式正确输出；
+- 单行 / 多行 `Dialogue` 文本格式正确输出；
 - 深浅主题下可读性达标。
 
 ---

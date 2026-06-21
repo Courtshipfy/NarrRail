@@ -57,7 +57,8 @@ npm run build
 
 ### 图编辑器
 
-- 节点类型：`Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
+- 节点类型：`Dialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
+- `Dialogue` 节点支持单行和多行台词编辑
 - 节点创建、拖拽、连线、删除、框选
 - 右键菜单快速建点
 - 自动布局
@@ -101,7 +102,7 @@ Condition 是 NarrRail 当前唯一承载条件判断的结构。边上的 `cond
 ### 预览模式
 
 - 按运行语义推进，而不是按画布坐标顺序推进
-- 支持 `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
+- 支持 `Dialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
 - 支持 `ExhaustiveUntilComplete` 分支穷举流程
 
 ## 文件命名约定

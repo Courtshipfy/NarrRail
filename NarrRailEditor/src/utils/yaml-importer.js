@@ -1,8 +1,9 @@
 import YAML from "yaml";
+import { normalizeDialogueLines } from "./dialogue-node.js";
 
 const reverseNodeTypeMap = {
   Dialogue: "dialogue",
-  MultiDialogue: "multidialogue",
+  MultiDialogue: "dialogue",
   Choice: "choice",
   Jump: "jump",
   SetVariable: "setvariable",
@@ -122,22 +123,21 @@ export function importFromYAML(yamlString) {
       };
     } else if (node.nodeType === "MultiDialogue" || node.multiDialogue) {
       const md = node.multiDialogue || {};
-      const lines = Array.isArray(md.lines)
-        ? md.lines.map((line) => {
-            if (typeof line === "string") return { textKey: line };
-            return { textKey: line?.textKey || "" };
-          })
-        : [];
       base.data = {
         speakerId: md.speakerId || "",
-        lines: lines.length > 0 ? lines : [{ textKey: "" }],
+        lines: normalizeDialogueLines(md.lines),
       };
     } else if (node.nodeType === "Condition" || node.condition) {
       base.data = {
         condition: normalizeCondition(node.condition),
       };
     } else if (node.dialogue) {
-      base.data = { ...node.dialogue };
+      base.data = {
+        speakerId: node.dialogue.speakerId || "",
+        lines: normalizeDialogueLines(null, node.dialogue.textKey || ""),
+        speechRate: node.dialogue.speechRate ?? 1.0,
+        voiceAsset: node.dialogue.voiceAsset || "",
+      };
     } else if (node.jump) {
       base.data = { ...node.jump };
     } else if (node.actions) {

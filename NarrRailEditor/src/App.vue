@@ -178,6 +178,11 @@ import { validateRail } from "./utils/rail-validation.js";
 import { validateStory } from "./utils/validation.js";
 import { serializeGlobalConfigToYAML } from "./utils/global-config-yaml.js";
 import storage from "./utils/storage.js";
+import {
+    getDialogueLineTexts,
+    normalizeEditorDialogueNode,
+    normalizeEditorStoryNodes,
+} from "./utils/dialogue-node.js";
 
 const nodes = ref([
     {
@@ -186,7 +191,7 @@ const nodes = ref([
         position: { x: 220, y: 120 },
         data: {
             speakerId: "Alice",
-            textKey: "你好！欢迎使用 NarrRail 编辑器。",
+            lines: [{ textKey: "你好！欢迎使用 NarrRail 编辑器。" }],
         },
     },
     {
@@ -207,7 +212,7 @@ const nodes = ref([
         id: "node-3",
         type: "dialogue",
         position: { x: 900, y: 40 },
-        data: { speakerId: "Bob", textKey: "很高兴认识你！" },
+        data: { speakerId: "Bob", lines: [{ textKey: "很高兴认识你！" }] },
     },
     {
         id: "node-4",
@@ -441,7 +446,7 @@ async function resolveStoryById(storyId) {
                     storyId: localData?.meta?.storyId || normalized,
                     entryNodeId: localData?.meta?.entryNodeId || "",
                 },
-                nodes: safeClone(localData.nodes || []),
+                nodes: normalizeEditorStoryNodes(safeClone(localData.nodes || [])),
                 edges: safeClone(localData.edges || []),
             };
         }
@@ -710,7 +715,7 @@ function applyStateSnapshot(snapshot) {
 
     isApplyingHistory.value = true;
 
-    nodes.value = safeClone(snapshot.nodes || []);
+    nodes.value = normalizeEditorStoryNodes(safeClone(snapshot.nodes || []));
     edges.value = safeClone(snapshot.edges || []);
     storyMeta.value = safeClone(
         snapshot.storyMeta || {
@@ -1006,7 +1011,9 @@ function normalizePresetSpeakers(input) {
 function derivePresetSpeakersFromNodes(nodeList) {
     const sourceNodes = Array.isArray(nodeList) ? nodeList : [];
     const collected = sourceNodes
-        .filter((node) => node?.type === "dialogue")
+        .filter(
+            (node) => node?.type === "dialogue" || node?.type === "multidialogue",
+        )
         .map((node) => String(node?.data?.speakerId || "").trim())
         .filter((id) => id.length > 0)
         .map((id) => ({ id }));
@@ -1365,16 +1372,8 @@ function handleNodeClick(event) {
         return;
     }
 
-    if (node.type === "multidialogue") {
-        multiDialogueOpenRequest.value = {
-            nodeId: node.id,
-            nonce: now,
-        };
-        return;
-    }
-
     if (node.type === "dialogue") {
-        dialogueOpenRequest.value = {
+        multiDialogueOpenRequest.value = {
             nodeId: node.id,
             nonce: now,
         };
@@ -1452,7 +1451,9 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
         return;
     }
 
-    const nextNodes = Array.isArray(nextNodesInput) ? nextNodesInput : [];
+    const nextNodes = normalizeEditorStoryNodes(
+        Array.isArray(nextNodesInput) ? nextNodesInput : [],
+    );
     const nextEdgesRaw = Array.isArray(nextEdgesInput) ? nextEdgesInput : [];
     const isDragging = isNodeDragInProgress.value;
     const sanitizedEdges = isDragging
@@ -1481,7 +1482,7 @@ function applyGraphStateSnapshot(nextNodesInput, nextEdgesInput) {
                     }));
                 }
             } else {
-                nodes.value = safeClone(nextNodes);
+                nodes.value = normalizeEditorStoryNodes(safeClone(nextNodes));
             }
         }
 
@@ -1616,14 +1617,10 @@ function getChoiceHandleIndex(sourceHandle) {
 function estimateNodeHeight(node) {
     if (!node) return 140;
 
-    if (node.type === "multidialogue") {
-        const lines = Array.isArray(node.data?.lines)
-            ? node.data.lines.filter((line) =>
-                  String(
-                      typeof line === "string" ? line : line?.textKey || "",
-                  ).trim(),
-              )
-            : [];
+    if (node.type === "dialogue" || node.type === "multidialogue") {
+        const lines = getDialogueLineTexts(node.data).filter((text) =>
+            String(text || "").trim(),
+        );
 
         const baseHeight = 110;
         const perLineHeight = 22;
@@ -1664,16 +1661,10 @@ function estimateNodeHeight(node) {
 function estimateNodeWidth(node) {
     if (!node) return 230;
 
-    if (node.type === "multidialogue") {
-        const lines = Array.isArray(node.data?.lines)
-            ? node.data.lines
-                  .map((line) =>
-                      String(
-                          typeof line === "string" ? line : line?.textKey || "",
-                      ).trim(),
-                  )
-                  .filter((text) => text.length > 0)
-            : [];
+    if (node.type === "dialogue" || node.type === "multidialogue") {
+        const lines = getDialogueLineTexts(node.data)
+            .map((text) => String(text || "").trim())
+            .filter((text) => text.length > 0);
 
         const maxLineLen = lines.reduce(
             (max, text) => Math.max(max, text.length),
@@ -1687,11 +1678,6 @@ function estimateNodeWidth(node) {
 
         const estimated = 260 + maxLineLen * 8.2 + avgLineLen * 1.1;
         return Math.min(1300, Math.max(320, estimated));
-    }
-
-    if (node.type === "dialogue") {
-        const textLen = String(node.data?.textKey || "").trim().length;
-        return Math.min(900, Math.max(240, 220 + textLen * 7.2));
     }
 
     if (node.type === "choice") {
@@ -2030,7 +2016,7 @@ function handleAutoLayout() {
             railNodes.value = safeClone(nextNodes);
             persistCurrentRailToLocal();
         } else {
-            nodes.value = safeClone(nextNodes);
+            nodes.value = normalizeEditorStoryNodes(safeClone(nextNodes));
         }
     }
 
@@ -2280,7 +2266,9 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
             }
 
             const imported = importFromYAML(String(data?.content || ""));
-            const importedNodes = safeClone(imported.nodes || []);
+            const importedNodes = normalizeEditorStoryNodes(
+                safeClone(imported.nodes || []),
+            );
             const importedEdges = safeClone(
                 sanitizeEdges(imported.edges || [], importedNodes),
             );
@@ -2326,7 +2314,9 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
         const localData = loadLocalScriptContent(storageKey);
 
         if (localData) {
-            const importedNodes = safeClone(localData.nodes || []);
+            const importedNodes = normalizeEditorStoryNodes(
+                safeClone(localData.nodes || []),
+            );
             const importedEdges = safeClone(
                 sanitizeEdges(localData.edges || [], importedNodes),
             );
@@ -2679,7 +2669,9 @@ function handleFileChange(event) {
     reader.onload = (e) => {
         try {
             const imported = importFromYAML(String(e.target?.result || ""));
-            const importedNodes = safeClone(imported.nodes || []);
+            const importedNodes = normalizeEditorStoryNodes(
+                safeClone(imported.nodes || []),
+            );
             const importedEdges = safeClone(
                 sanitizeEdges(imported.edges || [], importedNodes),
             );
@@ -3021,7 +3013,7 @@ function handleNodeUpdate(updatedNode) {
     if (index === -1) return;
 
     const oldId = nodes.value[index].id;
-    const nextNode = safeClone(updatedNode);
+    const nextNode = normalizeEditorDialogueNode(safeClone(updatedNode));
     if (isDeepEqual(nodes.value[index], nextNode)) return;
     pushHistorySnapshot();
     nodes.value[index] = nextNode;

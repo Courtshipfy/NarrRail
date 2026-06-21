@@ -254,79 +254,6 @@
                                 v-model="localNode.data.speakerId"
                                 @change="handleUpdate"
                             >
-                                <option value="">（未设置）</option>
-                                <option
-                                    v-for="(speaker, index) in presetSpeakers"
-                                    :key="`preset-speaker-${index}`"
-                                    :value="getSpeakerId(speaker)"
-                                >
-                                    {{ formatPresetSpeakerLabel(speaker) }}
-                                </option>
-                            </select>
-                            <input
-                                type="text"
-                                class="form-input"
-                                v-model="localNode.data.speakerId"
-                                placeholder="可手动输入自定义角色"
-                                @compositionstart="handleCompositionStart"
-                                @compositionend="handleCompositionEnd"
-                                @blur="handleInputChange"
-                            />
-                        </div>
-
-                        <div class="form-group glass-input">
-                            <div class="multi-lines-header">
-                                <label class="form-label">对话文本</label>
-                                <button
-                                    class="open-dialogue-modal-btn"
-                                    @click="openDialogueModal"
-                                    title="弹窗编辑对话"
-                                    aria-label="弹窗编辑对话"
-                                >
-                                    <IconGlyph name="open_in_full" />
-                                </button>
-                            </div>
-                            <textarea
-                                class="form-textarea"
-                                v-model="localNode.data.textKey"
-                                @compositionstart="handleCompositionStart"
-                                @compositionend="handleCompositionEnd"
-                                @blur="handleInputChange"
-                            ></textarea>
-                        </div>
-
-                        <div class="form-group glass-input">
-                            <label class="form-label">语速</label>
-                            <input
-                                type="number"
-                                class="form-input"
-                                v-model.number="localNode.data.speechRate"
-                                step="0.1"
-                                @blur="handleUpdate"
-                            />
-                        </div>
-
-                        <div class="form-group glass-input">
-                            <label class="form-label">语音资产</label>
-                            <input
-                                type="text"
-                                class="form-input"
-                                v-model="localNode.data.voiceAsset"
-                                @compositionstart="handleCompositionStart"
-                                @compositionend="handleCompositionEnd"
-                                @blur="handleInputChange"
-                            />
-                        </div>
-                    </template>
-
-                    <template v-else-if="localNode.type === 'multidialogue'">
-                        <div class="form-group glass-input">
-                            <label class="form-label">角色 ID</label>
-                            <select
-                                class="form-input"
-                                v-model="localNode.data.speakerId"
-                                @change="handleUpdate"
-                            >
                                 <option value="">（旁白）</option>
                                 <option
                                     v-for="(speaker, index) in presetSpeakers"
@@ -350,13 +277,13 @@
                         <div class="form-group glass-input">
                             <div class="multi-lines-header">
                                 <label class="form-label"
-                                    >多行台词（Enter 新增下一行）</label
+                                    >对话台词（Enter 新增下一行）</label
                                 >
                                 <button
                                     class="open-dialogue-modal-btn"
                                     @click="openMultiDialogueModal"
-                                    title="全屏编辑多行对话"
-                                    aria-label="全屏编辑多行对话"
+                                    title="全屏编辑对话"
+                                    aria-label="全屏编辑对话"
                                 >
                                     <IconGlyph name="open_in_full" />
                                 </button>
@@ -944,7 +871,7 @@
 
     <Teleport to="body">
         <div
-            v-if="showMultiDialogueModal && localNode?.type === 'multidialogue'"
+            v-if="showMultiDialogueModal && localNode?.type === 'dialogue'"
             class="multi-dialogue-modal-overlay"
             @click.self="closeMultiDialogueModal"
         >
@@ -959,7 +886,7 @@
             >
                 <div class="multi-dialogue-modal-header">
                     <div>
-                        <h3>多行对话全屏编辑</h3>
+                        <h3>对话全屏编辑</h3>
                         <p>拖拽左侧图标调整顺序，Enter 新增行</p>
                     </div>
                     <button
@@ -1397,6 +1324,7 @@
 
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { normalizeEditorDialogueNode } from "../utils/dialogue-node.js";
 
 const props = defineProps({
     selectedNode: {
@@ -1754,15 +1682,11 @@ watch(
             showDialogueModal.value = false;
             showChoiceModal.value = false;
             showConditionModal.value = false;
-            localNode.value = JSON.parse(JSON.stringify(newNode));
-            if (localNode.value.type === "multidialogue") {
+            localNode.value = normalizeEditorDialogueNode(
+                JSON.parse(JSON.stringify(newNode)),
+            );
+            if (localNode.value.type === "dialogue") {
                 localNode.value.data = localNode.value.data || {};
-                if (!Array.isArray(localNode.value.data.lines)) {
-                    localNode.value.data.lines = [{ textKey: "" }];
-                }
-                if (localNode.value.data.lines.length === 0) {
-                    localNode.value.data.lines.push({ textKey: "" });
-                }
             }
             if (localNode.value.type === "choice") {
                 localNode.value.data = localNode.value.data || {};
@@ -1878,7 +1802,7 @@ watch(
 
         if (
             localNode.value &&
-            localNode.value.type === "multidialogue" &&
+            localNode.value.type === "dialogue" &&
             localNode.value.id === requestNodeId
         ) {
             isExpanded.value = false;
@@ -1903,7 +1827,7 @@ watch(
         ) {
             isExpanded.value = false;
             isPanelInputFocused.value = false;
-            openDialogueModal();
+            openMultiDialogueModal();
         }
     },
 );
@@ -2169,7 +2093,7 @@ async function focusDialogueLine(index) {
 }
 
 function insertLineAfter(index) {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
     const lines = Array.isArray(localNode.value.data.lines)
         ? [...localNode.value.data.lines]
         : [];
@@ -2181,7 +2105,7 @@ function insertLineAfter(index) {
 }
 
 function handleDialogueLinePaste(index, event) {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
     const raw = event?.clipboardData?.getData("text") || "";
     if (!raw.includes("\n")) return;
 
@@ -2379,7 +2303,7 @@ function isDialogueLineDropAfter(index) {
 }
 
 function onDialogueLineDrop(targetIndex, event) {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
 
     const fromIndex = draggingDialogueLineIndex.value;
     if (fromIndex < 0) {
@@ -2624,7 +2548,7 @@ function onChoiceDrop(targetIndex, event) {
 }
 
 function handleLineBackspace(index, event) {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
     const lines = Array.isArray(localNode.value.data.lines)
         ? [...localNode.value.data.lines]
         : [];
@@ -2642,7 +2566,7 @@ function handleLineBackspace(index, event) {
 }
 
 function removeDialogueLine(index) {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
     const lines = Array.isArray(localNode.value.data.lines)
         ? [...localNode.value.data.lines]
         : [];
@@ -2731,7 +2655,7 @@ function removeConditionTerm(branchIndex, termIndex) {
 }
 
 async function openMultiDialogueModal() {
-    if (!localNode.value || localNode.value.type !== "multidialogue") return;
+    if (!localNode.value || localNode.value.type !== "dialogue") return;
     showDialogueModal.value = false;
     showChoiceModal.value = false;
     showConditionModal.value = false;
@@ -2758,12 +2682,7 @@ function closeMultiDialogueModal() {
 
 function openDialogueModal() {
     if (!localNode.value || localNode.value.type !== "dialogue") return;
-    showMultiDialogueModal.value = false;
-    showChoiceModal.value = false;
-    showConditionModal.value = false;
-    isExpanded.value = false;
-    isPanelInputFocused.value = false;
-    showDialogueModal.value = true;
+    openMultiDialogueModal();
 }
 
 async function openChoiceModal() {

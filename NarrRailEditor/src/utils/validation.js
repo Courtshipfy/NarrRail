@@ -74,22 +74,16 @@ export function validateStory(nodes, edges, meta, variables = []) {
     const nodeType = node.type;
     const data = node.data || {};
 
-    if (nodeType === "dialogue") {
-      if (!data.speakerId) {
-        addError(`节点 ${node.id}: 缺少角色 ID`, { nodeId: node.id });
-      }
-      if (!data.textKey) {
-        addError(`节点 ${node.id}: 缺少对话文本`, { nodeId: node.id });
-      }
-    }
-
-    if (nodeType === "multidialogue") {
-      if (!Array.isArray(data.lines) || data.lines.length === 0) {
-        addError(`节点 ${node.id}: 多行对话至少需要一行文本`, {
+    if (nodeType === "dialogue" || nodeType === "multidialogue") {
+      const lines = Array.isArray(data.lines)
+        ? data.lines
+        : [{ textKey: data.textKey || "" }];
+      if (lines.length === 0) {
+        addError(`节点 ${node.id}: 对话至少需要一行文本`, {
           nodeId: node.id,
         });
       } else {
-        data.lines.forEach((line, index) => {
+        lines.forEach((line, index) => {
           const text = typeof line === "string" ? line : line?.textKey;
           if (!String(text || "").trim()) {
             addWarning(`节点 ${node.id}: 第 ${index + 1} 行文本为空`, {

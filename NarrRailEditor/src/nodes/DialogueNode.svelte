@@ -4,23 +4,43 @@
 
   export let data;
   export let selected = false;
+
+  $: speakerLabel = data?.speakerId ? data.speakerId : '旁白';
+  $: lines = Array.isArray(data?.lines)
+    ? data.lines
+    : [{ textKey: data?.textKey || '' }];
+  $: previewLines = lines
+    .map((line) => {
+      if (!line) return '';
+      if (typeof line === 'string') return line;
+      return line.textKey || '';
+    })
+    .filter((text) => String(text || '').trim().length > 0);
 </script>
 
 <div class="dialogue-node" class:selected>
   <Handle type="target" position={Position.Left} />
 
   <div class="node-header">
-    <span class="node-icon"><IconGlyph name="chat" /></span>
+    <span class="node-icon"><IconGlyph name="speaker_notes" /></span>
     <span class="node-type">对话</span>
   </div>
   <div class="node-content">
     <div class="node-field speaker-inline-field">
       <span class="field-label">角色:</span>
-      <span class="field-value">{data.speakerId || '未设置'}</span>
+      <span class="field-value">{speakerLabel}</span>
     </div>
     <div class="node-field">
-      <span class="field-label">文本:</span>
-      <span class="field-value text-preview">{data.textKey || '未设置'}</span>
+      <span class="field-label">内容:</span>
+      {#if previewLines.length === 0}
+        <span class="field-value text-preview">（未设置）</span>
+      {:else}
+        <div class="multi-preview">
+          {#each previewLines as text}
+            <div class="line-item">{text}</div>
+          {/each}
+        </div>
+      {/if}
     </div>
   </div>
 
@@ -29,7 +49,7 @@
 
 <style>
   .dialogue-node {
-    min-width: 200px;
+    min-width: 220px;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(20px);
     border-radius: 16px;
@@ -114,9 +134,29 @@
     word-break: break-word;
   }
 
+  .multi-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .line-item {
+    font-size: 12px;
+    line-height: 1.4;
+    color: #1e293b;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   .speaker-inline-field {
     flex-direction: row;
     align-items: center;
     gap: 6px;
+  }
+
+  :global(body.dark-theme) .dialogue-node .line-item,
+  :global(body[data-theme="dark"]) .dialogue-node .line-item {
+    color: #e2e8f0;
   }
 </style>

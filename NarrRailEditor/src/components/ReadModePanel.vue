@@ -755,26 +755,7 @@ function advanceUntilPause(maxSteps = 4000) {
 
         const kind = toNodeType(node);
 
-        if (kind === "dialogue") {
-            const text = toText(node?.data?.textKey);
-            if (text) {
-                pushTimeline({
-                    kind: "dialogue",
-                    nodeId: node.id,
-                    speaker: toSpeaker(node?.data?.speakerId),
-                    text,
-                });
-            }
-            const next = firstNextTarget(node.id);
-            if (!next) {
-                handleBranchEnd();
-                return;
-            }
-            state.currentNodeId = next;
-            return;
-        }
-
-        if (kind === "multidialogue") {
+        if (kind === "dialogue" || kind === "multidialogue") {
             const speaker = toSpeaker(node?.data?.speakerId);
             const lines = Array.isArray(node?.data?.lines)
                 ? node.data.lines
@@ -784,7 +765,9 @@ function advanceUntilPause(maxSteps = 4000) {
                           ),
                       )
                       .filter((text) => text.length > 0)
-                : [];
+                : [toText(node?.data?.textKey)].filter(
+                      (text) => text.length > 0,
+                  );
 
             if (lines.length === 0) {
                 const next = firstNextTarget(node.id);
@@ -816,7 +799,7 @@ function advanceUntilPause(maxSteps = 4000) {
             }
 
             pushTimeline({
-                kind: "multidialogue",
+                kind: "dialogue",
                 nodeId: node.id,
                 speaker,
                 text: lines[currentLineIndex],

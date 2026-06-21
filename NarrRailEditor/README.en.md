@@ -57,7 +57,8 @@ npm run build
 
 ### Graph Editor
 
-- Node types: `Dialogue`, `MultiDialogue`, `Choice`, `Jump`, `SetVariable`, `EmitEvent`, `Condition`, `End`
+- Node types: `Dialogue`, `Choice`, `Jump`, `SetVariable`, `EmitEvent`, `Condition`, `End`
+- `Dialogue` nodes support single-line and multi-line dialogue editing
 - Create, drag, connect, delete, and select nodes
 - Context-menu node creation
 - Auto layout
@@ -101,7 +102,7 @@ Current model:
 ### Preview Mode
 
 - Runtime-like execution order instead of canvas-position order
-- Supports `Dialogue`, `MultiDialogue`, `Choice`, `Jump`, `SetVariable`, `EmitEvent`, `Condition`, and `End`
+- Supports `Dialogue`, `Choice`, `Jump`, `SetVariable`, `EmitEvent`, `Condition`, and `End`
 - Supports `ExhaustiveUntilComplete` choice traversal
 
 ## File Naming

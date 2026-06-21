@@ -148,12 +148,26 @@ export function buildYAMLString(nodes, edges, variables, meta) {
 
     // 根据类型添加特定字段
     if (node.type === "dialogue") {
-      base.dialogue = {
-        speakerId: node.data.speakerId || "",
-        textKey: node.data.textKey || "",
-        speechRate: node.data.speechRate || 1.0,
-        voiceAsset: node.data.voiceAsset || "",
-      };
+      const lines = normalizeMultiDialogueLines(
+        Array.isArray(node.data?.lines)
+          ? node.data.lines
+          : [{ textKey: node.data?.textKey || "" }],
+      );
+      if (lines.length > 1) {
+        base.nodeType = "MultiDialogue";
+        base.multiDialogue = {
+          speakerId: node.data?.speakerId || "",
+          lines,
+        };
+      } else {
+        base.nodeType = "Dialogue";
+        base.dialogue = {
+          speakerId: node.data?.speakerId || "",
+          textKey: lines[0]?.textKey || "",
+          speechRate: node.data?.speechRate || 1.0,
+          voiceAsset: node.data?.voiceAsset || "",
+        };
+      }
     } else if (node.type === "multidialogue") {
       base.multiDialogue = {
         speakerId: node.data?.speakerId || "",
