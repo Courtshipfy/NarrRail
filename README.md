@@ -2,7 +2,7 @@
 
 [English](./README.en.md)
 
-NarrRail 是一个面向 AVG（Adventure / Visual Novel）制作流程的工具链，当前由 **NarrRailEditor 创作端**、**UE5.7 插件运行端** 和 **NarrRailUEHost 开发宿主工程** 组成。
+NarrRail 是一个面向 AVG（Adventure / Visual Novel）制作流程的工具链，当前由 **NarrRailEditor 创作端**、**NarrRail Story Converter Codex Skill**、**UE5.7 插件运行端** 和 **NarrRailUEHost 开发宿主工程** 组成。
 
 ## 1. NarrRailEditor
 
@@ -34,7 +34,31 @@ NarrRailEditor 用于剧情脚本创作、结构校验、预览审校和 `.nrsto
 
 本地开发入口（`npm run dev`）仅用于编辑器功能开发与调试。详细说明见 `NarrRailEditor/README.md`。
 
-## 2. UE 插件
+## 2. NarrRail Story Converter Skill
+
+NarrRail Story Converter 是项目级 Codex skill，用于把不同编剧产出的剧情文稿转换为 NarrRail `.nrstory` 文件。它不再作为独立工具目录维护，而是把转换规则、NarrRail 格式约束、项目画像模板和辅助脚本都封装进 skill。
+
+### 目标能力
+
+- 让 Codex 在处理编剧文稿时自动使用 NarrRail 转换流程
+- 支持松散文稿、表格、对白稿、场景大纲等不同来源
+- 提供项目级转换画像，描述角色、命名规则、分支识别规则和禁止推断项
+- 输出 `.nrstory` 与转换说明，并用 NarrRailEditor 校验器验证
+- 生成结果兼容现有 UE 插件和 NarrRailEditor 导入流程
+
+### 安装
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Courtshipfy/NarrRail/main/.codex/skills/narrrail-story-converter/install.sh | bash
+```
+
+安装后重启 Codex，然后可以直接提出类似请求：
+
+```text
+把这个编剧初稿转成 NarrRail .nrstory，并生成转换说明。
+```
+
+## 3. UE 插件
 
 UE 插件负责运行时执行、蓝图集成、调试和故事仓库同步。
 
@@ -65,7 +89,7 @@ UE 插件负责运行时执行、蓝图集成、调试和故事仓库同步。
 - `meta.configType: GlobalConfig` 文件生成或更新 `UNarrRailGlobalConfigAsset`
 - 仓库中删除的 `.nrstory` 会在同步时删除对应资产，删除前会弹出确认
 
-## 3. NarrRailUEHost 插件放置
+## 4. NarrRailUEHost 插件放置
 
 开发时需要让 `NarrRailUEHost` 能找到本仓库的 `NarrRail/` 插件源码。
 
@@ -77,9 +101,11 @@ NarrRailUEHost/Plugins/NarrRail -> ../../NarrRail
 
 `NarrRailUEHost/Build-NarrRailUEHost.cmd` 会自动检查并创建这个 Junction。普通 `.lnk` 快捷方式可能不会被 Unreal Engine 识别。
 
-## 4. 核心文档
+## 5. 核心文档
 
 - `NarrRailEditor/README.md`：编辑器说明
+- `.codex/skills/narrrail-story-converter/SKILL.md`：剧情文稿转换 skill
+- `.codex/skills/narrrail-story-converter/references/`：NarrRail 格式与转换策略
 - `Docs/02_runtime/SCRIPT_FORMAT.md`：脚本格式规范
 - `Docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md`：Blueprint 快速开始
 - `Docs/02_runtime/DEBUGGER_GUIDE.md`：调试指南
@@ -87,17 +113,19 @@ NarrRailUEHost/Plugins/NarrRail -> ../../NarrRail
 - `Docs/01_architecture/TECH_ARCHITECTURE.md`：技术架构
 - `Docs/06_planning/TASK_PLAN.md`：WBS 任务计划
 
-## 5. 仓库结构
+## 6. 仓库结构
 
 - `NarrRail/`：UE 插件源码
   - `Source/NarrRail/`：运行时模块（C++）
   - `Source/NarrRailEditor/`：编辑器模块（C++）
 - `NarrRailUEHost/`：UE 开发宿主工程
 - `NarrRailEditor/`：Web 编辑器
+- `.codex/skills/narrrail-story-converter/`：剧情文稿到 `.nrstory` 的 Codex skill
 - `Docs/`：项目文档
 
-## 6. 语言策略
+## 7. 语言策略
 
 - **C++**：运行时与编辑器核心能力
 - **Blueprint**：业务集成层，不承载核心逻辑
 - **TypeScript / JavaScript / Vue / Svelte**：Web 创作端
+- **Markdown / JavaScript**：Codex skill、转换规则与辅助脚本
