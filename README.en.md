@@ -54,8 +54,10 @@ project profile template, and helper scripts live inside the skill.
 
 ### Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Courtshipfy/NarrRail/main/.codex/skills/narrrail-story-converter/install.sh | bash
+macOS / Linux / Windows PowerShell:
+
+```shell
+node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require('child_process');const home=process.env.CODEX_HOME||path.join(os.homedir(),'.codex');const installer=path.join(home,'skills','.system','skill-installer','scripts','install-skill-from-github.py');if(!fs.existsSync(installer)){console.error('Codex skill installer not found: '+installer);process.exit(1)};const base=['--repo','Courtshipfy/NarrRail','--ref','main','--path','.codex/skills/narrrail-story-converter'];for(const c of process.platform==='win32'?[['py',['-3']],['python',[]],['python3',[]]]:[['python3',[]],['python',[]]]){const r=cp.spawnSync(c[0],[...c[1],installer,...base],{stdio:'inherit'});if(!r.error)process.exit(r.status??0)};console.error('Python not found. Install Python 3.');process.exit(1)"
 ```
 
 Restart Codex after installation, then ask for a conversion directly:
