@@ -136,6 +136,25 @@ function normalizeChoiceTimerForExport(timer) {
   };
 }
 
+function normalizeActionForExport(action) {
+  if (!action || typeof action !== "object") return null;
+
+  const normalized = { ...action };
+  if (normalized.actionType === "EmitEvent") {
+    normalized.eventId =
+      normalized.eventId ?? normalized.emitEvent?.eventId ?? "";
+    delete normalized.emitEvent;
+  }
+
+  return normalized;
+}
+
+function normalizeActionListForExport(actions) {
+  return (Array.isArray(actions) ? actions : [])
+    .map(normalizeActionForExport)
+    .filter(Boolean);
+}
+
 export function buildYAMLString(nodes, edges, variables, meta) {
   const variableByName = buildVariableLookup(variables);
 
@@ -222,11 +241,18 @@ export function buildYAMLString(nodes, edges, variables, meta) {
         },
       ];
     } else if (node.type === "emitevent") {
-      base.emitEvent = {
-        eventId: node.data.eventId || "",
-      };
+      base.eventId = node.data.eventId || node.data.emitEvent?.eventId || "";
     } else if (node.type === "condition") {
       base.condition = normalizeConditionForExport(node.data?.condition);
+    }
+
+    for (const actionField of ["actions", "enterActions", "exitActions"]) {
+      const normalizedActions = normalizeActionListForExport(
+        node.data?.[actionField],
+      );
+      if (normalizedActions.length > 0) {
+        base[actionField] = normalizedActions;
+      }
     }
 
     return base;

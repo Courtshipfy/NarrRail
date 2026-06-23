@@ -78,6 +78,19 @@ function normalizeChoiceTimer(timer) {
   };
 }
 
+function readEventId(payload) {
+  return payload?.eventId ?? payload?.emitEvent?.eventId ?? "";
+}
+
+function getFirstAction(node) {
+  for (const actionField of ["enterActions", "actions", "exitActions"]) {
+    if (Array.isArray(node?.[actionField]) && node[actionField].length > 0) {
+      return node[actionField][0] || {};
+    }
+  }
+  return {};
+}
+
 export function importFromYAML(yamlString) {
   // 解析 YAML
   const data = YAML.parse(yamlString);
@@ -140,19 +153,32 @@ export function importFromYAML(yamlString) {
       };
     } else if (node.jump) {
       base.data = { ...node.jump };
-    } else if (node.actions) {
-      const firstAction = Array.isArray(node.actions)
-        ? node.actions[0] || {}
-        : {};
+    } else if (
+      node.nodeType === "SetVariable" ||
+      node.actions ||
+      node.enterActions
+    ) {
+      const firstAction = getFirstAction(node);
+      if (
+        node.nodeType === "EmitEvent" ||
+        firstAction?.actionType === "EmitEvent"
+      ) {
+        base.data = {
+          eventId: readEventId(firstAction) || readEventId(node),
+        };
+      } else {
+        base.data = {
+          variableName: firstAction?.variable?.variableName || "",
+          variableType: firstAction?.variable?.variableType || "String",
+          bGlobalScope: Boolean(firstAction?.variable?.bGlobalScope),
+          operation: firstAction?.actionType || "Set",
+          value: firstAction?.value || "",
+        };
+      }
+    } else if (node.nodeType === "EmitEvent" || node.eventId || node.emitEvent) {
       base.data = {
-        variableName: firstAction?.variable?.variableName || "",
-        variableType: firstAction?.variable?.variableType || "String",
-        bGlobalScope: Boolean(firstAction?.variable?.bGlobalScope),
-        operation: firstAction?.actionType || "Set",
-        value: firstAction?.value || "",
+        eventId: readEventId(node),
       };
-    } else if (node.emitEvent) {
-      base.data = { ...node.emitEvent };
     }
 
     return base;
