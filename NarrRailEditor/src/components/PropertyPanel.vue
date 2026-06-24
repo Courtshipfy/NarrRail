@@ -829,24 +829,66 @@
                         </div>
 
                         <div class="form-group glass-input">
-                            <label class="form-label">参数 (JSON)</label>
-                            <textarea
-                                class="form-textarea"
-                                :value="
-                                    JSON.stringify(
-                                        localNode.data.params ||
-                                            localNode.data.parameters ||
-                                            {},
-                                        null,
-                                        2,
-                                    )
-                                "
-                                @input="updateParameters($event.target.value)"
-                                @compositionstart="handleCompositionStart"
-                                @compositionend="handleCompositionEnd"
-                                @blur="handleInputChange"
-                                placeholder='{"key": "value"}'
-                            ></textarea>
+                            <label class="form-label">参数</label>
+                            <div class="event-param-list">
+                                <div
+                                    v-for="(entry, index) in getEventParamEntries()"
+                                    :key="`event-param-${index}-${entry.key}`"
+                                    class="event-param-row"
+                                >
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        :value="entry.key"
+                                        placeholder="key"
+                                        @input="
+                                            updateEventParamKey(
+                                                index,
+                                                $event.target.value,
+                                            )
+                                        "
+                                        @compositionstart="
+                                            handleCompositionStart
+                                        "
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                    <input
+                                        type="text"
+                                        class="form-input"
+                                        :value="formatEventParamValue(entry.value)"
+                                        placeholder="value"
+                                        @input="
+                                            updateEventParamValue(
+                                                index,
+                                                $event.target.value,
+                                            )
+                                        "
+                                        @compositionstart="
+                                            handleCompositionStart
+                                        "
+                                        @compositionend="handleCompositionEnd"
+                                        @blur="handleInputChange"
+                                    />
+                                    <button
+                                        class="remove-choice-btn event-param-remove"
+                                        @click="removeEventParam(index)"
+                                        title="删除参数"
+                                    >
+                                        <IconGlyph name="close" />
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                class="add-choice-btn event-param-add"
+                                @click="addEventParam"
+                            >
+                                <IconGlyph name="add" />
+                                <span>添加参数</span>
+                            </button>
+                            <p class="choice-hint">
+                                数字、true、false 会按对应类型导出，其他内容按字符串导出
+                            </p>
                         </div>
                     </template>
 
@@ -1439,6 +1481,101 @@ function normalizeChoiceTimer(timer) {
     };
 }
 
+function isPlainObject(value) {
+    return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeEventParamsData(data) {
+    const target = data && typeof data === "object" ? data : {};
+    const sourceParams = isPlainObject(target.params)
+        ? target.params
+        : isPlainObject(target.parameters)
+          ? target.parameters
+          : {};
+
+    target.eventId = String(target.eventId || "");
+    target.eventType = String(target.eventType || "");
+    target.params = { ...sourceParams };
+    delete target.parameters;
+    return target;
+}
+
+function getEventParamEntries() {
+    if (!localNode.value || localNode.value.type !== "emitevent") return [];
+    const data = localNode.value.data || {};
+    const params = isPlainObject(data.params)
+        ? data.params
+        : isPlainObject(data.parameters)
+          ? data.parameters
+          : {};
+    return Object.entries(params).map(
+        ([key, value]) => ({
+            key,
+            value,
+        }),
+    );
+}
+
+function formatEventParamValue(value) {
+    if (typeof value === "string") return value;
+    if (value == null) return "";
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+function parseEventParamValue(value) {
+    const text = String(value ?? "");
+    const trimmed = text.trim();
+    if (!trimmed) return "";
+
+    if (
+        trimmed === "true" ||
+        trimmed === "false" ||
+        trimmed === "null" ||
+        /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/.test(trimmed) ||
+        trimmed.startsWith("{") ||
+        trimmed.startsWith("[") ||
+        trimmed.startsWith('"')
+    ) {
+        try {
+            return JSON.parse(trimmed);
+        } catch {
+            return text;
+        }
+    }
+
+    return text;
+}
+
+function makeUniqueEventParamKey(baseKey, entries, currentIndex = -1) {
+    const cleanBase = String(baseKey ?? "");
+    const existing = new Set(
+        entries
+            .map(([key], index) => (index === currentIndex ? null : key))
+            .filter(Boolean),
+    );
+
+    if (!existing.has(cleanBase)) return cleanBase;
+
+    let suffix = 2;
+    let candidate = `${cleanBase}${suffix}`;
+    while (existing.has(candidate)) {
+        suffix += 1;
+        candidate = `${cleanBase}${suffix}`;
+    }
+    return candidate;
+}
+
+function setEventParamEntries(entries) {
+    if (!localNode.value || localNode.value.type !== "emitevent") return;
+    localNode.value.data = normalizeEventParamsData(localNode.value.data);
+    localNode.value.data.params = Object.fromEntries(entries);
+    handleUpdate();
+}
+
 function getVariableType(variable) {
     const type = String(variable?.type || variable?.variableType || "String");
     return ["Bool", "Int", "Float", "String"].includes(type) ? type : "String";
@@ -1729,6 +1866,11 @@ watch(
                 localNode.value.data.variableName = String(
                     localNode.value.data.variableName || "",
                 ).trim();
+            }
+            if (localNode.value.type === "emitevent") {
+                localNode.value.data = normalizeEventParamsData(
+                    localNode.value.data || {},
+                );
             }
             if (localNode.value.type === "railstory") {
                 localNode.value.data = {
@@ -2594,15 +2736,46 @@ function removeDialogueLine(index) {
     handleUpdate();
 }
 
-function updateParameters(jsonString) {
-    if (!localNode.value) return;
-    try {
-        const params = JSON.parse(jsonString);
-        localNode.value.data.params = params;
-        delete localNode.value.data.parameters;
-    } catch (e) {
-        // 忽略无效的 JSON
-    }
+function addEventParam() {
+    if (!localNode.value || localNode.value.type !== "emitevent") return;
+    localNode.value.data = normalizeEventParamsData(localNode.value.data);
+    const entries = Object.entries(localNode.value.data.params || {});
+    const key = makeUniqueEventParamKey(`param${entries.length + 1}`, entries);
+    entries.push([key, ""]);
+    setEventParamEntries(entries);
+}
+
+function removeEventParam(index) {
+    if (!localNode.value || localNode.value.type !== "emitevent") return;
+    localNode.value.data = normalizeEventParamsData(localNode.value.data);
+    const entries = Object.entries(localNode.value.data.params || {});
+    if (index < 0 || index >= entries.length) return;
+    entries.splice(index, 1);
+    setEventParamEntries(entries);
+}
+
+function updateEventParamKey(index, nextKey) {
+    if (!localNode.value || localNode.value.type !== "emitevent") return;
+    localNode.value.data = normalizeEventParamsData(localNode.value.data);
+    const entries = Object.entries(localNode.value.data.params || {});
+    if (index < 0 || index >= entries.length) return;
+
+    const value = entries[index][1];
+    entries[index] = [
+        makeUniqueEventParamKey(nextKey, entries, index),
+        value,
+    ];
+    setEventParamEntries(entries);
+}
+
+function updateEventParamValue(index, nextValue) {
+    if (!localNode.value || localNode.value.type !== "emitevent") return;
+    localNode.value.data = normalizeEventParamsData(localNode.value.data);
+    const entries = Object.entries(localNode.value.data.params || {});
+    if (index < 0 || index >= entries.length) return;
+
+    entries[index] = [entries[index][0], parseEventParamValue(nextValue)];
+    setEventParamEntries(entries);
 }
 
 function addConditionBranch() {
@@ -3152,6 +3325,33 @@ onUnmounted(() => {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
+}
+
+.event-param-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.event-param-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) 28px;
+    gap: 8px;
+    align-items: center;
+}
+
+.event-param-row .form-input {
+    min-width: 0;
+}
+
+.event-param-remove {
+    position: static;
+    width: 28px;
+    height: 28px;
+}
+
+.event-param-add {
+    margin-top: 8px;
 }
 
 .multi-lines-header {
