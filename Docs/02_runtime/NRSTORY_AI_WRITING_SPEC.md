@@ -156,18 +156,6 @@ edges: []
 
 ### E) EmitEvent
 
-旧兼容写法：
-
-```yaml
-- nodeId: N_LegacyEvent
-  nodeType: EmitEvent
-  eventId: some_event_id
-  enterActions: []
-  exitActions: []
-```
-
-推荐结构化写法：
-
 ```yaml
 - nodeId: N_PlayBgm
   nodeType: EmitEvent
@@ -180,9 +168,7 @@ edges: []
 ```
 
 规则：
-- `eventId` 是兼容字段，可作为旧事件 ID、唯一标识或调试标识。
-- `eventType + params` 是推荐的新结构化事件写法。
-- `eventId` 和 `eventType` 至少有一个非空。
+- `eventType` 必须非空。
 - `params` 如果存在，必须是 object/dictionary；未填写时按 `{}` 处理。
 
 ### F) Condition
@@ -284,8 +270,7 @@ terms:
 
 - `actionType` 仅允许：`Set` / `Add` / `Subtract` / `EmitEvent`
 - `Set/Add/Subtract` 必须有：`variable` + `value`
-- `EmitEvent` 中 `eventId` 和 `eventType` 至少有一个非空
-- `eventId` 是兼容字段；推荐新写法使用 `eventType + params`
+- `EmitEvent` 必须有非空 `eventType`
 - `params` 如果存在，必须是 object/dictionary
 
 ---

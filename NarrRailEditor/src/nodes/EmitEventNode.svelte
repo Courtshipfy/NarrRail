@@ -5,11 +5,11 @@
   export let data;
   export let selected = false;
 
-  $: params = data.params || data.parameters || {};
+  $: params = data.params || {};
   $: paramEntries = params && typeof params === 'object' && !Array.isArray(params)
     ? Object.entries(params)
     : [];
-  $: eventLabel = data.eventType || data.eventId || '未设置';
+  $: eventLabel = data.eventType || '未设置';
 
   function formatParamValue(value) {
     if (typeof value === 'string') return value;

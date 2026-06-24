@@ -99,16 +99,6 @@ nodes:
 
 ## 7. EmitEvent
 
-旧格式继续合法：
-
-```yaml
-- nodeId: N_LegacyEvent
-  nodeType: EmitEvent
-  eventId: some_event_id
-```
-
-推荐的新结构化事件写法：
-
 ```yaml
 - nodeId: N_PlayBgm
   nodeType: EmitEvent
@@ -122,23 +112,19 @@ nodes:
 
 | 字段 | 类型 | 必需 | 说明 |
 |---|---|---|---|
-| `eventId` | string | 否 | 兼容字段，可作为旧事件 ID、唯一标识或调试标识 |
-| `eventType` | string | 否 | 推荐字段，结构化事件类型，如 `inventory.add_item` |
+| `eventType` | string | 是 | 结构化事件类型，如 `inventory.add_item` |
 | `params` | object | 否 | 事件参数字典，默认 `{}` |
 
 校验规则：
 
-- `eventId` 和 `eventType` 至少有一个非空。
+- `eventType` 必须非空。
 - `params` 如果存在，必须是 object/dictionary。
-- 只有旧 `eventId` 的故事继续合法。
-- 只有 `eventType + params` 的故事合法。
 
 触发事件时统一 payload：
 
 ```yaml
 nodeId: N_PlayBgm
 phase: node # node / enter / exit
-eventId: "" # 未填写时为空字符串
 eventType: audio.play_bgm
 params:
   bgmId: train_theme
@@ -342,11 +328,10 @@ enterActions:
 | `actionType` | enum | 是 | `Set` / `Add` / `Subtract` / `EmitEvent` |
 | `variable` | object | Set/Add/Subtract 需要 | 变量引用 |
 | `value` | string | Set/Add/Subtract 需要 | 输入值 |
-| `eventId` | string | 否 | EmitEvent 兼容字段，可作为旧事件 ID、唯一标识或调试标识 |
-| `eventType` | string | 否 | EmitEvent 推荐字段，结构化事件类型 |
+| `eventType` | string | EmitEvent 需要 | 结构化事件类型 |
 | `params` | object | 否 | EmitEvent 参数字典，默认 `{}` |
 
-`EmitEvent` action 中，`eventId` 和 `eventType` 至少有一个非空。`params` 如果存在，必须是 object/dictionary。
+`EmitEvent` action 中，`eventType` 必须非空。`params` 如果存在，必须是 object/dictionary。
 
 `SetVariable` 节点至少需要一个变量动作。
 

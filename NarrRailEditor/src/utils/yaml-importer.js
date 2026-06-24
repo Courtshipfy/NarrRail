@@ -82,23 +82,10 @@ function isPlainObject(value) {
   return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
-function readEventId(payload) {
-  return payload?.eventId ?? payload?.emitEvent?.eventId ?? "";
-}
-
-function readEventType(payload) {
-  return payload?.eventType ?? payload?.emitEvent?.eventType ?? "";
-}
-
-function readEventParams(payload) {
-  return payload?.params ?? payload?.parameters ?? payload?.emitEvent?.params ?? {};
-}
-
 function normalizeEventData(payload) {
-  const params = readEventParams(payload);
+  const params = payload?.params ?? {};
   return {
-    eventId: String(readEventId(payload) || ""),
-    eventType: String(readEventType(payload) || ""),
+    eventType: String(payload?.eventType || ""),
     params: isPlainObject(params) ? params : {},
   };
 }
@@ -187,7 +174,6 @@ export function importFromYAML(yamlString) {
         const actionEvent = normalizeEventData(firstAction);
         const nodeEvent = normalizeEventData(node);
         base.data = {
-          eventId: actionEvent.eventId || nodeEvent.eventId,
           eventType: actionEvent.eventType || nodeEvent.eventType,
           params:
             Object.keys(actionEvent.params).length > 0
@@ -205,9 +191,7 @@ export function importFromYAML(yamlString) {
       }
     } else if (
       node.nodeType === "EmitEvent" ||
-      node.eventId ||
-      node.eventType ||
-      node.emitEvent
+      node.eventType
     ) {
       base.data = normalizeEventData(node);
     }
@@ -216,9 +200,8 @@ export function importFromYAML(yamlString) {
       if (Array.isArray(node?.[actionField]) && node[actionField].length > 0) {
         base.data[actionField] = node[actionField].map((action) => {
           if (action?.actionType !== "EmitEvent") return { ...action };
-          const { emitEvent, parameters, ...rest } = action;
           return {
-            ...rest,
+            actionType: "EmitEvent",
             ...normalizeEventData(action),
           };
         });

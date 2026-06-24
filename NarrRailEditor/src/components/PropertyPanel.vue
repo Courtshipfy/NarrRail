@@ -804,18 +804,6 @@
 
                     <template v-else-if="localNode.type === 'emitevent'">
                         <div class="form-group glass-input">
-                            <label class="form-label">事件 ID（兼容）</label>
-                            <input
-                                type="text"
-                                class="form-input"
-                                v-model="localNode.data.eventId"
-                                @compositionstart="handleCompositionStart"
-                                @compositionend="handleCompositionEnd"
-                                @blur="handleInputChange"
-                            />
-                        </div>
-
-                        <div class="form-group glass-input">
                             <label class="form-label">事件类型</label>
                             <input
                                 type="text"
@@ -1489,27 +1477,18 @@ function isPlainObject(value) {
 
 function normalizeEventParamsData(data) {
     const target = data && typeof data === "object" ? data : {};
-    const sourceParams = isPlainObject(target.params)
-        ? target.params
-        : isPlainObject(target.parameters)
-          ? target.parameters
-          : {};
+    const sourceParams = isPlainObject(target.params) ? target.params : {};
 
-    target.eventId = String(target.eventId || "");
-    target.eventType = String(target.eventType || "");
-    target.params = { ...sourceParams };
-    delete target.parameters;
-    return target;
+    return {
+        eventType: String(target.eventType || ""),
+        params: { ...sourceParams },
+    };
 }
 
 function getEventParamEntries() {
     if (!localNode.value || localNode.value.type !== "emitevent") return [];
     const data = localNode.value.data || {};
-    const params = isPlainObject(data.params)
-        ? data.params
-        : isPlainObject(data.parameters)
-          ? data.parameters
-          : {};
+    const params = isPlainObject(data.params) ? data.params : {};
     return Object.entries(params).map(
         ([key, value]) => ({
             key,

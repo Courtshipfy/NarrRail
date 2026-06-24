@@ -927,7 +927,6 @@ function advanceUntilPause(maxSteps = 4000) {
         if (kind === "emitevent") {
             const eventLabel =
                 toText(node?.data?.eventType) ||
-                toText(node?.data?.eventId) ||
                 "(未命名事件)";
             pushTimeline({
                 kind: "emitevent",
@@ -936,9 +935,8 @@ function advanceUntilPause(maxSteps = 4000) {
                 payload: {
                     nodeId: node.id,
                     phase: "node",
-                    eventId: toText(node?.data?.eventId),
                     eventType: toText(node?.data?.eventType),
-                    params: node?.data?.params || node?.data?.parameters || {},
+                    params: node?.data?.params || {},
                 },
             });
             const next = firstNextTarget(node.id);

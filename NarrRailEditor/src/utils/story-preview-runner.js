@@ -317,7 +317,6 @@ export function createStoryPreviewRunner(story, vars) {
       if (kind === "emitevent") {
         const eventLabel =
           toText(node?.data?.eventType) ||
-          toText(node?.data?.eventId) ||
           "(未命名事件)";
         state.timeline.push({
           kind: "emitevent",
@@ -326,9 +325,8 @@ export function createStoryPreviewRunner(story, vars) {
           payload: {
             nodeId: node.id,
             phase: "node",
-            eventId: toText(node?.data?.eventId),
             eventType: toText(node?.data?.eventType),
-            params: node?.data?.params || node?.data?.parameters || {},
+            params: node?.data?.params || {},
           },
         });
         const next = firstNextTarget(node.id);

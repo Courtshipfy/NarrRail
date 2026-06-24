@@ -614,7 +614,7 @@
       case 'setvariable':
         return { variableName: '', operation: 'Set', value: '' };
       case 'emitevent':
-        return { eventId: '', eventType: '', params: {} };
+        return { eventType: '', params: {} };
       case 'condition':
         return {
           condition: {

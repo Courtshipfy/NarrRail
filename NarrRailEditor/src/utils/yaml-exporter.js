@@ -141,18 +141,15 @@ function isPlainObject(value) {
 }
 
 function normalizeEventForExport(payload) {
-  const source = isPlainObject(payload?.emitEvent) ? payload.emitEvent : {};
-  const params = payload?.params ?? payload?.parameters ?? source.params ?? {};
+  const params = payload?.params ?? {};
 
   return {
-    eventId: String(payload?.eventId ?? source.eventId ?? ""),
-    eventType: String(payload?.eventType ?? source.eventType ?? ""),
+    eventType: String(payload?.eventType ?? ""),
     params: isPlainObject(params) ? params : {},
   };
 }
 
 function applyEventFields(target, event) {
-  if (event.eventId) target.eventId = event.eventId;
   if (event.eventType) target.eventType = event.eventType;
   target.params = event.params;
 }
@@ -163,12 +160,11 @@ function normalizeActionForExport(action) {
   const normalized = { ...action };
   if (normalized.actionType === "EmitEvent") {
     const event = normalizeEventForExport(normalized);
-    delete normalized.eventId;
-    delete normalized.eventType;
-    delete normalized.params;
-    delete normalized.emitEvent;
-    delete normalized.parameters;
-    applyEventFields(normalized, event);
+    return {
+      actionType: "EmitEvent",
+      eventType: event.eventType,
+      params: event.params,
+    };
   }
 
   return normalized;

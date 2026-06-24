@@ -165,18 +165,16 @@ function isPlainObject(value) {
 }
 
 function readEventFields(payload) {
-  const source = isPlainObject(payload?.emitEvent) ? payload.emitEvent : {};
   return {
-    eventId: String(payload?.eventId ?? source.eventId ?? "").trim(),
-    eventType: String(payload?.eventType ?? source.eventType ?? "").trim(),
-    params: payload?.params ?? payload?.parameters ?? source.params,
+    eventType: String(payload?.eventType ?? "").trim(),
+    params: payload?.params,
   };
 }
 
 function validateEmitEventPayload(ownerLabel, payload, addError) {
   const event = readEventFields(payload || {});
-  if (!event.eventId && !event.eventType) {
-    addError(`${ownerLabel}: eventId 和 eventType 至少需要填写一个`);
+  if (!event.eventType) {
+    addError(`${ownerLabel}: eventType 不能为空`);
   }
 
   if (event.params != null && !isPlainObject(event.params)) {
