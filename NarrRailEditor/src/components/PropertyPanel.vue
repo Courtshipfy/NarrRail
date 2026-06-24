@@ -833,7 +833,7 @@
                             <div class="event-param-list">
                                 <div
                                     v-for="(entry, index) in getEventParamEntries()"
-                                    :key="`event-param-${index}-${entry.key}`"
+                                    :key="`event-param-${index}`"
                                     class="event-param-row"
                                 >
                                     <input
@@ -851,6 +851,7 @@
                                             handleCompositionStart
                                         "
                                         @compositionend="handleCompositionEnd"
+                                        @keydown.stop
                                         @blur="handleInputChange"
                                     />
                                     <input
@@ -868,6 +869,7 @@
                                             handleCompositionStart
                                         "
                                         @compositionend="handleCompositionEnd"
+                                        @keydown.stop
                                         @blur="handleInputChange"
                                     />
                                     <button

@@ -6,7 +6,20 @@
   export let selected = false;
 
   $: params = data.params || data.parameters || {};
+  $: paramEntries = params && typeof params === 'object' && !Array.isArray(params)
+    ? Object.entries(params)
+    : [];
   $: eventLabel = data.eventType || data.eventId || '未设置';
+
+  function formatParamValue(value) {
+    if (typeof value === 'string') return value;
+    if (value == null) return '';
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
 </script>
 
 <div class="emitevent-node" class:selected>
@@ -21,10 +34,17 @@
       <span class="field-label">事件:</span>
       <span class="field-value">{eventLabel}</span>
     </div>
-    {#if params && Object.keys(params).length > 0}
+    {#if paramEntries.length > 0}
       <div class="node-field">
         <span class="field-label">参数:</span>
-        <span class="field-value params-count">{Object.keys(params).length} 个</span>
+        <div class="params-list">
+          {#each paramEntries as [key, value]}
+            <div class="param-row">
+              <span class="param-key">{key}</span>
+              <span class="param-value">{formatParamValue(value)}</span>
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
   </div>
@@ -115,8 +135,32 @@
     word-break: break-word;
   }
 
-  .params-count {
+  .params-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .param-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    gap: 6px;
+    align-items: baseline;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .param-key {
     color: #ff9500;
     font-weight: 700;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .param-value {
+    color: #1d1d1f;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 </style>
