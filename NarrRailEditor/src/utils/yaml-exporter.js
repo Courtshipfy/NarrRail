@@ -136,14 +136,39 @@ function normalizeChoiceTimerForExport(timer) {
   };
 }
 
+function isPlainObject(value) {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeEventForExport(payload) {
+  const source = isPlainObject(payload?.emitEvent) ? payload.emitEvent : {};
+  const params = payload?.params ?? payload?.parameters ?? source.params ?? {};
+
+  return {
+    eventId: String(payload?.eventId ?? source.eventId ?? ""),
+    eventType: String(payload?.eventType ?? source.eventType ?? ""),
+    params: isPlainObject(params) ? params : {},
+  };
+}
+
+function applyEventFields(target, event) {
+  if (event.eventId) target.eventId = event.eventId;
+  if (event.eventType) target.eventType = event.eventType;
+  target.params = event.params;
+}
+
 function normalizeActionForExport(action) {
   if (!action || typeof action !== "object") return null;
 
   const normalized = { ...action };
   if (normalized.actionType === "EmitEvent") {
-    normalized.eventId =
-      normalized.eventId ?? normalized.emitEvent?.eventId ?? "";
+    const event = normalizeEventForExport(normalized);
+    delete normalized.eventId;
+    delete normalized.eventType;
+    delete normalized.params;
     delete normalized.emitEvent;
+    delete normalized.parameters;
+    applyEventFields(normalized, event);
   }
 
   return normalized;
@@ -241,7 +266,7 @@ export function buildYAMLString(nodes, edges, variables, meta) {
         },
       ];
     } else if (node.type === "emitevent") {
-      base.eventId = node.data.eventId || node.data.emitEvent?.eventId || "";
+      applyEventFields(base, normalizeEventForExport(node.data));
     } else if (node.type === "condition") {
       base.condition = normalizeConditionForExport(node.data?.condition);
     }

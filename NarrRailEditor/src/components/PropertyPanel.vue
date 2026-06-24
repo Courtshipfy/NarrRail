@@ -804,7 +804,7 @@
 
                     <template v-else-if="localNode.type === 'emitevent'">
                         <div class="form-group glass-input">
-                            <label class="form-label">事件 ID</label>
+                            <label class="form-label">事件 ID（兼容）</label>
                             <input
                                 type="text"
                                 class="form-input"
@@ -816,12 +816,27 @@
                         </div>
 
                         <div class="form-group glass-input">
+                            <label class="form-label">事件类型</label>
+                            <input
+                                type="text"
+                                class="form-input"
+                                v-model="localNode.data.eventType"
+                                @compositionstart="handleCompositionStart"
+                                @compositionend="handleCompositionEnd"
+                                @blur="handleInputChange"
+                                placeholder="inventory.add_item"
+                            />
+                        </div>
+
+                        <div class="form-group glass-input">
                             <label class="form-label">参数 (JSON)</label>
                             <textarea
                                 class="form-textarea"
                                 :value="
                                     JSON.stringify(
-                                        localNode.data.parameters || {},
+                                        localNode.data.params ||
+                                            localNode.data.parameters ||
+                                            {},
                                         null,
                                         2,
                                     )
@@ -2583,7 +2598,8 @@ function updateParameters(jsonString) {
     if (!localNode.value) return;
     try {
         const params = JSON.parse(jsonString);
-        localNode.value.data.parameters = params;
+        localNode.value.data.params = params;
+        delete localNode.value.data.parameters;
     } catch (e) {
         // 忽略无效的 JSON
     }

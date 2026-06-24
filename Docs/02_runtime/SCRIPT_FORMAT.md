@@ -97,7 +97,55 @@ nodes:
 - `Condition`
 - `End`
 
-## 7. Dialogue
+## 7. EmitEvent
+
+旧格式继续合法：
+
+```yaml
+- nodeId: N_LegacyEvent
+  nodeType: EmitEvent
+  eventId: some_event_id
+```
+
+推荐的新结构化事件写法：
+
+```yaml
+- nodeId: N_PlayBgm
+  nodeType: EmitEvent
+  eventType: audio.play_bgm
+  params:
+    bgmId: train_theme
+    fadeSeconds: 1.5
+```
+
+字段说明：
+
+| 字段 | 类型 | 必需 | 说明 |
+|---|---|---|---|
+| `eventId` | string | 否 | 兼容字段，可作为旧事件 ID、唯一标识或调试标识 |
+| `eventType` | string | 否 | 推荐字段，结构化事件类型，如 `inventory.add_item` |
+| `params` | object | 否 | 事件参数字典，默认 `{}` |
+
+校验规则：
+
+- `eventId` 和 `eventType` 至少有一个非空。
+- `params` 如果存在，必须是 object/dictionary。
+- 只有旧 `eventId` 的故事继续合法。
+- 只有 `eventType + params` 的故事合法。
+
+触发事件时统一 payload：
+
+```yaml
+nodeId: N_PlayBgm
+phase: node # node / enter / exit
+eventId: "" # 未填写时为空字符串
+eventType: audio.play_bgm
+params:
+  bgmId: train_theme
+  fadeSeconds: 1.5
+```
+
+## 8. Dialogue
 
 ```yaml
 dialogue:
@@ -107,7 +155,7 @@ dialogue:
   voiceAsset: ""
 ```
 
-## 8. MultiDialogue
+## 9. MultiDialogue
 
 ```yaml
 multiDialogue:
@@ -123,7 +171,7 @@ multiDialogue:
 - `lines` 至少 1 行
 - 运行时每次 `Next` 推进一行，最后一行完成后的下一次 `Next` 才离开节点
 
-## 9. Choice
+## 10. Choice
 
 ```yaml
 choices:
@@ -162,7 +210,7 @@ edges:
     priority: 99
 ```
 
-## 10. Condition
+## 11. Condition
 
 Condition 是当前唯一支持条件分支的结构。边上的 `condition` 字段已废弃，不应再出现在导出的 `.nrstory` 中。
 
@@ -239,7 +287,7 @@ edges:
 - true 分支：`condition-0`
 - false/fallback 分支：`condition-fallback`
 
-## 11. 条件项
+## 12. 条件项
 
 ```yaml
 logic: All
@@ -266,7 +314,7 @@ terms:
 - `<`
 - `<=`
 
-## 12. 动作
+## 13. 动作
 
 ```yaml
 enterActions:
@@ -276,7 +324,17 @@ enterActions:
       type: Int
       scope: Global
     value: "2"
-    eventId: ""
+```
+
+结构化事件 action 示例：
+
+```yaml
+enterActions:
+  - actionType: EmitEvent
+    eventType: inventory.add_item
+    params:
+      itemId: key_red
+      count: 1
 ```
 
 | 字段 | 类型 | 必需 | 说明 |
@@ -284,11 +342,15 @@ enterActions:
 | `actionType` | enum | 是 | `Set` / `Add` / `Subtract` / `EmitEvent` |
 | `variable` | object | Set/Add/Subtract 需要 | 变量引用 |
 | `value` | string | Set/Add/Subtract 需要 | 输入值 |
-| `eventId` | string | EmitEvent 需要 | 事件标识符 |
+| `eventId` | string | 否 | EmitEvent 兼容字段，可作为旧事件 ID、唯一标识或调试标识 |
+| `eventType` | string | 否 | EmitEvent 推荐字段，结构化事件类型 |
+| `params` | object | 否 | EmitEvent 参数字典，默认 `{}` |
+
+`EmitEvent` action 中，`eventId` 和 `eventType` 至少有一个非空。`params` 如果存在，必须是 object/dictionary。
 
 `SetVariable` 节点至少需要一个变量动作。
 
-## 13. 边
+## 14. 边
 
 ```yaml
 edges:
@@ -314,7 +376,7 @@ edges:
 
 `edges[].condition` 已废弃。条件判断必须由 Condition 节点表达。
 
-## 14. 全局配置文件
+## 15. 全局配置文件
 
 全局配置文件示例：
 
@@ -344,11 +406,11 @@ presetSpeakers:
 - 同步到同一故事仓库目录下的 `UNarrRailStoryAsset` 会自动绑定该 `UNarrRailGlobalConfigAsset`
 - 运行时会把全局变量注册到 GameInstance 级 `UNarrRailGlobalStateSubsystem`，多个 Session 共享同一份全局变量状态
 
-## 15. 剧情总纲 `.nrrail`
+## 16. 剧情总纲 `.nrrail`
 
 剧情总纲是单个剧情脚本之上的编排层。单个 `.nrstory` 继续负责对白、选择、变量操作和局部条件；`.nrrail` 负责决定多个脚本的顺序、分支与汇合关系。
 
-### 15.1 根结构
+### 16.1 根结构
 
 ```yaml
 meta:
@@ -367,7 +429,7 @@ edges: []
 - `nodes`
 - `edges`
 
-### 15.2 Meta
+### 16.2 Meta
 
 | 字段 | 类型 | 必需 | 说明 |
 |---|---|---|---|
@@ -376,7 +438,7 @@ edges: []
 | `title` | string | 否 | 展示标题 |
 | `entryNodeId` | string | 是 | 必须存在于 `nodes[].nodeId` |
 
-### 15.3 总纲节点
+### 16.3 总纲节点
 
 基础结构：
 
@@ -396,7 +458,7 @@ nodes:
 - `Note`：章节标记或备注，预览时记录提示后自动继续
 - `End`：总纲结束
 
-### 15.4 Story 节点
+### 16.4 Story 节点
 
 ```yaml
 - nodeId: chapter_01
@@ -413,7 +475,7 @@ nodes:
 - 被引用脚本结束后，总纲继续沿 Story 节点出边前进
 - 跨脚本状态通过共享变量快照传递
 
-### 15.5 Branch 节点
+### 16.5 Branch 节点
 
 ```yaml
 - nodeId: route_check
@@ -449,7 +511,7 @@ nodes:
 - 以此类推
 - 没有分支命中时走 `sourceHandle: branch-fallback`
 
-### 15.6 总纲边
+### 16.6 总纲边
 
 ```yaml
 edges:
@@ -469,7 +531,7 @@ edges:
     priority: 99
 ```
 
-### 15.7 总纲校验规则
+### 16.7 总纲校验规则
 
 硬错误：
 
@@ -488,7 +550,7 @@ edges:
 - 条件变量未在全局配置中定义
 - 存在循环路径，预览会使用步数上限保护
 
-### 15.8 最小总纲示例
+### 16.8 最小总纲示例
 
 ```yaml
 meta:
@@ -547,7 +609,7 @@ edges:
     priority: 0
 ```
 
-## 16. UE 故事仓库同步
+## 17. UE 故事仓库同步
 
 UE 插件通过 `Sync Stories` 同步本地故事仓库：
 
@@ -572,7 +634,7 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - 仓库删除的文件会删除对应 UE 资产，删除前弹确认
 - 当前仅扫描 `*.nrstory`；`.nrrail` 总纲暂只在 NarrRailEditor 中使用，后续 UE 总纲资产实现时再接入同步。
 
-## 17. 校验规则
+## 18. 校验规则
 
 硬错误：
 
@@ -596,7 +658,7 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - Condition 分支内部存在明显矛盾
 - 多个 Condition 分支可能同时满足，运行时会按顺序命中第一个分支
 
-## 18. 最小剧情示例
+## 19. 最小剧情示例
 
 该示例假设同一故事仓库的 GlobalConfig 中已经定义了 `Affinity`：
 

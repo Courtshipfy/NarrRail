@@ -123,6 +123,10 @@ export function validateStory(nodes, edges, meta, variables = []) {
       );
     } else if (nodeType === "setvariable") {
       validateSetVariableNode(node, variableMap, addError);
+    } else if (nodeType === "emitevent") {
+      validateEmitEventPayload(`节点 ${node.id}: EmitEvent`, data, (message) =>
+        addError(message, { nodeId: node.id }),
+      );
     } else {
       const badEdges = safeEdges.filter(
         (e) =>
@@ -137,6 +141,8 @@ export function validateStory(nodes, edges, meta, variables = []) {
         );
       }
     }
+
+    validateEventActions(node, addError);
   }
 
   const connected = new Set();
@@ -152,6 +158,45 @@ export function validateStory(nodes, edges, meta, variables = []) {
   }
 
   return { errors, warnings };
+}
+
+function isPlainObject(value) {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readEventFields(payload) {
+  const source = isPlainObject(payload?.emitEvent) ? payload.emitEvent : {};
+  return {
+    eventId: String(payload?.eventId ?? source.eventId ?? "").trim(),
+    eventType: String(payload?.eventType ?? source.eventType ?? "").trim(),
+    params: payload?.params ?? payload?.parameters ?? source.params,
+  };
+}
+
+function validateEmitEventPayload(ownerLabel, payload, addError) {
+  const event = readEventFields(payload || {});
+  if (!event.eventId && !event.eventType) {
+    addError(`${ownerLabel}: eventId 和 eventType 至少需要填写一个`);
+  }
+
+  if (event.params != null && !isPlainObject(event.params)) {
+    addError(`${ownerLabel}: params 必须是 object/dictionary`);
+  }
+}
+
+function validateEventActions(node, addError) {
+  const data = node?.data || {};
+  for (const actionField of ["actions", "enterActions", "exitActions"]) {
+    const actions = Array.isArray(data[actionField]) ? data[actionField] : [];
+    actions.forEach((action, index) => {
+      if (action?.actionType !== "EmitEvent") return;
+      validateEmitEventPayload(
+        `节点 ${node.id}: ${actionField}[${index}] EmitEvent`,
+        action,
+        (message) => addError(message, { nodeId: node.id }),
+      );
+    });
+  }
 }
 
 function buildVariableMap(variables) {

@@ -4,6 +4,9 @@
 
   export let data;
   export let selected = false;
+
+  $: params = data.params || data.parameters || {};
+  $: eventLabel = data.eventType || data.eventId || '未设置';
 </script>
 
 <div class="emitevent-node" class:selected>
@@ -15,13 +18,13 @@
   </div>
   <div class="node-content">
     <div class="node-field">
-      <span class="field-label">事件ID:</span>
-      <span class="field-value">{data.eventId || '未设置'}</span>
+      <span class="field-label">事件:</span>
+      <span class="field-value">{eventLabel}</span>
     </div>
-    {#if data.parameters && Object.keys(data.parameters).length > 0}
+    {#if params && Object.keys(params).length > 0}
       <div class="node-field">
         <span class="field-label">参数:</span>
-        <span class="field-value params-count">{Object.keys(data.parameters).length} 个</span>
+        <span class="field-value params-count">{Object.keys(params).length} 个</span>
       </div>
     {/if}
   </div>

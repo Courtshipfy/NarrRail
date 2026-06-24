@@ -925,11 +925,21 @@ function advanceUntilPause(maxSteps = 4000) {
         }
 
         if (kind === "emitevent") {
-            const eventId = toText(node?.data?.eventId) || "(未命名事件)";
+            const eventLabel =
+                toText(node?.data?.eventType) ||
+                toText(node?.data?.eventId) ||
+                "(未命名事件)";
             pushTimeline({
                 kind: "emitevent",
                 nodeId: node.id,
-                text: `${eventId}`,
+                text: `${eventLabel}`,
+                payload: {
+                    nodeId: node.id,
+                    phase: "node",
+                    eventId: toText(node?.data?.eventId),
+                    eventType: toText(node?.data?.eventType),
+                    params: node?.data?.params || node?.data?.parameters || {},
+                },
             });
             const next = firstNextTarget(node.id);
             if (!next) {

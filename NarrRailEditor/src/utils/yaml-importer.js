@@ -78,8 +78,29 @@ function normalizeChoiceTimer(timer) {
   };
 }
 
+function isPlainObject(value) {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
 function readEventId(payload) {
   return payload?.eventId ?? payload?.emitEvent?.eventId ?? "";
+}
+
+function readEventType(payload) {
+  return payload?.eventType ?? payload?.emitEvent?.eventType ?? "";
+}
+
+function readEventParams(payload) {
+  return payload?.params ?? payload?.parameters ?? payload?.emitEvent?.params ?? {};
+}
+
+function normalizeEventData(payload) {
+  const params = readEventParams(payload);
+  return {
+    eventId: String(readEventId(payload) || ""),
+    eventType: String(readEventType(payload) || ""),
+    params: isPlainObject(params) ? params : {},
+  };
 }
 
 function getFirstAction(node) {
@@ -163,8 +184,15 @@ export function importFromYAML(yamlString) {
         node.nodeType === "EmitEvent" ||
         firstAction?.actionType === "EmitEvent"
       ) {
+        const actionEvent = normalizeEventData(firstAction);
+        const nodeEvent = normalizeEventData(node);
         base.data = {
-          eventId: readEventId(firstAction) || readEventId(node),
+          eventId: actionEvent.eventId || nodeEvent.eventId,
+          eventType: actionEvent.eventType || nodeEvent.eventType,
+          params:
+            Object.keys(actionEvent.params).length > 0
+              ? actionEvent.params
+              : nodeEvent.params,
         };
       } else {
         base.data = {
@@ -175,10 +203,26 @@ export function importFromYAML(yamlString) {
           value: firstAction?.value || "",
         };
       }
-    } else if (node.nodeType === "EmitEvent" || node.eventId || node.emitEvent) {
-      base.data = {
-        eventId: readEventId(node),
-      };
+    } else if (
+      node.nodeType === "EmitEvent" ||
+      node.eventId ||
+      node.eventType ||
+      node.emitEvent
+    ) {
+      base.data = normalizeEventData(node);
+    }
+
+    for (const actionField of ["actions", "enterActions", "exitActions"]) {
+      if (Array.isArray(node?.[actionField]) && node[actionField].length > 0) {
+        base.data[actionField] = node[actionField].map((action) => {
+          if (action?.actionType !== "EmitEvent") return { ...action };
+          const { emitEvent, parameters, ...rest } = action;
+          return {
+            ...rest,
+            ...normalizeEventData(action),
+          };
+        });
+      }
     }
 
     return base;

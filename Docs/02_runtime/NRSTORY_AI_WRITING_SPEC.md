@@ -154,7 +154,38 @@ edges: []
   exitActions: []
 ```
 
-### E) Condition
+### E) EmitEvent
+
+旧兼容写法：
+
+```yaml
+- nodeId: N_LegacyEvent
+  nodeType: EmitEvent
+  eventId: some_event_id
+  enterActions: []
+  exitActions: []
+```
+
+推荐结构化写法：
+
+```yaml
+- nodeId: N_PlayBgm
+  nodeType: EmitEvent
+  eventType: audio.play_bgm
+  params:
+    bgmId: train_theme
+    fadeSeconds: 1.5
+  enterActions: []
+  exitActions: []
+```
+
+规则：
+- `eventId` 是兼容字段，可作为旧事件 ID、唯一标识或调试标识。
+- `eventType + params` 是推荐的新结构化事件写法。
+- `eventId` 和 `eventType` 至少有一个非空。
+- `params` 如果存在，必须是 object/dictionary；未填写时按 `{}` 处理。
+
+### F) Condition
 
 ```yaml
 - nodeId: N_CheckAffinity
@@ -179,7 +210,7 @@ edges: []
 - 条件判断必须放在 `Condition` 节点的 `condition` 字段。
 - `Condition` 节点必须有一条 `sourceHandle: condition-true` 出边和一条 `sourceHandle: condition-false` 出边。
 
-### F) End
+### G) End
 
 ```yaml
 - nodeId: N_End
@@ -239,12 +270,23 @@ terms:
     type: Int
     scope: Session
   value: "2"
-  eventId: ""
+```
+
+结构化事件动作示例：
+
+```yaml
+- actionType: EmitEvent
+  eventType: inventory.add_item
+  params:
+    itemId: key_red
+    count: 1
 ```
 
 - `actionType` 仅允许：`Set` / `Add` / `Subtract` / `EmitEvent`
 - `Set/Add/Subtract` 必须有：`variable` + `value`
-- `EmitEvent` 必须有：`eventId`
+- `EmitEvent` 中 `eventId` 和 `eventType` 至少有一个非空
+- `eventId` 是兼容字段；推荐新写法使用 `eventType + params`
+- `params` 如果存在，必须是 object/dictionary
 
 ---
 
@@ -326,7 +368,6 @@ nodes:
           type: Int
           scope: Session
         value: "10"
-        eventId: ""
     exitActions: []
 
   - nodeId: N_No
@@ -345,7 +386,6 @@ nodes:
           type: Int
           scope: Session
         value: "5"
-        eventId: ""
     exitActions: []
 
   - nodeId: N_End
