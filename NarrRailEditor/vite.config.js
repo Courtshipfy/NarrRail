@@ -1,7 +1,6 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   plugins: [
@@ -11,8 +10,7 @@ export default defineConfig({
           isCustomElement: (tag) => tag.includes('-')
         }
       }
-    }),
-    svelte()
+    })
   ],
   resolve: {
     alias: {

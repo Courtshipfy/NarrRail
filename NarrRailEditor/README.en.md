@@ -2,12 +2,12 @@
 
 [中文](./README.md)
 
-NarrRailEditor is a **Vue 3 + Svelte Flow** visual story editor for NarrRail. It supports graph authoring, `.nrstory` import/export, validation, autosave, preview review, and script library workflows.
+NarrRailEditor is a **Vue 3 + Canvas** visual story editor for NarrRail. It supports graph authoring, `.nrstory` import/export, validation, autosave, preview review, and script library workflows.
 
 ## Tech Stack
 
 - **Vue 3** for the main UI, property panels, script library, and state management
-- **Svelte Flow (@xyflow/svelte)** for graph editing, edges, and canvas interactions
+- **Canvas Graph Renderer** for graph drawing, edges, dragging, panning, and zooming
 - **YAML** serialization with the unified `.nrstory` extension
 - **Vite** for development and production builds
 

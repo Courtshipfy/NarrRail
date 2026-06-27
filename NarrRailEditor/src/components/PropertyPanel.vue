@@ -2059,7 +2059,7 @@ function handleGlobalPointerDown(event) {
     const isInsideGraphCanvas = !!(
         targetEl &&
         (targetEl.closest(".graph-editor") ||
-            targetEl.closest(".svelte-wrapper"))
+            targetEl.closest(".canvas-graph-editor"))
     );
     if (localNode.value && isInsideGraphCanvas) {
         return;

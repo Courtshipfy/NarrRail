@@ -383,68 +383,6 @@ body[data-theme="dark"] .graph-editor {
     background: transparent !important;
 }
 
-/* Svelte Flow canvas / pane / backgrounds */
-body.dark-theme .svelte-flow,
-body.dark-theme .svelte-flow__renderer,
-body.dark-theme .svelte-flow__pane,
-body[data-theme="dark"] .svelte-flow,
-body[data-theme="dark"] .svelte-flow__renderer,
-body[data-theme="dark"] .svelte-flow__pane {
-    background: rgba(2, 6, 23, 0.35) !important;
-}
-
-body.dark-theme .svelte-flow__background,
-body[data-theme="dark"] .svelte-flow__background {
-    background: transparent !important;
-}
-
-body.dark-theme .svelte-flow__background pattern circle,
-body[data-theme="dark"] .svelte-flow__background pattern circle {
-    fill: rgba(148, 163, 184, 0.22) !important;
-}
-
-/* Controls / minimap / resize tools */
-body.dark-theme .svelte-flow__controls,
-body.dark-theme .svelte-flow__minimap,
-body[data-theme="dark"] .svelte-flow__controls,
-body[data-theme="dark"] .svelte-flow__minimap {
-    background: rgba(15, 23, 42, 0.84) !important;
-    border: 1px solid rgba(148, 163, 184, 0.32) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
-}
-
-body.dark-theme .svelte-flow__controls button,
-body[data-theme="dark"] .svelte-flow__controls button {
-    background: rgba(30, 41, 59, 0.85) !important;
-    color: #e2e8f0 !important;
-    border-color: rgba(148, 163, 184, 0.28) !important;
-}
-
-body.dark-theme .svelte-flow__controls button:hover,
-body[data-theme="dark"] .svelte-flow__controls button:hover {
-    background: rgba(51, 65, 85, 0.92) !important;
-}
-
-/* Selection marquee */
-body.dark-theme .svelte-flow__selection:before,
-body[data-theme="dark"] .svelte-flow__selection:before {
-    border-color: rgba(129, 140, 248, 0.9) !important;
-    box-shadow: 0 0 0 1px rgba(30, 41, 59, 1) !important;
-}
-
-/* Handles / edges */
-body.dark-theme .svelte-flow__handle,
-body[data-theme="dark"] .svelte-flow__handle {
-    background: rgba(167, 139, 250, 0.95) !important;
-    border: 2px solid rgba(15, 23, 42, 0.95) !important;
-    box-shadow: 0 2px 10px rgba(139, 92, 246, 0.45) !important;
-}
-
-body.dark-theme .svelte-flow__edge-path,
-body[data-theme="dark"] .svelte-flow__edge-path {
-    stroke: rgba(168, 85, 247, 0.72) !important;
-}
-
 /* Panels (left/right/edge/status/toolbar) */
 body.dark-theme .toolbar,
 body.dark-theme .status-bar,
