@@ -340,11 +340,17 @@ function drawNode(node, selected) {
     ctx.save();
     roundedRect(x, y, NODE_WIDTH, layout.height, NODE_RADIUS);
     ctx.clip();
-    const gradient = ctx.createLinearGradient(x, y, x, y + NODE_HEADER_HEIGHT);
-    gradient.addColorStop(0, hexToRgba(meta.color, theme.headerTintAlpha));
-    gradient.addColorStop(1, theme.headerFade);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, NODE_WIDTH, NODE_HEADER_HEIGHT);
+    const headerGradient = ctx.createLinearGradient(
+        x,
+        y,
+        x,
+        y + NODE_HEADER_HEIGHT + 18,
+    );
+    headerGradient.addColorStop(0, hexToRgba(meta.color, theme.headerTintAlpha));
+    headerGradient.addColorStop(0.48, hexToRgba(meta.color, theme.headerTintMidAlpha));
+    headerGradient.addColorStop(1, hexToRgba(meta.color, 0));
+    ctx.fillStyle = headerGradient;
+    ctx.fillRect(x, y, NODE_WIDTH, NODE_HEADER_HEIGHT + 18);
     ctx.restore();
 
     if (selected) {
@@ -354,27 +360,12 @@ function drawNode(node, selected) {
         ctx.stroke();
     }
 
-    for (const row of layout.rowRects) {
-        if (!row.portId) continue;
-        roundedRect(
-            x + NODE_PADDING - 6,
-            y + row.y - 2,
-            NODE_CONTENT_WIDTH + 12,
-            row.height + 4,
-            8,
-        );
-        ctx.fillStyle = hexToRgba(meta.color, theme.rowTintAlpha);
-        ctx.fill();
-    }
+    drawPortRowGroups(x, y, layout, meta, theme);
 
     ctx.fillStyle = theme.titleText;
     ctx.font = "700 12px Outfit, Noto Sans SC, sans-serif";
     ctx.textBaseline = "middle";
     ctx.fillText(meta.label, x + NODE_PADDING, y + NODE_HEADER_HEIGHT / 2);
-    ctx.beginPath();
-    ctx.arc(x + NODE_WIDTH - NODE_PADDING - 5, y + NODE_HEADER_HEIGHT / 2, 4, 0, Math.PI * 2);
-    ctx.fillStyle = hexToRgba(meta.color, theme.typeDotAlpha);
-    ctx.fill();
 
     ctx.textBaseline = "top";
     for (const line of layout.drawLines) {
@@ -387,20 +378,61 @@ function drawNode(node, selected) {
         ctx.fillText(line.text, x + NODE_PADDING, y + line.y);
     }
 
-    for (const port of getNodePorts(node, layout)) {
-        drawHandle(port.x, port.y, port.kind === "source" ? meta.color : theme.targetHandle, selected);
+    const ports = getNodePorts(node, layout);
+    const densePorts = ports.filter((port) => port.kind === "source").length >= 5;
+    for (const port of ports) {
+        drawHandle(
+            port.x,
+            port.y,
+            port.kind === "source" ? meta.color : theme.targetHandle,
+            selected,
+            densePorts && port.kind === "source",
+        );
     }
 
     ctx.restore();
 }
 
-function drawHandle(x, y, color, selected) {
+function drawPortRowGroups(x, y, layout, meta, theme) {
+    const portRows = layout.rowRects.filter((row) => row.portId);
+    if (portRows.length === 0) return;
+
+    const groups = [];
+    let currentGroup = [];
+    for (const row of portRows) {
+        const previous = currentGroup[currentGroup.length - 1];
+        if (previous && row.y - (previous.y + previous.height) > 8) {
+            groups.push(currentGroup);
+            currentGroup = [];
+        }
+        currentGroup.push(row);
+    }
+    if (currentGroup.length) groups.push(currentGroup);
+
+    for (const group of groups) {
+        const groupX = x + NODE_PADDING - 6;
+        const groupWidth = NODE_CONTENT_WIDTH + 12;
+
+        for (let index = 1; index < group.length; index += 1) {
+            const row = group[index];
+            const separatorY = y + row.y - 2;
+            ctx.beginPath();
+            ctx.moveTo(groupX + 6, separatorY);
+            ctx.lineTo(groupX + groupWidth - 18, separatorY);
+            ctx.strokeStyle = theme.rowSeparator;
+            ctx.stroke();
+        }
+    }
+}
+
+function drawHandle(x, y, color, selected, compact = false) {
     const theme = getCanvasTheme();
+    const radius = compact ? HANDLE_RADIUS - 1.5 : HANDLE_RADIUS;
     ctx.beginPath();
-    ctx.arc(x, y, HANDLE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = theme.handleFill;
     ctx.fill();
-    ctx.lineWidth = selected ? 2 : 1.5;
+    ctx.lineWidth = selected ? 1.8 : 1.3;
     ctx.strokeStyle = hexToRgba(color, selected ? 0.84 : 0.58);
     ctx.stroke();
 }
@@ -1177,10 +1209,9 @@ function getCanvasTheme() {
             nodeShadow: "rgba(0, 0, 0, 0.28)",
             selectedShadowAlpha: 0.2,
             selectedHaloAlpha: 0.34,
-            headerTintAlpha: 0.12,
-            headerFade: "rgba(15, 23, 42, 0)",
-            rowTintAlpha: 0.1,
-            typeDotAlpha: 0.72,
+            headerTintAlpha: 0.18,
+            headerTintMidAlpha: 0.1,
+            rowSeparator: "rgba(148, 163, 184, 0.12)",
             titleText: "#e5e7eb",
             strongText: "#f8fafc",
             bodyText: "#dbe4f0",
@@ -1196,10 +1227,9 @@ function getCanvasTheme() {
         nodeShadow: "rgba(82, 65, 90, 0.1)",
         selectedShadowAlpha: 0.18,
         selectedHaloAlpha: 0.3,
-        headerTintAlpha: 0.09,
-        headerFade: "rgba(255, 255, 255, 0)",
-        rowTintAlpha: 0.055,
-        typeDotAlpha: 0.62,
+        headerTintAlpha: 0.16,
+        headerTintMidAlpha: 0.085,
+        rowSeparator: "rgba(82, 65, 90, 0.1)",
         titleText: "#2e3132",
         strongText: "#191c1d",
         bodyText: "#303437",
