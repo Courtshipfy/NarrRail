@@ -2,12 +2,12 @@
 
 [English](./README.en.md)
 
-NarrRailEditor 是基于 **Vue 3 + Svelte Flow** 的 NarrRail 剧情可视化编辑器，面向编剧和叙事设计流程，支持节点式编辑、`.nrstory` 导入导出、结构校验、自动保存、预览审校和脚本库管理。
+NarrRailEditor 是基于 **Vue 3 + Canvas** 的 NarrRail 剧情可视化编辑器，面向编剧和叙事设计流程，支持节点式编辑、`.nrstory` 导入导出、结构校验、自动保存、预览审校和脚本库管理。
 
 ## 技术栈
 
 - **Vue 3**：主 UI 容器、属性面板、脚本库、状态管理
-- **Svelte Flow (@xyflow/svelte)**：节点图编辑、连线和画布交互
+- **Canvas Graph Renderer**：节点图绘制、连线、拖拽、平移和缩放
 - **YAML**：统一 `.nrstory` 序列化格式
 - **Vite**：开发与构建
 
@@ -59,7 +59,7 @@ npm run build
 
 - 节点类型：`Dialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
 - `Dialogue` 节点支持单行和多行台词编辑
-- 节点创建、拖拽、连线、删除、框选
+- 节点创建、拖拽、连线、删除、选中
 - 右键菜单快速建点
 - 自动布局
 - 鼠标滚轮缩放、触摸板拖拽/平移/缩放
