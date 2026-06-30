@@ -92,9 +92,9 @@ body::before {
             ellipse at 70% 60%,
             rgba(191, 90, 242, 0.09) 0%,
             transparent 40%
-        );
+    );
     filter: blur(60px);
-    animation: mesh-gradient-flow 30s ease-in-out infinite;
+    transform: translateZ(0);
 }
 
 /* 添加细微的噪点纹理（Apple 风格） */
@@ -192,10 +192,10 @@ body::after {
 .gradient-text {
     background: linear-gradient(90deg, #f472b6, #a855f7, #3b82f6, #f472b6);
     background-size: 200% 100%;
+    background-position: 50% 50%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: gradient-text-flow 3s ease infinite;
 }
 
 @keyframes gradient-text-flow {
@@ -551,4 +551,15 @@ body[data-theme="dark"] .end-node.selected {
         0 0 0 2px rgba(15, 23, 42, 1),
         0 0 0 6px rgba(129, 140, 248, 0.35),
         inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
 }
