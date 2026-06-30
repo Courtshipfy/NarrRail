@@ -64,6 +64,9 @@ const NODE_RADIUS = 16;
 const HANDLE_RADIUS = 6;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 2.2;
+const WHEEL_ZOOM_SENSITIVITY = 0.006;
+const MIN_WHEEL_ZOOM_FACTOR = 0.55;
+const MAX_WHEEL_ZOOM_FACTOR = 1.82;
 const EDGE_HIT_RADIUS = 10;
 const DRAG_THRESHOLD = 4;
 const GRAPH_EDGE_COLOR = "#8b7aa8";
@@ -919,7 +922,11 @@ function handleWheel(event) {
 
     if (isLikelyMouseWheel(event) || event.ctrlKey) {
         const before = screenToGraph(event.clientX, event.clientY);
-        const zoomFactor = Math.exp(-event.deltaY * 0.003);
+        const zoomFactor = clamp(
+            Math.exp(-event.deltaY * WHEEL_ZOOM_SENSITIVITY),
+            MIN_WHEEL_ZOOM_FACTOR,
+            MAX_WHEEL_ZOOM_FACTOR,
+        );
         viewport.zoom = clamp(viewport.zoom * zoomFactor, MIN_ZOOM, MAX_ZOOM);
         viewport.x = localX - before.x * viewport.zoom;
         viewport.y = localY - before.y * viewport.zoom;
