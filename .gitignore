@@ -43,3 +43,4 @@ NarrRailEditor/dist/
 **/.vite/
 node_modules/
 .DS_Store
+.agents/skills

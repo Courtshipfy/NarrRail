@@ -112,6 +112,7 @@ const contextMenuRef = ref(null);
 const internalNodes = ref([]);
 const internalEdges = ref([]);
 const selectedNodeId = ref(null);
+const selectedNodeIds = ref(new Set());
 const selectedEdgeId = ref(null);
 const viewport = reactive({ x: 0, y: 0, zoom: 1 });
 const contextMenu = reactive({
@@ -157,6 +158,7 @@ watch(
     () => props.nodes,
     (nodes) => {
         internalNodes.value = cloneArray(nodes);
+        pruneSelection();
         if (!hasFitInitialView) nextTick(fitView);
         scheduleDraw();
     },
@@ -286,7 +288,11 @@ function draw() {
     }
 
     for (const node of internalNodes.value) {
-        drawNode(node, node.id === selectedNodeId.value);
+        drawNode(node, isNodeSelected(node.id));
+    }
+
+    if (interaction?.type === "select-box") {
+        drawSelectionBox(interaction);
     }
 
     ctx.restore();
@@ -390,6 +396,21 @@ function drawNode(node, selected) {
         );
     }
 
+    ctx.restore();
+}
+
+function drawSelectionBox(selection) {
+    const rect = normalizeRect(selection.startGraph, selection.currentGraph || selection.startGraph);
+
+    ctx.save();
+    ctx.lineWidth = 1 / viewport.zoom;
+    ctx.setLineDash([8 / viewport.zoom, 6 / viewport.zoom]);
+    ctx.strokeStyle = themeIsDark ? "rgba(129, 140, 248, 0.9)" : "rgba(99, 102, 241, 0.88)";
+    ctx.fillStyle = themeIsDark ? "rgba(129, 140, 248, 0.12)" : "rgba(99, 102, 241, 0.1)";
+    ctx.beginPath();
+    ctx.rect(rect.x, rect.y, rect.width, rect.height);
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
 }
 
@@ -716,8 +737,22 @@ function handlePointerDown(event) {
     const graphPoint = screenToGraph(event.clientX, event.clientY);
     lastPointer = { x: event.clientX, y: event.clientY, graphX: graphPoint.x, graphY: graphPoint.y };
 
-    if (event.button !== 0) return;
+    if (event.button !== 0 && event.button !== 1) return;
+    if (event.button === 1) event.preventDefault();
     canvasRef.value?.setPointerCapture(event.pointerId);
+
+    if (event.button === 1) {
+        clearSelection();
+        interaction = {
+            type: "pan",
+            startX: event.clientX,
+            startY: event.clientY,
+            viewportX: viewport.x,
+            viewportY: viewport.y,
+            moved: false,
+        };
+        return;
+    }
 
     const handleHit = hitTestHandle(graphPoint.x, graphPoint.y);
     if (handleHit?.port.kind === "source") {
@@ -736,14 +771,22 @@ function handlePointerDown(event) {
 
     const nodeHit = hitTestNode(graphPoint.x, graphPoint.y);
     if (nodeHit) {
-        selectNode(nodeHit);
+        if (!isNodeSelected(nodeHit.id)) {
+            selectNode(nodeHit);
+        }
+        const draggedNodeIds = isNodeSelected(nodeHit.id)
+            ? [...selectedNodeIds.value]
+            : [nodeHit.id];
         interaction = {
             type: "drag-node",
             nodeId: nodeHit.id,
+            nodeIds: draggedNodeIds,
+            startPositions: getNodePositionMap(draggedNodeIds),
             offsetX: graphPoint.x - (nodeHit.position?.x || 0),
             offsetY: graphPoint.y - (nodeHit.position?.y || 0),
             startX: event.clientX,
             startY: event.clientY,
+            startGraph: graphPoint,
             moved: false,
             dispatchedStart: false,
         };
@@ -759,11 +802,11 @@ function handlePointerDown(event) {
 
     clearSelection();
     interaction = {
-        type: "pan",
+        type: "select-box",
         startX: event.clientX,
         startY: event.clientY,
-        viewportX: viewport.x,
-        viewportY: viewport.y,
+        startGraph: graphPoint,
+        currentGraph: graphPoint,
         moved: false,
     };
 }
@@ -795,15 +838,28 @@ function handlePointerMove(event) {
             interaction.dispatchedStart = true;
             window.dispatchEvent(new CustomEvent("node-drag-start"));
         }
-        const node = getNodeById(interaction.nodeId);
-        if (node) {
+        const graphDx = graphPoint.x - interaction.startGraph.x;
+        const graphDy = graphPoint.y - interaction.startGraph.y;
+        for (const nodeId of interaction.nodeIds || [interaction.nodeId]) {
+            const node = getNodeById(nodeId);
+            const start = interaction.startPositions?.get(nodeId);
+            if (!node || !start) continue;
             node.position = {
-                x: graphPoint.x - interaction.offsetX,
-                y: graphPoint.y - interaction.offsetY,
+                x: start.x + graphDx,
+                y: start.y + graphDy,
             };
-            scheduleGraphDispatch();
-            scheduleDraw();
         }
+        scheduleGraphDispatch();
+        scheduleDraw();
+        return;
+    }
+
+    if (interaction.type === "select-box") {
+        const dx = event.clientX - interaction.startX;
+        const dy = event.clientY - interaction.startY;
+        interaction.moved ||= Math.abs(dx) >= DRAG_THRESHOLD || Math.abs(dy) >= DRAG_THRESHOLD;
+        interaction.currentGraph = graphPoint;
+        scheduleDraw();
         return;
     }
 
@@ -828,6 +884,10 @@ function handlePointerUp(event) {
         if (target && target.node.id !== interaction.nodeId) {
             addEdge(interaction.nodeId, target.node.id, interaction.handleId, target.port.id);
         }
+    }
+
+    if (interaction.type === "select-box" && interaction.moved) {
+        selectNodes(getNodesInSelection(interaction.startGraph, interaction.currentGraph || graphPoint));
     }
 
     interaction = null;
@@ -859,7 +919,7 @@ function handleWheel(event) {
 
     if (isLikelyMouseWheel(event) || event.ctrlKey) {
         const before = screenToGraph(event.clientX, event.clientY);
-        const zoomFactor = Math.exp(-event.deltaY * 0.0015);
+        const zoomFactor = Math.exp(-event.deltaY * 0.003);
         viewport.zoom = clamp(viewport.zoom * zoomFactor, MIN_ZOOM, MAX_ZOOM);
         viewport.x = localX - before.x * viewport.zoom;
         viewport.y = localY - before.y * viewport.zoom;
@@ -891,12 +951,16 @@ function handleKeyDown(event) {
     }
 
     if (event.key !== "Delete" && event.key !== "Backspace") return;
-    if (!selectedNodeId.value && !selectedEdgeId.value) return;
+    if (selectedNodeIds.value.size === 0 && !selectedNodeId.value && !selectedEdgeId.value) return;
 
-    if (selectedNodeId.value) {
-        const nodeId = selectedNodeId.value;
-        internalNodes.value = internalNodes.value.filter((node) => node.id !== nodeId);
-        internalEdges.value = internalEdges.value.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+    if (selectedNodeIds.value.size > 0 || selectedNodeId.value) {
+        const nodeIds = selectedNodeIds.value.size > 0
+            ? selectedNodeIds.value
+            : new Set([selectedNodeId.value]);
+        internalNodes.value = internalNodes.value.filter((node) => !nodeIds.has(node.id));
+        internalEdges.value = internalEdges.value.filter(
+            (edge) => !nodeIds.has(edge.source) && !nodeIds.has(edge.target),
+        );
     }
 
     if (selectedEdgeId.value) {
@@ -996,8 +1060,20 @@ function addEdge(source, target, sourceHandle, targetHandle) {
 
 function selectNode(node) {
     selectedNodeId.value = node?.id || null;
+    selectedNodeIds.value = node?.id ? new Set([node.id]) : new Set();
     selectedEdgeId.value = null;
     window.dispatchEvent(new CustomEvent("node-click", { detail: node || null }));
+    window.dispatchEvent(new CustomEvent("edge-click", { detail: null }));
+    scheduleDraw();
+}
+
+function selectNodes(nodes) {
+    const selectedNodes = Array.isArray(nodes) ? nodes.filter(Boolean) : [];
+    const ids = new Set(selectedNodes.map((node) => node.id).filter(Boolean));
+    selectedNodeIds.value = ids;
+    selectedNodeId.value = selectedNodes[0]?.id || null;
+    selectedEdgeId.value = null;
+    window.dispatchEvent(new CustomEvent("node-click", { detail: selectedNodes[0] || null }));
     window.dispatchEvent(new CustomEvent("edge-click", { detail: null }));
     scheduleDraw();
 }
@@ -1005,20 +1081,49 @@ function selectNode(node) {
 function selectEdge(edge) {
     selectedEdgeId.value = edge?.id || null;
     selectedNodeId.value = null;
+    selectedNodeIds.value = new Set();
     window.dispatchEvent(new CustomEvent("edge-click", { detail: edge || null }));
     window.dispatchEvent(new CustomEvent("node-click", { detail: null }));
     scheduleDraw();
 }
 
 function clearSelection() {
-    const hadSelection = selectedNodeId.value || selectedEdgeId.value;
+    const hadSelection = selectedNodeIds.value.size > 0 || selectedNodeId.value || selectedEdgeId.value;
     selectedNodeId.value = null;
+    selectedNodeIds.value = new Set();
     selectedEdgeId.value = null;
     if (hadSelection) {
         window.dispatchEvent(new CustomEvent("node-click", { detail: null }));
         window.dispatchEvent(new CustomEvent("edge-click", { detail: null }));
     }
     scheduleDraw();
+}
+
+function isNodeSelected(nodeId) {
+    return selectedNodeIds.value.has(nodeId) || selectedNodeId.value === nodeId;
+}
+
+function pruneSelection() {
+    if (selectedNodeIds.value.size === 0 && !selectedNodeId.value) return;
+    const existingIds = new Set(internalNodes.value.map((node) => node.id));
+    const nextIds = new Set([...selectedNodeIds.value].filter((id) => existingIds.has(id)));
+    selectedNodeIds.value = nextIds;
+    if (!selectedNodeId.value || !existingIds.has(selectedNodeId.value)) {
+        selectedNodeId.value = nextIds.values().next().value || null;
+    }
+}
+
+function getNodePositionMap(nodeIds) {
+    const positions = new Map();
+    for (const nodeId of nodeIds) {
+        const node = getNodeById(nodeId);
+        if (!node) continue;
+        positions.set(nodeId, {
+            x: node.position?.x || 0,
+            y: node.position?.y || 0,
+        });
+    }
+    return positions;
 }
 
 function scheduleGraphDispatch() {
@@ -1075,6 +1180,45 @@ function hitTestNode(graphX, graphY) {
         }
     }
     return null;
+}
+
+function getNodesInSelection(startPoint, endPoint) {
+    const rect = normalizeRect(startPoint, endPoint);
+    return internalNodes.value.filter((node) => {
+        const x = node.position?.x || 0;
+        const y = node.position?.y || 0;
+        const layout = getNodeLayout(node);
+        return rectanglesIntersect(rect, {
+            x,
+            y,
+            width: NODE_WIDTH,
+            height: layout.height,
+        });
+    });
+}
+
+function normalizeRect(startPoint, endPoint) {
+    const startX = Number(startPoint?.x || 0);
+    const startY = Number(startPoint?.y || 0);
+    const endX = Number(endPoint?.x || startX);
+    const endY = Number(endPoint?.y || startY);
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    return {
+        x,
+        y,
+        width: Math.abs(endX - startX),
+        height: Math.abs(endY - startY),
+    };
+}
+
+function rectanglesIntersect(a, b) {
+    return (
+        a.x <= b.x + b.width &&
+        a.x + a.width >= b.x &&
+        a.y <= b.y + b.height &&
+        a.y + a.height >= b.y
+    );
 }
 
 function hitTestHandle(graphX, graphY, kind = null) {
