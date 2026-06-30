@@ -1060,7 +1060,7 @@ function deriveEdgeStyle(edge, visualOffset = 0) {
         if (focused) {
             return {
                 style: "stroke: rgba(168, 85, 247, 0.95); stroke-width: 3.5px; stroke-linecap: round;",
-                animated: true,
+                animated: false,
                 pathOptions: { offset: pathOffset, borderRadius },
                 zIndex: 30,
             };
@@ -1076,7 +1076,7 @@ function deriveEdgeStyle(edge, visualOffset = 0) {
     if (focused) {
         return {
             style: `stroke: rgba(${baseColor}, 0.88); stroke-width: 3px; stroke-linecap: round;`,
-            animated: true,
+            animated: false,
             pathOptions: { offset: pathOffset, borderRadius },
             zIndex: 25,
         };
