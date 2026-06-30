@@ -132,9 +132,22 @@
                                                 class="meta-type meta-type--emitevent"
                                                 >[事件]</span
                                             >
-                                            <span class="meta-text">{{
-                                                item.text
-                                            }}</span>
+                                            <span class="meta-text">
+                                                {{ item.text }}
+                                                <span
+                                                    v-if="getEventParamRows(item).length"
+                                                    class="meta-param-list"
+                                                >
+                                                    <span
+                                                        v-for="param in getEventParamRows(item)"
+                                                        :key="param.key"
+                                                        class="meta-param-row"
+                                                    >
+                                                        <span class="meta-param-key">{{ param.key }}</span>
+                                                        <span class="meta-param-value">{{ param.value }}</span>
+                                                    </span>
+                                                </span>
+                                            </span>
                                         </span>
                                     </div>
                                 </template>
@@ -340,6 +353,34 @@ function toSpeaker(rawSpeaker) {
 
 function toText(rawText) {
     return String(rawText || "").trim();
+}
+
+function getEventParamRows(item) {
+    return formatEventParamRows(item?.payload?.params);
+}
+
+function formatEventParamRows(params) {
+    if (!params || typeof params !== "object") return [];
+
+    return Object.entries(params)
+        .filter(([key]) => String(key || "").trim())
+        .map(([key, value]) => ({
+            key: String(key),
+            value: formatEventParamValue(value),
+        }));
+}
+
+function formatEventParamValue(value) {
+    if (value === null) return "null";
+    if (value === undefined) return "";
+    if (typeof value === "string") return value.trim() || "\"\"";
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch (error) {
+        return String(value);
+    }
 }
 
 function toNumberLike(value) {
@@ -1472,6 +1513,14 @@ watch(
     color: #b8cde0 !important;
 }
 
+.preview-mode-root.is-dark-mode .meta-param-key {
+    color: #9fb3c8 !important;
+}
+
+.preview-mode-root.is-dark-mode .meta-param-value {
+    color: #d6e4f0 !important;
+}
+
 .preview-mode-root.is-dark-mode .chapter-marker {
     --chapter-marker-text: #34d399;
     --chapter-marker-line: rgba(52, 211, 153, 0.42);
@@ -1605,6 +1654,16 @@ watch(
     color: #9fb3c8 !important;
 }
 
+:global(body.dark-theme) .preview-mode-root .meta-param-key,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-param-key {
+    color: #9fb3c8 !important;
+}
+
+:global(body.dark-theme) .preview-mode-root .meta-param-value,
+:global(body[data-theme="dark"]) .preview-mode-root .meta-param-value {
+    color: #d6e4f0 !important;
+}
+
 .meta-content {
     grid-column: 3;
     margin-left: 0;
@@ -1667,6 +1726,39 @@ watch(
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+
+.meta-param-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 5px;
+    font-size: 0.92em;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.meta-param-row {
+    display: grid;
+    grid-template-columns: minmax(72px, max-content) minmax(0, 1fr);
+    column-gap: 8px;
+    min-width: 0;
+}
+
+.meta-param-key {
+    color: rgba(100, 116, 139, 0.9);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.meta-param-key::after {
+    content: ":";
+}
+
+.meta-param-value {
+    min-width: 0;
+    color: #334155;
+    overflow-wrap: anywhere;
 }
 
 .vars-list {

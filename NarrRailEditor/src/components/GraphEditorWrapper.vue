@@ -622,12 +622,28 @@ function getNodeRows(node) {
                 { kind: "label", text: "操作 / 值", minHeight: 16, lineHeight: 16 },
                 { text: `${data.operation || "Set"}: ${data.value ?? "未设置"}`, minHeight: 18, lineHeight: 18 },
             ];
-        case "emitevent":
+        case "emitevent": {
+            const paramRows = formatEventParamRows(data.params, 4);
+            const hiddenCount = Math.max(
+                0,
+                Object.keys(data.params || {}).length - paramRows.length,
+            );
             return [
                 { kind: "label", text: "事件", minHeight: 16, lineHeight: 16 },
                 { text: data.eventType || "未设置", strong: true, minHeight: 20, lineHeight: 18 },
-                { text: `参数: ${Object.keys(data.params || {}).length}`, minHeight: 18, lineHeight: 18 },
+                { kind: "label", text: "参数", minHeight: 16, lineHeight: 16 },
+                ...(paramRows.length
+                    ? paramRows.map((row) => ({
+                          text: `${row.key}: ${row.value}`,
+                          minHeight: 18,
+                          lineHeight: 18,
+                      }))
+                    : [{ text: "无参数", minHeight: 18, lineHeight: 18 }]),
+                ...(hiddenCount > 0
+                    ? [{ text: `还有 ${hiddenCount} 项...`, minHeight: 18, lineHeight: 18 }]
+                    : []),
             ];
+        }
         case "condition": {
             const branches = Array.isArray(data.condition?.branches) ? data.condition.branches : [];
             return [
@@ -671,6 +687,31 @@ function getNodeRows(node) {
             return [{ text: data.summary || "当前路线到此结束", minHeight: 18, lineHeight: 18 }];
         default:
             return [{ text: node.id || "节点", strong: true, minHeight: 20, lineHeight: 18 }];
+    }
+}
+
+function formatEventParamRows(params, limit = Infinity) {
+    if (!params || typeof params !== "object") return [];
+
+    return Object.entries(params)
+        .filter(([key]) => String(key || "").trim())
+        .slice(0, limit)
+        .map(([key, value]) => ({
+            key: String(key),
+            value: formatEventParamValue(value),
+        }));
+}
+
+function formatEventParamValue(value) {
+    if (value === null) return "null";
+    if (value === undefined) return "";
+    if (typeof value === "string") return value.trim() || "\"\"";
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+    try {
+        return JSON.stringify(value);
+    } catch (error) {
+        return String(value);
     }
 }
 
