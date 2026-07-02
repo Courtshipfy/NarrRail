@@ -1372,10 +1372,30 @@ function handleNodeClick(event) {
         return;
     }
 
+    openNodeEditorModal(node, now);
+}
+
+function handleNodeDoubleClick(event) {
+    const now = Date.now();
+    if (now < recentDragSuppressUntil.value) {
+        return;
+    }
+
+    const node = event.detail ? safeClone(event.detail) : null;
+    if (!node) return;
+
+    selectedNode.value = node;
+    selectedEdge.value = null;
+    applyEdgeVisualStyles();
+    lastNodeClickMeta.value = { id: node.id, time: now };
+    openNodeEditorModal(node, now);
+}
+
+function openNodeEditorModal(node, nonce = Date.now()) {
     if (node.type === "dialogue") {
         multiDialogueOpenRequest.value = {
             nodeId: node.id,
-            nonce: now,
+            nonce,
         };
         return;
     }
@@ -1383,7 +1403,7 @@ function handleNodeClick(event) {
     if (node.type === "choice") {
         choiceOpenRequest.value = {
             nodeId: node.id,
-            nonce: now,
+            nonce,
         };
         return;
     }
@@ -1391,7 +1411,7 @@ function handleNodeClick(event) {
     if (node.type === "condition") {
         conditionOpenRequest.value = {
             nodeId: node.id,
-            nonce: now,
+            nonce,
         };
     }
 }
@@ -2418,6 +2438,7 @@ onMounted(() => {
     fetchAuthState();
 
     window.addEventListener("node-click", handleNodeClick);
+    window.addEventListener("node-dblclick", handleNodeDoubleClick);
     window.addEventListener("edge-click", handleEdgeClick);
     window.addEventListener("graph-state-change", handleGraphStateChange);
     window.addEventListener("node-drag-start", handleNodeDragStart);
@@ -2450,6 +2471,7 @@ onUnmounted(() => {
         delete window.__narrrailBench;
     }
     window.removeEventListener("node-click", handleNodeClick);
+    window.removeEventListener("node-dblclick", handleNodeDoubleClick);
     window.removeEventListener("edge-click", handleEdgeClick);
     window.removeEventListener("graph-state-change", handleGraphStateChange);
     window.removeEventListener("node-drag-start", handleNodeDragStart);

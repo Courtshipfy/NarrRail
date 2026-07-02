@@ -15,6 +15,7 @@
             @pointerup="handlePointerUp"
             @pointercancel="handlePointerCancel"
             @pointerleave="handlePointerLeave"
+            @dblclick="handleDoubleClick"
             @wheel.prevent="handleWheel"
         ></canvas>
 
@@ -937,6 +938,16 @@ function handlePointerUp(event) {
     interaction = null;
     canvasRef.value?.releasePointerCapture?.(event.pointerId);
     scheduleDraw();
+}
+
+function handleDoubleClick(event) {
+    const graphPoint = screenToGraph(event.clientX, event.clientY);
+    const nodeHit = hitTestNode(graphPoint.x, graphPoint.y);
+    if (!nodeHit) return;
+
+    selectNode(nodeHit);
+    window.dispatchEvent(new CustomEvent("node-dblclick", { detail: nodeHit }));
+    event.preventDefault();
 }
 
 function handlePointerCancel(event) {
