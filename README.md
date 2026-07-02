@@ -22,7 +22,7 @@ NarrRailEditor 用于剧情脚本创作、结构校验、预览审校和 `.nrsto
 
 线上入口：
 
-- https://narr-rail.courtship.top
+- narr-rail.courtship.top
 
 建议流程：
 
