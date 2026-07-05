@@ -4,6 +4,54 @@
             <div class="brand">
                 <div class="title-wrap">
                     <h1>NarrRail Script Library</h1>
+                    <div
+                        v-if="canAccessLibraryContent"
+                        class="library-context"
+                    >
+                        <span class="summary inline-summary">
+                            共
+                            <strong>{{ filteredScripts.length }}</strong>
+                            个脚本
+                        </span>
+                        <div class="repo-picker">
+                            <button
+                                class="repo-picker-button"
+                                :disabled="
+                                    !authState?.authenticated || loadingRepos
+                                "
+                                @click="toggleRepoPopover"
+                                :title="selectedRepoLabel"
+                                aria-label="选择仓库"
+                            >
+                                <span>{{ selectedRepoLabel }}</span>
+                                <IconGlyph name="chevron_right" />
+                            </button>
+                            <div
+                                v-if="showRepoPopover"
+                                class="repo-popover glass-morphism-strong"
+                            >
+                                <button
+                                    v-for="repo in repoOptions"
+                                    :key="repo.fullName"
+                                    class="repo-option"
+                                    :class="{
+                                        selected:
+                                            repo.fullName ===
+                                            selectedRepoFullName,
+                                    }"
+                                    @click="selectRepo(repo.fullName)"
+                                >
+                                    {{ repo.fullName }}
+                                </button>
+                                <div
+                                    v-if="repoOptions.length === 0"
+                                    class="repo-empty"
+                                >
+                                    暂无可选仓库
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -29,6 +77,43 @@
                 <span v-if="createScriptStatus" class="status-badge auth-ok">
                     {{ createScriptStatus }}
                 </span>
+
+                <div
+                    v-if="canAccessLibraryContent"
+                    class="search-action"
+                >
+                    <button
+                        class="btn secondary top-icon-btn"
+                        :class="{ active: showSearchPopover || keyword }"
+                        @click="toggleSearchPopover"
+                        title="搜索脚本"
+                        aria-label="搜索脚本"
+                    >
+                        <IconGlyph name="search" />
+                    </button>
+                    <div
+                        v-if="showSearchPopover"
+                        class="search-popover"
+                    >
+                        <input
+                            ref="searchInputRef"
+                            v-model.trim="keyword"
+                            type="text"
+                            placeholder="按文件名 / ID / 路径搜索"
+                            @keydown.esc.prevent="closeSearchPopover"
+                            @keydown.stop
+                        />
+                        <button
+                            v-if="keyword"
+                            class="search-clear-btn"
+                            @click="keyword = ''"
+                            title="清空搜索"
+                            aria-label="清空搜索"
+                        >
+                            <IconGlyph name="close" />
+                        </button>
+                    </div>
+                </div>
 
                 <button
                     class="btn secondary top-icon-btn"
@@ -120,55 +205,6 @@
                 </button>
             </div>
         </header>
-
-        <section v-if="canAccessLibraryContent" class="filters glass-morphism">
-            <div class="field repo-field">
-                <label>仓库</label>
-                <div class="repo-row">
-                    <div class="summary inline-summary">
-                        共
-                        <strong>{{ filteredScripts.length }}</strong>
-                        个脚本
-                    </div>
-                    <select
-                        v-model="selectedRepoFullName"
-                        :disabled="!authState?.authenticated || loadingRepos"
-                    >
-                        <option value="">请选择仓库</option>
-                        <option
-                            v-for="repo in repoOptions"
-                            :key="repo.fullName"
-                            :value="repo.fullName"
-                        >
-                            {{ repo.fullName }}
-                        </option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="field">
-                <label>搜索脚本</label>
-                <input
-                    v-model.trim="keyword"
-                    type="text"
-                    placeholder="按文件名 / ID / 路径搜索"
-                />
-            </div>
-
-            <div class="field">
-                <label>目录</label>
-                <select v-model="selectedFolder">
-                    <option value="all">全部目录</option>
-                    <option
-                        v-for="folder in folders"
-                        :key="folder"
-                        :value="folder"
-                    >
-                        {{ folder }}
-                    </option>
-                </select>
-            </div>
-        </section>
 
         <section
             v-if="canAccessLibraryContent"
@@ -490,7 +526,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import {
+    computed,
+    nextTick,
+    onMounted,
+    onUnmounted,
+    reactive,
+    ref,
+    watch,
+} from "vue";
 import {
     parseGlobalConfigFromYAML,
     serializeGlobalConfigToYAML,
@@ -532,7 +576,9 @@ const emit = defineEmits([
 ]);
 
 const keyword = ref("");
-const selectedFolder = ref("all");
+const showSearchPopover = ref(false);
+const searchInputRef = ref(null);
+const showRepoPopover = ref(false);
 
 const showAddVariableForm = ref(false);
 const showAddSpeakerForm = ref(false);
@@ -599,13 +645,6 @@ function syncOfflineState() {
         (typeof navigator !== "undefined" && !navigator.onLine);
 }
 
-const folders = computed(() => {
-    const set = new Set(
-        mockScripts.value.map((s) => s.path.split("/")[1] || "Unknown"),
-    );
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-});
-
 function toSortableTime(value) {
     const timestamp = new Date(value).getTime();
     return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
@@ -616,15 +655,12 @@ const filteredScripts = computed(() => {
     let result = mockScripts.value.filter((s) => {
         const isRail = String(s.extension || "").toLowerCase() === ".nrrail";
         if (isRail) return false;
-        const folder = s.path.split("/")[1] || "Unknown";
-        const inFolder =
-            selectedFolder.value === "all" || folder === selectedFolder.value;
         const inKeyword =
             !kw ||
             s.fileName.toLowerCase().includes(kw) ||
             s.storyId.toLowerCase().includes(kw) ||
             s.path.toLowerCase().includes(kw);
-        return inFolder && inKeyword;
+        return inKeyword;
     });
 
     result = result.sort((a, b) => {
@@ -635,6 +671,32 @@ const filteredScripts = computed(() => {
 
     return result;
 });
+
+async function toggleSearchPopover() {
+    showSearchPopover.value = !showSearchPopover.value;
+    if (showSearchPopover.value) {
+        showRepoPopover.value = false;
+        await nextTick();
+        searchInputRef.value?.focus();
+        searchInputRef.value?.select();
+    }
+}
+
+function closeSearchPopover() {
+    showSearchPopover.value = false;
+}
+
+function handleLibraryPointerDown(event) {
+    const target = event?.target;
+    if (!(target instanceof Element)) return;
+
+    if (!target.closest(".repo-picker")) {
+        showRepoPopover.value = false;
+    }
+    if (!target.closest(".search-action")) {
+        showSearchPopover.value = false;
+    }
+}
 
 async function addVariable() {
     const variableValidation = validateVariableName(
@@ -959,11 +1021,29 @@ const selectedRepo = computed(
         ) || null,
 );
 
+const selectedRepoLabel = computed(() => {
+    if (loadingRepos.value) return "仓库加载中...";
+    return selectedRepoFullName.value || "请选择仓库";
+});
+
 const selectedOwner = computed(() => selectedRepo.value?.owner || "");
 const selectedRepoName = computed(() => selectedRepo.value?.name || "");
 const selectedRepoBranch = computed(
     () => selectedRepo.value?.defaultBranch || "main",
 );
+
+function toggleRepoPopover() {
+    if (!props.authState?.authenticated || loadingRepos.value) return;
+    showRepoPopover.value = !showRepoPopover.value;
+    if (showRepoPopover.value) {
+        showSearchPopover.value = false;
+    }
+}
+
+function selectRepo(fullName) {
+    selectedRepoFullName.value = fullName;
+    showRepoPopover.value = false;
+}
 
 async function loadRepos() {
     if (!props.authState?.authenticated) return;
@@ -1391,7 +1471,6 @@ function createLocalScriptEntry({ safeStem, fileName, createdPath }) {
     saveLocalScriptContent(createdPath, buildInitialLocalScriptData(safeStem));
 
     usingMockData.value = true;
-    selectedFolder.value = "all";
     keyword.value = "";
     mockScripts.value = [created, ...mockScripts.value];
     saveScriptListToStorage();
@@ -1420,7 +1499,6 @@ function createLocalRailEntry({ safeStem, fileName, createdPath }) {
     });
 
     usingMockData.value = true;
-    selectedFolder.value = "all";
     keyword.value = "";
     mockScripts.value = [created, ...mockScripts.value];
     saveScriptListToStorage();
@@ -1481,7 +1559,6 @@ async function openOutlineRail() {
                 branch: selectedRepoBranch.value,
             };
 
-            selectedFolder.value = "all";
             keyword.value = "";
             mockScripts.value = [created, ...mockScripts.value];
             createScriptStatus.value = "剧情总纲已创建";
@@ -1557,7 +1634,6 @@ async function createNewScript() {
                 throw new Error(data?.error || "创建仓库脚本失败");
             }
 
-            selectedFolder.value = "all";
             keyword.value = "";
 
             let found = false;
@@ -1621,6 +1697,7 @@ function formatScriptDisplayName(fileName) {
 
 onMounted(async () => {
     syncOfflineState();
+    window.addEventListener("pointerdown", handleLibraryPointerDown, true);
     window.addEventListener("online", syncOfflineState);
     window.addEventListener("offline", syncOfflineState);
 
@@ -1640,6 +1717,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    window.removeEventListener("pointerdown", handleLibraryPointerDown, true);
     window.removeEventListener("online", syncOfflineState);
     window.removeEventListener("offline", syncOfflineState);
 });
@@ -1731,9 +1809,7 @@ watch(
 }
 
 :global(body.dark-theme) .script-library-page .top-bar,
-:global(body.dark-theme) .script-library-page .filters,
-:global(body[data-theme="dark"]) .script-library-page .top-bar,
-:global(body[data-theme="dark"]) .script-library-page .filters {
+:global(body[data-theme="dark"]) .script-library-page .top-bar {
     background: rgba(15, 23, 42, 0.78) !important;
 }
 
@@ -1743,16 +1819,19 @@ watch(
     gap: 12px;
     align-items: center;
     padding: 16px 18px;
-    margin-bottom: 0;
+    margin-bottom: 14px;
     border-bottom: none;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    position: relative;
+    z-index: 20;
+    overflow: visible;
 }
 
 .brand {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+    flex: 1;
 }
 
 .logo {
@@ -1771,6 +1850,110 @@ watch(
     font-weight: 700;
 }
 
+.title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+}
+
+.library-context {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.repo-picker {
+    position: relative;
+    min-width: 260px;
+    width: clamp(260px, 28vw, 420px);
+}
+
+.repo-picker-button {
+    min-width: 260px;
+    max-width: 420px;
+    width: clamp(260px, 28vw, 420px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: color-mix(in srgb, var(--nr-bg) 70%, #ffffff 30%);
+    border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
+    color: var(--nr-text);
+    border-radius: 999px;
+    padding: 8px 12px 8px 14px;
+    outline: none;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.repo-picker-button span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.repo-picker-button :deep(.icon-glyph) {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    transform: rotate(90deg);
+    opacity: 0.74;
+}
+
+.repo-picker-button:focus,
+.repo-picker-button:hover {
+    border-color: color-mix(in srgb, #60a5fa 58%, var(--nr-text) 18%);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+}
+
+.repo-picker-button:disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+}
+
+.repo-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: min(420px, 78vw);
+    max-height: 300px;
+    overflow: auto;
+    padding: 8px;
+    border-radius: 14px;
+    z-index: 30;
+}
+
+.repo-option {
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 10px;
+    background: transparent;
+    color: var(--nr-text);
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.repo-option:hover,
+.repo-option.selected {
+    background: rgba(96, 165, 250, 0.14);
+    color: #60a5fa;
+}
+
+.repo-empty {
+    padding: 10px;
+    color: color-mix(in srgb, var(--nr-text) 56%, transparent);
+    font-size: 12px;
+    text-align: center;
+}
+
 .subtitle {
     margin: 2px 0 0;
     font-size: 12px;
@@ -1781,6 +1964,8 @@ watch(
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .top-actions .top-icon-btn,
@@ -1813,9 +1998,116 @@ watch(
     color: color-mix(in srgb, var(--nr-text) 94%, transparent);
 }
 
+.top-actions .top-icon-btn.active {
+    color: #60a5fa;
+}
+
 .top-icon-btn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+.search-action {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.search-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -8px;
+    width: 300px;
+    max-width: min(300px, calc(100vw - 32px));
+    padding: 8px;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    z-index: 80;
+    background: color-mix(in srgb, var(--nr-bg) 82%, #ffffff 18%);
+    border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
+    box-shadow:
+        0 18px 42px rgba(15, 23, 42, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(18px);
+}
+
+.search-popover input {
+    min-width: 0;
+    background: color-mix(in srgb, var(--nr-bg) 70%, #ffffff 30%);
+    border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
+    color: var(--nr-text);
+    border-radius: 8px;
+    padding: 8px 10px;
+    outline: none;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.search-popover input:focus {
+    border-color: color-mix(in srgb, #60a5fa 58%, var(--nr-text) 18%);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+}
+
+.search-clear-btn {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 9px;
+    color: color-mix(in srgb, var(--nr-text) 70%, transparent);
+    background: rgba(148, 163, 184, 0.12);
+    cursor: pointer;
+}
+
+.search-clear-btn:hover {
+    color: var(--nr-text);
+    background: rgba(148, 163, 184, 0.2);
+}
+
+@media (max-width: 1180px) {
+    .top-bar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .title-wrap {
+        flex-wrap: wrap;
+        row-gap: 10px;
+    }
+
+    .top-actions {
+        align-self: flex-end;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 720px) {
+    .title-wrap,
+    .library-context {
+        width: 100%;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .repo-picker,
+    .repo-picker-button {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+
+    .search-popover {
+        right: auto;
+        left: 50%;
+        width: min(300px, calc(100vw - 32px));
+        transform: translateX(-50%);
+    }
 }
 
 .status-badge {
@@ -1850,53 +2142,6 @@ watch(
     background: color-mix(in srgb, #3b82f6 70%, var(--nr-text) 30%);
     opacity: 0.6;
     animation: subtleDotPulse 1.2s ease-in-out infinite;
-}
-
-.filters {
-    display: grid;
-    grid-template-columns: minmax(540px, 2.4fr) minmax(220px, 1.2fr) minmax(
-            180px,
-            0.8fr
-        );
-    gap: 10px;
-    padding: 12px;
-    margin-bottom: 14px;
-    align-items: end;
-    border-top: none;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-}
-
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.field label {
-    font-size: 12px;
-    color: color-mix(in srgb, var(--nr-text) 72%, #3b82f6 28%);
-}
-
-.field input,
-.field select {
-    background: color-mix(in srgb, var(--nr-bg) 70%, #ffffff 30%);
-    border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
-    color: var(--nr-text);
-    border-radius: 10px;
-    padding: 9px 10px;
-    outline: none;
-}
-
-.repo-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.repo-row > select {
-    flex: 1;
-    min-width: 240px;
 }
 
 .summary {
@@ -2373,12 +2618,12 @@ watch(
     color: #e5e7eb;
 }
 
-:global(body[data-theme="dark"]) .script-library-page .field input,
-:global(body[data-theme="dark"]) .script-library-page .field select,
+:global(body[data-theme="dark"]) .script-library-page .repo-picker-button,
+:global(body[data-theme="dark"]) .script-library-page .search-popover input,
 :global(body[data-theme="dark"]) .script-library-page .inline-form input,
 :global(body[data-theme="dark"]) .script-library-page .inline-form select,
-:global(body.dark-theme) .script-library-page .field input,
-:global(body.dark-theme) .script-library-page .field select,
+:global(body.dark-theme) .script-library-page .repo-picker-button,
+:global(body.dark-theme) .script-library-page .search-popover input,
 :global(body.dark-theme) .script-library-page .inline-form input,
 :global(body.dark-theme) .script-library-page .inline-form select {
     background: rgba(15, 23, 42, 0.86);

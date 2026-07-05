@@ -42,6 +42,15 @@
 
         <button
             class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
+            @click="$emit('search')"
+            title="搜索节点"
+            aria-label="搜索节点"
+        >
+            <IconGlyph name="search" />
+        </button>
+
+        <button
+            class="toolbar-button secondary compact-icon bouncy-feedback spring-animation"
             @click="$emit('undo')"
             title="撤销 (Ctrl+Z)"
             aria-label="撤销"
@@ -168,6 +177,7 @@ defineEmits([
     "new",
     "import",
     "export",
+    "search",
     "undo",
     "redo",
     "validate",

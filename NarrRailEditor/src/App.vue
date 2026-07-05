@@ -29,6 +29,7 @@
             <div class="graph-editor-wrapper">
                 <GraphEditorWrapper
                     v-if="editorMode === 'graph'"
+                    ref="graphEditorRef"
                     :nodes="activeNodes"
                     :edges="activeEdges"
                     :edge-render-mode="edgeRenderMode"
@@ -61,6 +62,7 @@
             @new="handleNew"
             @import="handleImport"
             @export="handleExport"
+            @search="handleOpenNodeSearch"
             @undo="handleUndo"
             @redo="handleRedo"
             @validate="handleValidate"
@@ -146,6 +148,61 @@
             </div>
         </div>
 
+        <div
+            v-if="nodeSearchOpen"
+            class="node-search-popover glass-morphism-strong"
+            @keydown.esc.stop.prevent="handleCloseNodeSearch"
+        >
+            <div class="node-search-header">
+                <IconGlyph name="search" />
+                <input
+                    ref="nodeSearchInput"
+                    v-model="nodeSearchQuery"
+                    class="node-search-input"
+                    type="search"
+                    placeholder="搜索节点内容、ID、角色或选项"
+                    aria-label="搜索节点"
+                    @keydown.enter.prevent="handleSelectFirstSearchResult"
+                />
+                <button
+                    type="button"
+                    class="node-search-close"
+                    title="关闭"
+                    aria-label="关闭搜索"
+                    @click="handleCloseNodeSearch"
+                >
+                    <IconGlyph name="close" />
+                </button>
+            </div>
+
+            <div class="node-search-results" role="listbox">
+                <button
+                    v-for="result in nodeSearchResults"
+                    :key="result.id"
+                    type="button"
+                    class="node-search-result"
+                    role="option"
+                    @click="handleSelectNodeSearchResult(result.id)"
+                >
+                    <span
+                        class="node-search-type"
+                        :style="{ '--node-accent': result.color }"
+                    >
+                        {{ result.typeLabel }}
+                    </span>
+                    <span class="node-search-main">
+                        <strong>{{ result.title }}</strong>
+                        <small>{{ result.preview }}</small>
+                    </span>
+                    <span class="node-search-id">{{ result.id }}</span>
+                </button>
+
+                <div v-if="nodeSearchResults.length === 0" class="node-search-empty">
+                    {{ nodeSearchQuery.trim() ? "没有找到匹配节点" : "输入内容开始搜索" }}
+                </div>
+            </div>
+        </div>
+
         <input
             ref="fileInput"
             type="file"
@@ -166,6 +223,7 @@ import StatusBar from "./components/StatusBar.vue";
 import ReadModePanel from "./components/ReadModePanel.vue";
 import ScriptLibraryPage from "./components/ScriptLibraryPage.vue";
 import OverviewPage from "./components/OverviewPage.vue";
+import IconGlyph from "./components/IconGlyph.vue";
 import { buildYAMLString, exportToYAML } from "./utils/yaml-exporter.js";
 import { importFromYAML } from "./utils/yaml-importer.js";
 import {
@@ -330,10 +388,29 @@ const activeEntryNodeId = computed(() =>
         ? railMeta.value.entryNodeId || ""
         : storyMeta.value.entryNodeId || "",
 );
+const nodeSearchResults = computed(() => {
+    const query = normalizeSearchText(nodeSearchQuery.value);
+    const source = Array.isArray(activeNodes.value) ? activeNodes.value : [];
+    const ranked = source
+        .map((node, index) => {
+            const searchable = buildNodeSearchRecord(node);
+            const haystack = normalizeSearchText(searchable.searchText);
+            const score = getSearchScore(query, haystack, searchable, index);
+            return score == null ? null : { ...searchable, score, index };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.score - b.score || a.index - b.index);
+
+    return ranked.slice(0, 24);
+});
 
 const variables = ref([]);
 const presetSpeakers = ref([]);
 const fileInput = ref(null);
+const graphEditorRef = ref(null);
+const nodeSearchInput = ref(null);
+const nodeSearchOpen = ref(false);
+const nodeSearchQuery = ref("");
 
 const validationResult = ref({ errors: [], warnings: [] });
 const lastSavedAt = ref("");
@@ -358,6 +435,151 @@ let dragGraphStateRafId = 0;
 
 function safeClone(obj) {
     return JSON.parse(JSON.stringify(obj));
+}
+
+const NODE_SEARCH_META = {
+    dialogue: { label: "对话", color: "#5fae8b" },
+    choice: { label: "选择", color: "#c8945d" },
+    jump: { label: "跳转", color: "#6f9fc9" },
+    setvariable: { label: "变量", color: "#a785bd" },
+    emitevent: { label: "事件", color: "#c77f95" },
+    condition: { label: "条件", color: "#8d8bc6" },
+    end: { label: "结束", color: "#969aa3" },
+    railstory: { label: "脚本", color: "#6f9fc9" },
+    railbranch: { label: "分支", color: "#79aeb9" },
+    railnote: { label: "标记", color: "#b9a35f" },
+    railend: { label: "结束", color: "#969aa3" },
+};
+
+function normalizeSearchText(value) {
+    return String(value ?? "")
+        .trim()
+        .toLocaleLowerCase()
+        .replace(/\s+/g, " ");
+}
+
+function compactTextParts(parts) {
+    const seen = new Set();
+    const flattenParts = (value) =>
+        Array.isArray(value) ? value.flatMap(flattenParts) : [value];
+
+    return flattenParts(parts)
+        .map((part) => String(part ?? "").trim())
+        .filter((part) => {
+            if (!part || seen.has(part)) return false;
+            seen.add(part);
+            return true;
+        });
+}
+
+function buildNodeSearchRecord(node) {
+    const data = node?.data || {};
+    const meta = NODE_SEARCH_META[node?.type] || {
+        label: node?.type || "节点",
+        color: "#64748b",
+    };
+    const details = [];
+
+    if (node?.type === "dialogue") {
+        details.push(data.speakerId);
+        details.push(getDialogueLineTexts(data));
+    } else if (node?.type === "choice") {
+        details.push((data.choices || []).map((choice) => choice?.textKey));
+        details.push(data.choiceTimer?.timeoutChoiceTextKey);
+    } else if (node?.type === "jump") {
+        details.push(data.targetNodeId);
+    } else if (node?.type === "setvariable") {
+        details.push(data.variableName, data.operation, data.value);
+    } else if (node?.type === "emitevent") {
+        details.push(data.eventType);
+        details.push(
+            Object.entries(data.params || {}).map(
+                ([key, value]) => `${key}: ${formatSearchValue(value)}`,
+            ),
+        );
+    } else if (node?.type === "condition") {
+        const branches = Array.isArray(data.condition?.branches)
+            ? data.condition.branches
+            : [];
+        details.push(branches.map((branch) => branch?.label));
+    } else if (node?.type === "railstory") {
+        details.push(data.title, data.storyId, data.summary);
+    } else if (node?.type === "railbranch") {
+        details.push(data.title, data.summary);
+        details.push((data.branches || []).map((branch) => branch?.label));
+    } else if (node?.type === "railnote" || node?.type === "railend") {
+        details.push(data.title, data.summary);
+    }
+
+    const textParts = compactTextParts([node?.id, meta.label, details]);
+    const title = textParts.find((part) => part !== node?.id && part !== meta.label) || node?.id || "未命名节点";
+    const preview = textParts
+        .filter((part) => part !== title)
+        .slice(0, 4)
+        .join(" · ");
+
+    return {
+        id: node?.id || "",
+        title,
+        preview: preview || meta.label,
+        typeLabel: meta.label,
+        color: meta.color,
+        searchText: textParts.join(" "),
+    };
+}
+
+function formatSearchValue(value) {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+function getSearchScore(query, haystack, record, index) {
+    if (!query) return null;
+    if (!haystack.includes(query)) return null;
+    if (normalizeSearchText(record.id) === query) return 0;
+    if (normalizeSearchText(record.title).startsWith(query)) return 1;
+    if (haystack.startsWith(query)) return 2;
+    return 10 + haystack.indexOf(query) + index / 1000;
+}
+
+function handleOpenNodeSearch() {
+    if (editorMode.value !== "graph") {
+        editorMode.value = "graph";
+    }
+    nodeSearchOpen.value = true;
+    requestAnimationFrame(() => {
+        nodeSearchInput.value?.focus();
+        nodeSearchInput.value?.select();
+    });
+}
+
+function handleCloseNodeSearch() {
+    nodeSearchOpen.value = false;
+}
+
+function handleSelectFirstSearchResult() {
+    const first = nodeSearchResults.value[0];
+    if (first) handleSelectNodeSearchResult(first.id);
+}
+
+function handleSelectNodeSearchResult(nodeId) {
+    if (!nodeId) return;
+    const didFocus = graphEditorRef.value?.focusNodeById?.(nodeId);
+    if (!didFocus) {
+        const fallbackNode = activeNodes.value.find((node) => node.id === nodeId);
+        if (fallbackNode) {
+            selectedNode.value = safeClone(fallbackNode);
+            selectedEdge.value = null;
+            applyEdgeVisualStyles();
+        }
+    }
+    handleCloseNodeSearch();
 }
 
 function getLocalScriptStorageKeyByPath(path) {
@@ -2418,6 +2640,12 @@ function handleGlobalKeyDown(event) {
     const key = String(event.key || "").toLowerCase();
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
+    if (isCtrlOrMeta && key === "f" && currentView.value === "editor") {
+        event.preventDefault();
+        handleOpenNodeSearch();
+        return;
+    }
+
     if (isCtrlOrMeta && !event.shiftKey && key === "z") {
         event.preventDefault();
         handleUndo();
@@ -3317,6 +3545,155 @@ function handlePresetSpeakersUpdate(updatedSpeakers) {
     z-index: 60;
     padding: 16px;
     border-radius: 16px;
+}
+
+.node-search-popover {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(560px, calc(100vw - 32px));
+    max-height: min(560px, calc(100vh - 150px));
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 16px;
+    color: var(--nr-text);
+}
+
+.node-search-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 0.5px solid color-mix(in srgb, var(--nr-text) 14%, transparent);
+}
+
+.node-search-header :deep(.icon-glyph) {
+    width: 20px;
+    height: 20px;
+    color: color-mix(in srgb, var(--nr-text) 62%, transparent);
+}
+
+.node-search-input {
+    flex: 1;
+    min-width: 0;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    padding: 0 12px;
+    background: color-mix(in srgb, var(--nr-bg) 72%, #ffffff 28%);
+    color: var(--nr-text);
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.node-search-input:focus {
+    outline: 2px solid color-mix(in srgb, #6f9fc9 42%, transparent);
+}
+
+.node-search-input::placeholder {
+    color: color-mix(in srgb, var(--nr-text) 48%, transparent);
+}
+
+.node-search-close {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid color-mix(in srgb, var(--nr-text) 14%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--nr-bg) 76%, #ffffff 24%);
+    color: var(--nr-text);
+    cursor: pointer;
+}
+
+.node-search-close:hover {
+    background: color-mix(in srgb, var(--nr-bg) 62%, #ffffff 38%);
+}
+
+.node-search-results {
+    overflow: auto;
+    padding: 8px;
+}
+
+.node-search-result {
+    width: 100%;
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border: 0.5px solid transparent;
+    border-radius: 12px;
+    padding: 9px 10px;
+    background: transparent;
+    color: var(--nr-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.node-search-result:hover,
+.node-search-result:focus {
+    outline: none;
+    background: color-mix(in srgb, var(--nr-bg) 66%, #ffffff 34%);
+    border-color: color-mix(in srgb, var(--nr-text) 14%, transparent);
+}
+
+.node-search-type {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 26px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--node-accent) 18%, transparent);
+    color: color-mix(in srgb, var(--node-accent) 82%, var(--nr-text) 18%);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.node-search-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.node-search-main strong,
+.node-search-main small,
+.node-search-id {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.node-search-main strong {
+    font-size: 14px;
+    font-weight: 760;
+}
+
+.node-search-main small {
+    color: color-mix(in srgb, var(--nr-text) 58%, transparent);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.node-search-id {
+    max-width: 150px;
+    color: color-mix(in srgb, var(--nr-text) 48%, transparent);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.node-search-empty {
+    padding: 28px 12px 32px;
+    color: color-mix(in srgb, var(--nr-text) 58%, transparent);
+    font-size: 13px;
+    font-weight: 650;
+    text-align: center;
 }
 
 .edge-editor-header {

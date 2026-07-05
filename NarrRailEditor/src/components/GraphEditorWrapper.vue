@@ -1350,6 +1350,28 @@ function fitView() {
     scheduleDraw();
 }
 
+function focusNodeById(nodeId) {
+    const canvas = canvasRef.value;
+    const node = getNodeById(nodeId);
+    if (!canvas || !node) return false;
+
+    const dpr = window.devicePixelRatio || 1;
+    const canvasWidth = canvas.width / dpr;
+    const canvasHeight = canvas.height / dpr;
+    const layout = getNodeLayout(node);
+    const targetZoom = clamp(viewport.zoom < 0.72 ? 0.9 : viewport.zoom, MIN_ZOOM, MAX_ZOOM);
+
+    viewport.zoom = targetZoom;
+    viewport.x =
+        canvasWidth / 2 - ((node.position?.x || 0) + NODE_WIDTH / 2) * viewport.zoom;
+    viewport.y =
+        canvasHeight / 2 - ((node.position?.y || 0) + layout.height / 2) * viewport.zoom;
+    selectNode(node);
+    containerRef.value?.focus();
+    scheduleDraw();
+    return true;
+}
+
 function getGraphBounds() {
     const boxes = internalNodes.value.map((node) => {
         const layout = getNodeLayout(node);
@@ -1580,6 +1602,11 @@ function isEditableTarget(target) {
         target?.isContentEditable
     );
 }
+
+defineExpose({
+    focusNodeById,
+    fitView,
+});
 </script>
 
 <style scoped>
