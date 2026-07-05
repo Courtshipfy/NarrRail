@@ -47,6 +47,23 @@ export const MATERIAL_SYMBOL_PATHS = {
     ],
     chevron_right: ["m9 6 6 6-6 6"],
     close: ["M6 6l12 12", "M18 6 6 18"],
+    content_copy: [
+        "M8 8h11v13H8Z",
+        "M5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1",
+    ],
+    content_paste: [
+        "M9 4h6",
+        "M9 4a3 3 0 0 1 6 0",
+        "M8 6H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2",
+        "M8 11h8",
+        "M8 15h6",
+    ],
+    control_point_duplicate: [
+        "M8 8h11v11H8Z",
+        "M5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1",
+        "M13.5 11v5",
+        "M11 13.5h5",
+    ],
     dark_mode: ["M21 14.4A7.5 7.5 0 0 1 9.6 3 9 9 0 1 0 21 14.4Z"],
     data_object: [
         "M8 8 4 12l4 4",

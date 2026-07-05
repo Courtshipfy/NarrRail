@@ -37,6 +37,34 @@
             class="context-menu glass-morphism-strong"
             :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
         >
+            <template v-if="hasNodeSelection">
+                <div class="context-menu-header">节点操作</div>
+                <button
+                    type="button"
+                    class="context-menu-item"
+                    @click="copySelectedNodes"
+                >
+                    <IconGlyph name="content_copy" />
+                    <span>复制</span>
+                </button>
+                <button
+                    type="button"
+                    class="context-menu-item"
+                    @click="duplicateSelectedNodes"
+                >
+                    <IconGlyph name="control_point_duplicate" />
+                    <span>克隆</span>
+                </button>
+            </template>
+            <div class="context-menu-header">剪贴板</div>
+            <button
+                type="button"
+                class="context-menu-item"
+                @click="pasteNodesFromClipboard"
+            >
+                <IconGlyph name="content_paste" />
+                <span>粘贴</span>
+            </button>
             <div class="context-menu-header">添加节点</div>
             <button
                 v-for="item in contextMenuItems"
@@ -72,6 +100,9 @@ const EDGE_HIT_RADIUS = 10;
 const DRAG_THRESHOLD = 4;
 const GRAPH_EDGE_COLOR = "#8b7aa8";
 const GRAPH_EDGE_SELECTED_COLOR = "#a76f8f";
+const NODE_CLIPBOARD_FORMAT = "application/x-narrrail-node-selection";
+const NODE_CLIPBOARD_VERSION = 1;
+const DUPLICATE_OFFSET = 32;
 
 const NODE_META = {
     dialogue: { label: "对话", icon: "speaker_notes", color: "#5fae8b" },
@@ -157,6 +188,8 @@ const contextMenuItems = computed(() => {
         { type: "end", label: "结束节点", icon: "stop_circle" },
     ];
 });
+
+const hasNodeSelection = computed(() => getSelectedNodes().length > 0);
 
 watch(
     () => props.nodes,
@@ -998,9 +1031,31 @@ function isLikelyMouseWheel(event) {
     return absX < 1 && absY >= 40 && (wheelDeltaY >= 120 || Number.isInteger(event.deltaY));
 }
 
-function handleKeyDown(event) {
+async function handleKeyDown(event) {
     if (!containerRef.value?.contains(document.activeElement)) return;
     if (isEditableTarget(document.activeElement)) return;
+
+    const key = String(event.key || "").toLowerCase();
+    const isCommand = event.metaKey || event.ctrlKey;
+    if (isCommand && !event.altKey && key === "c") {
+        if (getSelectedNodes().length === 0) return;
+        event.preventDefault();
+        await copySelectedNodes();
+        return;
+    }
+
+    if (isCommand && !event.altKey && key === "v") {
+        event.preventDefault();
+        await pasteNodesFromClipboard();
+        return;
+    }
+
+    if (isCommand && !event.altKey && key === "d") {
+        if (getSelectedNodes().length === 0) return;
+        event.preventDefault();
+        duplicateSelectedNodes();
+        return;
+    }
 
     if (event.key === "Escape") {
         closeContextMenu();
@@ -1050,6 +1105,226 @@ function openContextMenu(event) {
 
 function closeContextMenu() {
     contextMenu.show = false;
+}
+
+async function copySelectedNodes() {
+    const payload = buildSelectedNodesClipboardPayload();
+    if (!payload) return false;
+
+    const text = JSON.stringify(payload);
+    const ok = await writeClipboardText(text);
+    closeContextMenu();
+    return ok;
+}
+
+async function pasteNodesFromClipboard() {
+    const text = await readClipboardText();
+    const payload = parseNodeClipboardPayload(text);
+    if (!payload) {
+        closeContextMenu();
+        return false;
+    }
+
+    const anchor = getPasteAnchorGraphPoint();
+    pasteNodeSelection(payload, anchor);
+    closeContextMenu();
+    return true;
+}
+
+function duplicateSelectedNodes() {
+    const payload = buildSelectedNodesClipboardPayload();
+    if (!payload) return false;
+
+    pasteNodeSelection(payload, {
+        x: payload.anchor.x + DUPLICATE_OFFSET,
+        y: payload.anchor.y + DUPLICATE_OFFSET,
+    });
+    closeContextMenu();
+    return true;
+}
+
+function buildSelectedNodesClipboardPayload() {
+    const selectedNodes = getSelectedNodes();
+    if (selectedNodes.length === 0) return null;
+
+    const selectedIds = new Set(selectedNodes.map((node) => node.id));
+    const selectedEdges = internalEdges.value.filter(
+        (edge) => selectedIds.has(edge.source) && selectedIds.has(edge.target),
+    );
+    const bounds = getNodesBounds(selectedNodes);
+
+    return {
+        format: NODE_CLIPBOARD_FORMAT,
+        version: NODE_CLIPBOARD_VERSION,
+        graphMode: props.graphMode,
+        copiedAt: new Date().toISOString(),
+        anchor: { x: bounds.x, y: bounds.y },
+        nodes: cloneArray(selectedNodes),
+        edges: cloneArray(selectedEdges),
+    };
+}
+
+function getSelectedNodes() {
+    const nodeIds = selectedNodeIds.value.size > 0
+        ? selectedNodeIds.value
+        : selectedNodeId.value
+          ? new Set([selectedNodeId.value])
+          : new Set();
+    if (nodeIds.size === 0) return [];
+    return internalNodes.value.filter((node) => nodeIds.has(node.id));
+}
+
+function getNodesBounds(nodes) {
+    const boxes = nodes.map((node) => {
+        const layout = getNodeLayout(node);
+        return {
+            x: node.position?.x || 0,
+            y: node.position?.y || 0,
+            width: NODE_WIDTH,
+            height: layout.height,
+        };
+    });
+
+    const minX = Math.min(...boxes.map((box) => box.x));
+    const minY = Math.min(...boxes.map((box) => box.y));
+    const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+    const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+async function writeClipboardText(text) {
+    try {
+        if (!navigator.clipboard?.writeText) return false;
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch (error) {
+        console.warn("Failed to write NarrRail node clipboard payload", error);
+        return false;
+    }
+}
+
+async function readClipboardText() {
+    try {
+        if (!navigator.clipboard?.readText) return "";
+        return await navigator.clipboard.readText();
+    } catch (error) {
+        console.warn("Failed to read NarrRail node clipboard payload", error);
+        return "";
+    }
+}
+
+function parseNodeClipboardPayload(text) {
+    if (!text || typeof text !== "string") return null;
+
+    try {
+        const payload = JSON.parse(text);
+        if (payload?.format !== NODE_CLIPBOARD_FORMAT) return null;
+        if (payload.version !== NODE_CLIPBOARD_VERSION) return null;
+        if (!Array.isArray(payload.nodes) || payload.nodes.length === 0) return null;
+        if (!Array.isArray(payload.edges)) return null;
+        if (!payload.anchor || !Number.isFinite(payload.anchor.x) || !Number.isFinite(payload.anchor.y)) {
+            return null;
+        }
+        return payload;
+    } catch (error) {
+        return null;
+    }
+}
+
+function getPasteAnchorGraphPoint() {
+    if (contextMenu.show) {
+        return { x: contextMenu.graphX, y: contextMenu.graphY };
+    }
+
+    if (lastPointer && isPointInsideCanvas(lastPointer.x, lastPointer.y)) {
+        return { x: lastPointer.graphX, y: lastPointer.graphY };
+    }
+
+    return getViewportCenterGraphPoint();
+}
+
+function isPointInsideCanvas(clientX, clientY) {
+    const rect = canvasRef.value?.getBoundingClientRect();
+    if (!rect) return false;
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+}
+
+function getViewportCenterGraphPoint() {
+    const canvas = canvasRef.value;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const dpr = window.devicePixelRatio || 1;
+    return screenToGraph(
+        canvas.getBoundingClientRect().left + canvas.width / dpr / 2,
+        canvas.getBoundingClientRect().top + canvas.height / dpr / 2,
+    );
+}
+
+function pasteNodeSelection(payload, targetAnchor) {
+    const idMap = new Map();
+    const existingNodeIds = new Set(internalNodes.value.map((node) => node.id));
+    const existingEdgeIds = new Set(internalEdges.value.map((edge) => edge.id));
+    const baseAnchor = payload.anchor || { x: 0, y: 0 };
+
+    const nextNodes = payload.nodes.map((sourceNode) => {
+        const oldId = String(sourceNode.id || "");
+        const newId = createUniqueId(oldId || "node", existingNodeIds);
+        idMap.set(oldId, newId);
+
+        const nextNode = structuredCloneSafe(sourceNode);
+        const sourcePosition = sourceNode.position || {};
+        nextNode.id = newId;
+        nextNode.position = {
+            x: targetAnchor.x + Number(sourcePosition.x || 0) - baseAnchor.x,
+            y: targetAnchor.y + Number(sourcePosition.y || 0) - baseAnchor.y,
+        };
+        return nextNode;
+    });
+
+    nextNodes.forEach((node) => {
+        rewriteInternalNodeReferences(node, idMap);
+    });
+
+    const nextEdges = payload.edges
+        .filter((edge) => idMap.has(String(edge.source)) && idMap.has(String(edge.target)))
+        .map((sourceEdge) => {
+            const oldId = String(sourceEdge.id || "");
+            const newId = createUniqueId(oldId || "edge", existingEdgeIds);
+
+            return {
+                ...structuredCloneSafe(sourceEdge),
+                id: newId,
+                source: idMap.get(String(sourceEdge.source)),
+                target: idMap.get(String(sourceEdge.target)),
+            };
+        });
+
+    internalNodes.value = [...internalNodes.value, ...nextNodes];
+    internalEdges.value = [...internalEdges.value, ...nextEdges];
+    selectNodes(nextNodes);
+    flushGraphDispatch();
+    scheduleDraw();
+}
+
+function rewriteInternalNodeReferences(node, idMap) {
+    if (node?.type === "jump" && idMap.has(node.data?.targetNodeId)) {
+        node.data = {
+            ...(node.data || {}),
+            targetNodeId: idMap.get(node.data.targetNodeId),
+        };
+    }
+}
+
+function createUniqueId(sourceId, usedIds) {
+    const base = String(sourceId || "item").replace(/-copy(?:-\d+)?$/, "");
+    let candidate = `${base}-copy`;
+    let index = 2;
+    while (usedIds.has(candidate)) {
+        candidate = `${base}-copy-${index}`;
+        index += 1;
+    }
+    usedIds.add(candidate);
+    return candidate;
 }
 
 function createNode(type) {
