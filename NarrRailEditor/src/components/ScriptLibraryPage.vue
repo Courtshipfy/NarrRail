@@ -1690,7 +1690,12 @@ watch(
 
 <style scoped>
 .script-library-page {
-    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: contain;
     padding: 20px;
     color: var(--nr-text);
     background: transparent;
@@ -2150,7 +2155,40 @@ watch(
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    align-content: start;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0 14px 12px 0;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--nr-text) 34%, transparent)
+        color-mix(in srgb, var(--nr-bg) 42%, transparent);
+    -webkit-overflow-scrolling: touch;
+}
+
+.grid::-webkit-scrollbar {
+    width: 10px;
+}
+
+.grid::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--nr-bg) 42%, transparent);
+    border-radius: 999px;
+}
+
+.grid::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--nr-text) 30%, transparent);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+}
+
+.grid::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--nr-text) 44%, transparent);
+    border: 3px solid transparent;
+    background-clip: content-box;
 }
 
 .script-card {
