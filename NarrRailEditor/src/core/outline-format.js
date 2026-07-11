@@ -29,6 +29,7 @@ export function validateOutlineDocument(outline, context = {}) {
     {
       storyEntries: context.storyEntries || [],
       variables: context.variables || [],
+      requireKnownStoryReferences: Boolean(context.requireKnownStoryReferences),
     },
   );
 }

@@ -89,7 +89,10 @@ export function validateRail(nodes, edges, meta, options = {}) {
       const storyId = String(node?.data?.storyId || "").trim();
       if (!storyId) {
         errors.push(issue("Story 节点缺少 storyId", id));
-      } else if (storyIds.size > 0 && !storyIds.has(storyId)) {
+      } else if (
+        (storyIds.size > 0 || options.requireKnownStoryReferences) &&
+        !storyIds.has(storyId)
+      ) {
         errors.push(issue(`引用的脚本不存在: ${storyId}`, id));
       }
     }

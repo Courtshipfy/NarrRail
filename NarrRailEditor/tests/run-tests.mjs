@@ -3,5 +3,6 @@ import "./story-format.test.mjs";
 import "./global-config.test.mjs";
 import "./outline-format.test.mjs";
 import "./preview-runner.test.mjs";
+import "./story-project.test.mjs";
 
 console.log("all regression tests passed");

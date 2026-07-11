@@ -24,6 +24,14 @@ _Avoid_: Single file, isolated script
 A Story Project whose authoritative storage is a GitHub repository or repository directory containing the project's story files and configuration. Commit history, branches, and repository permissions provide the first-stage persistence and collaboration substrate.
 _Avoid_: NarrRail-owned project database, optional GitHub export target
 
+**Project Asset**:
+A file-like item inside a Story Project, such as a `.nrstory`, `.nroutline`, GlobalConfig file, conversion profile, or conversion note. Project Assets are the units that project review, preview, import, and export flows inspect.
+_Avoid_: UI card, engine asset, arbitrary repository file
+
+**Project Snapshot**:
+A read model of a Story Project at a point in time: project metadata, recognized Project Assets, import packages, conversion profiles, and indexes needed by review or preview flows.
+_Avoid_: Persistent database record, live Git branch state, Vue component state
+
 **Project Review Queue**:
 A project-level review surface that gathers validation errors, warnings, and human-review items across configuration, story scripts, outlines, imports, and cross-file references.
 _Avoid_: Per-file error popup, runtime debugger
@@ -47,6 +55,10 @@ _Avoid_: Full script generation, runtime import
 **Story Project Import Package**:
 A conversion output package that can be imported into a GitHub-backed Story Project, containing generated story files and review notes rather than only a standalone `.nrstory` file.
 _Avoid_: Single generated story file
+
+**Conversion Profile**:
+A project-level guide for Script Conversion that captures naming rules, cast assumptions, branch-recognition rules, and forbidden inference for a specific Story Project.
+_Avoid_: Global AI settings, generated story output, runtime config
 
 **Import Package Review**:
 The product workflow for importing, validating, reviewing, correcting, and committing a Story Project Import Package before it becomes part of the authoritative Story Project repository.
