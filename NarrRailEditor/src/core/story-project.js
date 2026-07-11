@@ -23,6 +23,7 @@ export const PROJECT_ASSET_KINDS = Object.freeze({
   globalConfig: "global-config",
   conversionProfile: "conversion-profile",
   conversionNotes: "conversion-notes",
+  conversionReview: "conversion-review",
   unknown: "unknown",
 });
 
@@ -38,6 +39,25 @@ function toTrimmedString(value) {
 
 function normalizePath(path) {
   return toTrimmedString(path).replace(/^\/+/, "");
+}
+
+function toPlainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function optionalTrimmedString(value) {
+  const normalized = toTrimmedString(value);
+  return normalized || undefined;
+}
+
+function optionalNumber(value) {
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function compactObject(input = {}) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  );
 }
 
 function fileNameFromPath(path) {
@@ -81,6 +101,10 @@ export function classifyProjectAsset(input = {}) {
     return PROJECT_ASSET_KINDS.conversionNotes;
   }
 
+  if (fileName === "conversion-review.json") {
+    return PROJECT_ASSET_KINDS.conversionReview;
+  }
+
   return PROJECT_ASSET_KINDS.unknown;
 }
 
@@ -108,16 +132,24 @@ export function normalizeStoryProject(input = {}) {
 
 export function normalizeImportPackage(input = {}) {
   const id = toTrimmedString(input.id) || "import-package";
+  const files = (Array.isArray(input.files) ? input.files : []).map((file) =>
+    normalizeProjectAsset({
+      ...file,
+      source: file?.source || `import-package:${id}`,
+    }),
+  );
+  const conversionReviewItems = files
+    .filter((file) => file.kind === PROJECT_ASSET_KINDS.conversionReview)
+    .flatMap((file) => parseConversionReviewItems(file, id));
+
   return {
     id,
     title: toTrimmedString(input.title) || "Import Package",
-    files: (Array.isArray(input.files) ? input.files : []).map((file) =>
-      normalizeProjectAsset({
-        ...file,
-        source: file?.source || `import-package:${id}`,
-      }),
-    ),
-    reviewItems: Array.isArray(input.reviewItems) ? input.reviewItems : [],
+    files,
+    reviewItems: [
+      ...(Array.isArray(input.reviewItems) ? input.reviewItems : []),
+      ...conversionReviewItems,
+    ],
   };
 }
 
@@ -168,6 +200,7 @@ export function createProjectSnapshot(input = {}) {
 }
 
 function makeReviewItem({
+  id,
   severity = REVIEW_SEVERITIES.review,
   category = "review",
   message,
@@ -175,6 +208,10 @@ function makeReviewItem({
   target = {},
   source = "project",
   index = 0,
+  sourceLocation,
+  generatedTarget,
+  suggestedAction,
+  notes,
 }) {
   const normalizedSeverity =
     severity === REVIEW_SEVERITIES.error ||
@@ -183,19 +220,124 @@ function makeReviewItem({
       ? severity
       : REVIEW_SEVERITIES.review;
   const pathPart = assetPath || source;
+  const normalizedId = optionalTrimmedString(id);
+  const normalizedSuggestedAction = optionalTrimmedString(suggestedAction);
+  const normalizedNotes = optionalTrimmedString(notes);
   return {
-    id: `${pathPart}:${source}:${normalizedSeverity}:${category}:${index}`,
+    id:
+      normalizedId ||
+      `${pathPart}:${source}:${normalizedSeverity}:${category}:${index}`,
     severity: normalizedSeverity,
     category,
     message: String(message || ""),
     assetPath,
     target,
     source,
+    ...(sourceLocation ? { sourceLocation } : {}),
+    ...(generatedTarget ? { generatedTarget } : {}),
+    ...(normalizedSuggestedAction
+      ? { suggestedAction: normalizedSuggestedAction }
+      : {}),
+    ...(normalizedNotes ? { notes: normalizedNotes } : {}),
   };
 }
 
 export function normalizeProjectReviewItem(input = {}) {
   return makeReviewItem(input);
+}
+
+function normalizeSourceLocation(input = {}) {
+  const location = toPlainObject(input);
+  const normalized = compactObject({
+    path: optionalTrimmedString(location.path),
+    sheet: optionalTrimmedString(location.sheet),
+    row: optionalNumber(location.row),
+    column: optionalTrimmedString(location.column),
+    lineStart: optionalNumber(location.lineStart),
+    lineEnd: optionalNumber(location.lineEnd),
+    section: optionalTrimmedString(location.section),
+    excerpt: optionalTrimmedString(location.excerpt),
+  });
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeGeneratedTarget(input = {}) {
+  const target = toPlainObject(input);
+  const normalized = compactObject({
+    kind: optionalTrimmedString(target.kind),
+    path: normalizePath(target.path || ""),
+    nodeId: optionalTrimmedString(target.nodeId),
+    edgeId: optionalTrimmedString(target.edgeId),
+    field: optionalTrimmedString(target.field),
+    lineIndex: optionalNumber(target.lineIndex),
+    choiceIndex: optionalNumber(target.choiceIndex),
+    conditionBranchIndex: optionalNumber(target.conditionBranchIndex),
+  });
+  if (!normalized.path) delete normalized.path;
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+export function normalizeConversionReviewItem(input = {}, context = {}) {
+  const generatedTarget = normalizeGeneratedTarget(input.generatedTarget);
+  const sourceLocation = normalizeSourceLocation(input.sourceLocation);
+  const category =
+    optionalTrimmedString(input.issueType || input.category) || "conversion-review";
+  const assetPath = normalizePath(
+    input.assetPath || generatedTarget?.path || context.assetPath || "",
+  );
+  const target = {
+    ...(context.importPackageId ? { importPackageId: context.importPackageId } : {}),
+    ...toPlainObject(input.target),
+    ...compactObject({
+      nodeId: generatedTarget?.nodeId,
+      edgeId: generatedTarget?.edgeId,
+      field: generatedTarget?.field,
+      lineIndex: generatedTarget?.lineIndex,
+      choiceIndex: generatedTarget?.choiceIndex,
+      conditionBranchIndex: generatedTarget?.conditionBranchIndex,
+    }),
+  };
+
+  return makeReviewItem({
+    id: input.id,
+    severity: input.severity,
+    category,
+    message: input.message || input.title || "",
+    assetPath,
+    target,
+    source: context.source || "conversion-review",
+    index: context.index || 0,
+    sourceLocation,
+    generatedTarget,
+    suggestedAction: input.suggestedAction,
+    notes: input.notes,
+  });
+}
+
+function parseConversionReviewItems(asset, importPackageId) {
+  try {
+    const parsed = JSON.parse(String(asset.content || "{}")) || {};
+    const items = Array.isArray(parsed.items) ? parsed.items : [];
+    return items.map((item, index) =>
+      normalizeConversionReviewItem(item, {
+        importPackageId,
+        source: "conversion-review",
+        index,
+        assetPath: asset.path,
+      }),
+    );
+  } catch (error) {
+    return [
+      makeReviewItem({
+        severity: REVIEW_SEVERITIES.error,
+        category: "parse",
+        message: error?.message || "无法解析 conversion-review.json",
+        assetPath: asset.path,
+        target: importPackageId ? { importPackageId } : {},
+        source: "conversion-review",
+      }),
+    ];
+  }
 }
 
 function addValidationItems(items, asset, result, source) {
@@ -391,6 +533,7 @@ export function buildProjectReviewQueue(input = {}) {
     (importPackage.reviewItems || []).forEach((item, itemIndex) => {
       items.push(
         makeReviewItem({
+          id: item.id,
           severity: item.severity || REVIEW_SEVERITIES.review,
           category: item.category || "import-package",
           message: item.message,
@@ -399,8 +542,12 @@ export function buildProjectReviewQueue(input = {}) {
             importPackageId: importPackage.id,
             ...(item.target || {}),
           },
-          source: "import-package",
+          source: item.source || "import-package",
           index: packageIndex * 1000 + itemIndex,
+          sourceLocation: item.sourceLocation,
+          generatedTarget: item.generatedTarget,
+          suggestedAction: item.suggestedAction,
+          notes: item.notes,
         }),
       );
     });

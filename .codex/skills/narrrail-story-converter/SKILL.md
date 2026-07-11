@@ -23,9 +23,16 @@ judgment to infer structure, then validate the result.
    - `references/conversion-policy.md` for inference and ambiguity policy.
    - `references/project-profile-template.md` when creating or using a project
      profile.
+   - `Docs/spec/CONVERSION_REVIEW_CONTRACT.md` when writing conversion notes or
+     review metadata inside this repository.
 3. Generate a `.nrstory` file.
-4. Generate a companion conversion notes file when any source content is omitted,
-   ambiguous, or treated as review-only.
+4. Generate a companion `conversion-notes.md` file when any source content is
+   omitted, ambiguous, inferred conservatively, or treated as review-only.
+   Follow the shared review-note contract in
+   `Docs/spec/CONVERSION_REVIEW_CONTRACT.md` when available.
+   - When review items should feed Project Review Queue or Import Package Review,
+     also emit optional `conversion-review.json` using the same item IDs and
+     vocabulary as the Markdown notes.
 5. Validate the `.nrstory`.
    - Prefer the repository validator when working inside NarrRail:
      `NarrRailEditor/src/utils/yaml-importer.js` and
@@ -40,6 +47,10 @@ judgment to infer structure, then validate the result.
 - Otherwise use a local `out/` directory near the source or current project.
 - Do not mix review notes, second-pass hints, or writer comments into the main
   story path unless the user asks for them.
+- Keep `conversion-notes.md` human-readable without tooling.
+- Keep optional `conversion-review.json` machine-readable and consistent with
+  `conversion-notes.md`; do not place review-only metadata inside `.nrstory`,
+  GlobalConfig, or `.nroutline`.
 - Keep `.nrstory` compatible with the neutral NarrRail format contract and declared Story Consumer compatibility:
   - one line: `Dialogue`
   - multiple consecutive lines by the same speaker: `MultiDialogue`

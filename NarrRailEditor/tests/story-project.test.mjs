@@ -82,6 +82,10 @@ edges:
     classifyProjectAsset({ path: "Config/conversion-profile.md", content: "" }),
     PROJECT_ASSET_KINDS.conversionProfile,
   );
+  assert.equal(
+    classifyProjectAsset({ path: "conversion-review.json", content: "{}" }),
+    PROJECT_ASSET_KINDS.conversionReview,
+  );
 }
 
 {
@@ -207,6 +211,61 @@ edges:
     ),
     true,
   );
+}
+
+{
+  const queue = buildProjectReviewQueue({
+    project: { id: "conversion-review-json" },
+    assets: [
+      { path: "Stories/chapter_01.nrstory", content: chapterYaml },
+      { path: "Stories/main_story.nroutline", content: outlineYaml },
+    ],
+    importPackages: [
+      {
+        id: "pkg-003",
+        title: "Imported draft with review metadata",
+        files: [
+          {
+            path: "conversion-review.json",
+            content: JSON.stringify({
+              schemaVersion: 1,
+              items: [
+                {
+                  id: "review-001",
+                  severity: "warning",
+                  issueType: "ambiguous-source",
+                  message: "说话人需要确认",
+                  sourceLocation: {
+                    path: "drafts/chapter-01.docx",
+                    lineStart: 42,
+                    excerpt: "这真的是你说的吗？",
+                  },
+                  generatedTarget: {
+                    kind: "nrstory",
+                    path: "Stories/imported_story.nrstory",
+                    nodeId: "N_Imported_042",
+                    field: "dialogue.speakerId",
+                  },
+                  suggestedAction: "确认说话人后再接受导入",
+                },
+              ],
+            }),
+          },
+        ],
+      },
+    ],
+  });
+
+  const item = queue.items.find((candidate) => candidate.id === "review-001");
+  assert.equal(item.severity, "warning");
+  assert.equal(item.category, "ambiguous-source");
+  assert.equal(item.assetPath, "Stories/imported_story.nrstory");
+  assert.equal(item.target.importPackageId, "pkg-003");
+  assert.equal(item.target.nodeId, "N_Imported_042");
+  assert.equal(item.target.field, "dialogue.speakerId");
+  assert.equal(item.sourceLocation.lineStart, 42);
+  assert.equal(item.generatedTarget.kind, "nrstory");
+  assert.equal(item.suggestedAction, "确认说话人后再接受导入");
 }
 
 console.log("story project tests passed");
