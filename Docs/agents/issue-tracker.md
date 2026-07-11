@@ -29,6 +29,12 @@ GitHub shares one number space across issues and PRs, so a bare `#42` may be eit
 
 Create a GitHub issue.
 
+## Spec-kit execution specs
+
+GitHub Issues remain the tracker source of truth. For large execution issues, create a spec-kit-compatible folder under `specs/<four-digit-issue-number>-<short-name>/` and link that folder from the issue. See `Docs/agents/spec-kit.md`.
+
+Use the issue for assignment, discussion, labels, and close state. Use the spec folder for feature spec, implementation plan, task breakdown, and verification checklist.
+
 ## When a skill says "fetch the relevant ticket"
 
 Run `gh issue view <number> --comments`.

@@ -120,6 +120,8 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 
 - `CONTEXT.md`：NarrRail 当前领域语言
 - `Docs/adr/0001-split-unreal-consumer-repository.md`：UE consumer repo 拆分决策
+- `Docs/agents/spec-kit.md`：大型执行票的 spec-kit 兼容工作流
+- `specs/`：大型功能的 feature spec / plan / tasks / checklist 模板与产物
 - `Docs/research/0037-authoring-product-code-boundaries.md`：authoring product 代码边界
 - `Docs/research/0039-product-technology-shape.md`：Web / desktop / shared core 技术形态评估
 - `Docs/02_runtime/SCRIPT_FORMAT.md`：`.nrstory` / `.nroutline` 格式规范
@@ -131,13 +133,13 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 
 规划地图已经收束到 GitHub issues。优先入口：
 
+- 按 spec-kit 工作流规格化大型功能
 - Story Project IA / Dashboard Figma 原型
-- Structured Script View 原型
 - NarrRail authoring design system
-- shared authoring core 抽取
-- Story Project domain model 和 Project Review Queue
-- project storage adapter
-- core regression tests
+- UE consumer repo 拆分执行票
+- Script Conversion / Import Package Review 执行票
+- Project Dashboard / Review Queue / Preview 生产实现
+- Structured Script View 生产实现
 
 查看当前队列：
 

@@ -11,3 +11,7 @@ The repo uses the default five-label triage vocabulary. See `Docs/agents/triage-
 ### Domain docs
 
 This repo uses a single-context domain-doc layout. See `Docs/agents/domain.md`.
+
+### Spec-driven execution
+
+Large execution issues should use the repo's spec-kit-compatible workflow before implementation. See `Docs/agents/spec-kit.md`.
