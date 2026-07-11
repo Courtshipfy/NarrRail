@@ -1,5 +1,7 @@
 ﻿# NarrRail 故事格式规范 v1
 
+> 权威中立格式契约见 `Docs/spec/NRSTORY_FORMAT.md`。本文保留为运行时侧格式说明和历史入口；新增或跨仓库引用应优先链接中立格式契约。
+
 ## 1. 适用范围
 
 本文档定义 NarrRail 主仓库拥有的故事文件格式契约，用于创作端导入/导出、项目级校验、Script Conversion、Import Package Review、Project Preview，以及下游 Story Consumer 的兼容实现。
@@ -392,8 +394,7 @@ presetSpeakers:
 - 全局配置文件也使用 `.nrstory` 后缀
 - 推荐文件名：`globalconfig.nrstory` 或 `global-config.nrstory`
 - 全局配置不需要 `nodes` 和 `edges`
-- Story Consumer 可以把 GlobalConfig 映射成自己的运行时配置资产或内存配置。
-- 当前 UE consumer 同步后会生成 `UNarrRailGlobalConfigAsset`，同一仓库下的剧情资产会自动引用该资产，并把全局变量注册到 GameInstance 级 `UNarrRailGlobalStateSubsystem`。
+- Story Consumer 可以把 GlobalConfig 映射成自己的运行时配置资产或内存配置，但不得把这些映射反写为新的 `.nrstory` 格式语义。
 
 ## 16. Story Project 总纲 `.nroutline`
 
@@ -600,30 +601,19 @@ edges:
     priority: 0
 ```
 
-## 17. Story Consumer compatibility: UE 故事仓库同步
+## 17. Story Consumer compatibility
 
-当前 UE 插件是 NarrRail 的 Story Consumer。它通过 `Sync Stories` 同步本地故事仓库：
+Story Consumer 是读取 NarrRail 输出并在下游运行、展示或校验故事内容的实现。Consumer 可以把 `.nrstory`、GlobalConfig 和 `.nroutline` 映射成自己的运行时资产、内存结构或平台对象，但必须声明兼容的格式版本和已支持的文件类型。
 
-- 配置位置：`Project Settings > Plugins > NarrRail`
-- `Story Repository Path`：本地故事仓库路径
-- `Pull Git Repository Before Sync`：默认开启，Git 仓库同步前执行 `git pull --ff-only`
-- `Story Asset Root Path (UE Content)`：默认 `/Game/NarrRailStories`
+Consumer 兼容要求：
 
-同步目标：
+- 不得改变 `.nrstory`、GlobalConfig 或 `.nroutline` 的字段语义。
+- 必须拒绝高于自身支持范围的 `schemaVersion`，或以显式兼容模式处理。
+- 必须保留未知字段，或在不支持保留时把丢弃行为记录为兼容限制。
+- 可以忽略自身不消费的 authoring-only 信息，但不得把平台专用字段写回中立格式。
+- 平台专用同步、资产生成、Blueprint、PIE、HUD、Content path 等细节应记录在对应 Consumer 仓库或兼容矩阵中。
 
-```text
-/Game/NarrRailStories/<故事仓库文件夹名>
-```
-
-同步行为：
-
-- 扫描所有 `*.nrstory`
-- 完整保留仓库子目录结构
-- 普通剧情生成或更新 `UNarrRailStoryAsset`
-- 全局配置生成或更新 `UNarrRailGlobalConfigAsset`
-- 同一仓库下的剧情资产会自动引用该仓库的 GlobalConfig 资产
-- 仓库删除的文件会删除对应 UE 资产，删除前弹确认
-- 当前仅扫描 `*.nrstory`；`.nroutline` 与 legacy `.nrrail` 总纲暂只在 NarrRail authoring product 中使用。UE consumer 是否导入总纲应由后续 compatibility matrix 决定。
+当前 UE 插件是一个 Story Consumer。UE 专属同步与资产映射说明后续应迁移到 `NarrRail-Unreal-Plugin`，主仓库只保留格式契约和兼容矩阵入口。
 
 ## 18. 校验规则
 

@@ -1,0 +1,361 @@
+﻿#pragma once
+
+#include "CoreMinimal.h"
+#include "Runtime/NarrRailGlobalConfigAsset.h"
+#include "Runtime/NarrRailGlobalStateSubsystem.h"
+#include "Runtime/NarrRailStoryAsset.h"
+#include "Runtime/NarrRailVariableContainer.h"
+#include "Runtime/NarrRailDialoguePresenterInterface.h"
+#include "NarrRailStorySession.generated.h"
+
+UENUM(BlueprintType)
+enum class ENarrRailRuntimeResultCode : uint8
+{
+    Success UMETA(DisplayName = "Success"),
+    InvalidState UMETA(DisplayName = "Invalid State"),
+    InvalidInput UMETA(DisplayName = "Invalid Input"),
+    MissingNode UMETA(DisplayName = "Missing Node"),
+    Completed UMETA(DisplayName = "Completed")
+};
+
+UENUM(BlueprintType)
+enum class ENarrRailSessionState : uint8
+{
+    Idle UMETA(DisplayName = "Idle"),
+    Running UMETA(DisplayName = "Running"),
+    WaitingForChoice UMETA(DisplayName = "Waiting For Choice"),
+    Paused UMETA(DisplayName = "Paused"),
+    Completed UMETA(DisplayName = "Completed"),
+    Error UMETA(DisplayName = "Error")
+};
+
+// 会话上下文：单次剧情会话的运行时快照，保证会话状态彼此隔离。
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailSessionContext
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FName CurrentNodeId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    TArray<FName> NodeHistory;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    TMap<FName, FString> VariableSnapshot;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    TArray<FName> EmittedEvents;
+};
+
+USTRUCT(BlueprintType)
+struct NARRRAIL_API FNarrRailRuntimeResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    ENarrRailRuntimeResultCode Code = ENarrRailRuntimeResultCode::Success;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FString Message;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "NarrRail")
+    FName NodeId = NAME_None;
+
+    static FNarrRailRuntimeResult Make(const ENarrRailRuntimeResultCode InCode, const TCHAR* InMessage, const FName InNodeId = NAME_None)
+    {
+        FNarrRailRuntimeResult Result;
+        Result.Code = InCode;
+        Result.Message = InMessage;
+        Result.NodeId = InNodeId;
+        return Result;
+    }
+};
+
+// 运行时事件委托声明
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNarrRailSessionStartedDelegate, FName, EntryNodeId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNarrRailNodeEnteredDelegate, FName, NodeId, const FNarrRailNode&, Node);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNarrRailNodeExitedDelegate, FName, NodeId, const FNarrRailNode&, Node);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNarrRailSessionEndedDelegate, FName, LastNodeId, ENarrRailSessionState, EndState);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNarrRailChoicesReadyDelegate, FName, NodeId, const TArray<FNarrRailChoiceOption>&, Choices);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FNarrRailChoiceSelectedDelegate, FName, NodeId, int32, ChoiceIndex, FName, TargetNodeId);
+
+// 剧情会话执行器：负责运行时 Start/Next/Choose/Pause/Resume/Stop 流程推进。
+UCLASS(BlueprintType)
+class NARRRAIL_API UNarrRailStorySession : public UObject
+{
+    GENERATED_BODY()
+
+public:
+    // === 生命周期管理 ===
+
+    virtual void BeginDestroy() override;
+
+    // === 会话管理接口 ===
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Initialize(const UNarrRailStoryAsset* InStoryAsset);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult InitializeWithGlobalConfig(const UNarrRailStoryAsset* InStoryAsset, const UNarrRailGlobalConfigAsset* InGlobalConfig);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Start(FName OverrideEntryNodeId = NAME_None);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Next();
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Choose(int32 ChoiceIndex);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Pause();
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Resume();
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailRuntimeResult Stop();
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    ENarrRailSessionState GetSessionState() const
+    {
+        return SessionState;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FName GetCurrentNodeId() const
+    {
+        return Context.CurrentNodeId;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    int32 GetCurrentMultiDialogueLineIndex() const
+    {
+        return CurrentMultiDialogueLineIndex;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    int32 GetCurrentMultiDialogueTotalLines() const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    bool IsCurrentNodeMultiDialogue() const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    bool GetCurrentNode(FNarrRailNode& OutNode) const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    TArray<FNarrRailChoiceOption> GetCurrentChoices() const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    const TArray<FName>& GetHistory() const
+    {
+        return Context.NodeHistory;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailSessionContext GetSessionContext() const
+    {
+        return Context;
+    }
+
+    // 获取最后一次选择的信息
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailLastChoiceInfo GetLastChoice() const
+    {
+        return LastChoiceInfo;
+    }
+
+    // 获取变量容器（用于直接访问变量系统）
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    UNarrRailVariableContainer* GetVariableContainer() const
+    {
+        return VariableContainer;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    UNarrRailVariableContainer* GetGlobalVariableContainer() const
+    {
+        return GlobalVariableContainer;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    const UNarrRailGlobalConfigAsset* GetGlobalConfigAsset() const
+    {
+        return GlobalConfigAsset;
+    }
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    bool GetPresetSpeaker(FName SpeakerId, FNarrRailPresetSpeaker& OutSpeaker) const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FString ResolveSpeakerDisplayName(FName SpeakerId) const;
+
+
+    // 便捷的变量访问接口
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult GetVariableBool(FName VariableName, bool& OutValue) const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult GetVariableInt(FName VariableName, int32& OutValue) const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult GetVariableFloat(FName VariableName, float& OutValue) const;
+
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult GetVariableString(FName VariableName, FString& OutValue) const;
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult SetVariableBool(FName VariableName, bool Value);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult SetVariableInt(FName VariableName, int32 Value);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult SetVariableFloat(FName VariableName, float Value);
+
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Runtime")
+    FNarrRailVariableResult SetVariableString(FName VariableName, const FString& Value);
+
+    // === UI 显示器管理 ===
+
+    /**
+     * 注册对话显示器（UI 组件）
+     * @param Presenter 实现了 INarrRailDialoguePresenterInterface 的 UI 组件
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|UI")
+    void RegisterDialoguePresenter(TScriptInterface<INarrRailDialoguePresenterInterface> Presenter);
+
+    /**
+     * 取消注册对话显示器
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|UI")
+    void UnregisterDialoguePresenter();
+
+    /**
+     * 获取当前注册的对话显示器
+     * @return 当前的对话显示器，如果未注册则返回 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|UI")
+    TScriptInterface<INarrRailDialoguePresenterInterface> GetDialoguePresenter() const
+    {
+        return DialoguePresenter;
+    }
+
+    // === 运行时事件委托 ===
+
+    // 会话启动事件
+    UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
+    FNarrRailSessionStartedDelegate OnSessionStarted;
+
+    // 节点进入事件
+    UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
+    FNarrRailNodeEnteredDelegate OnNodeEntered;
+
+    // 节点退出事件
+    UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
+    FNarrRailNodeExitedDelegate OnNodeExited;
+
+    // 会话结束事件
+    UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
+    FNarrRailSessionEndedDelegate OnSessionEnded;
+
+    // 选项准备就绪事件
+    UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
+    FNarrRailChoicesReadyDelegate OnChoicesReady;
+
+    // 选项被选择事件
+    UPROPERTY(BlueprintAssignable, Category = "NarrRail|Events")
+    FNarrRailChoiceSelectedDelegate OnChoiceSelected;
+
+    // === 全局会话管理（用于调试器自动查找） ===
+
+    /**
+     * 获取所有活跃的会话
+     * @return 当前所有活跃的会话列表
+     */
+    static TArray<UNarrRailStorySession*> GetAllActiveSessions();
+
+    /**
+     * 设置会话的调试名称（可选，用于多会话场景）
+     * @param InDebugName 调试名称
+     */
+    UFUNCTION(BlueprintCallable, Category = "NarrRail|Debug")
+    void SetDebugName(const FString& InDebugName);
+
+    /**
+     * 获取会话的调试名称
+     * @return 调试名称
+     */
+    UFUNCTION(BlueprintPure, Category = "NarrRail|Debug")
+    FString GetDebugName() const { return DebugName; }
+
+private:
+    void ResetSessionContextFromAsset();
+    void SyncVariableSnapshotToContext();
+    bool BuildMultiDialogueDisplay(const FNarrRailNode& Node, FNarrRailDialogueRequest& OutRequest) const;
+    FString MakeDefaultVariableValue(ENarrRailVariableType VariableType) const;
+    FNarrRailRuntimeResult AdvanceToNode(FName TargetNodeId);
+    FNarrRailRuntimeResult ResolveNextByEdge(const FNarrRailNode& FromNode, FName& OutNextNodeId) const;
+    const FNarrRailNode* FindNode(FName NodeId) const;
+
+    bool EvaluateConditionExpression(const FNarrRailConditionExpression& Condition) const;
+    bool EvaluateConditionBranch(const FNarrRailConditionBranch& Branch) const;
+    bool EvaluateConditionTerm(const FNarrRailConditionTerm& Term) const;
+    bool ExecuteActions(const TArray<FNarrRailNodeAction>& Actions, FString& OutErrorMessage);
+    UNarrRailVariableContainer* FindVariableContainerForName(FName VariableName) const;
+
+    TArray<int32> BuildAvailableChoiceIndices(const FNarrRailNode& ChoiceNode) const;
+    TArray<int32> BuildVisibleChoiceIndices(const FNarrRailNode& ChoiceNode) const;
+    TArray<FNarrRailChoiceOption> BuildVisibleChoiceOptions(const FNarrRailNode& ChoiceNode) const;
+
+    // 穷举选择分支结束时的统一回返处理
+    bool TryPopExhaustiveReturn(FName& OutReturnNodeId);
+
+private:
+    UPROPERTY(Transient)
+    TObjectPtr<const UNarrRailStoryAsset> StoryAsset;
+
+    UPROPERTY(Transient)
+    TObjectPtr<const UNarrRailGlobalConfigAsset> GlobalConfigAsset;
+
+    UPROPERTY(Transient)
+    ENarrRailSessionState SessionState = ENarrRailSessionState::Idle;
+
+    UPROPERTY(Transient)
+    ENarrRailSessionState StateBeforePause = ENarrRailSessionState::Idle;
+
+    UPROPERTY(Transient)
+    FNarrRailSessionContext Context;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UNarrRailVariableContainer> VariableContainer;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UNarrRailVariableContainer> GlobalVariableContainer;
+
+    UPROPERTY(Transient)
+    FNarrRailLastChoiceInfo LastChoiceInfo;
+
+    UPROPERTY(Transient)
+    int32 CurrentMultiDialogueLineIndex = INDEX_NONE;
+
+    // 运行时缓存：UHT 不支持 TMap value 为容器类型，因此不使用 UPROPERTY
+    TMap<FName, TSet<int32>> ExhaustiveSelectedChoiceIndices;
+
+    // 运行时缓存：Choice 可见索引映射（UI index -> 原始 choice index）
+    TMap<FName, TArray<int32>> RuntimeVisibleChoiceIndexMap;
+
+    // 穷举选择分支的待返回栈（支持嵌套）
+    TArray<FName> ExhaustivePendingChoiceReturnStack;
+
+    UPROPERTY(Transient)
+    FString DebugName;
+
+    // 注册的对话显示器
+    UPROPERTY(Transient)
+    TScriptInterface<INarrRailDialoguePresenterInterface> DialoguePresenter;
+
+    // 全局活跃会话列表
+    static TArray<UNarrRailStorySession*> ActiveSessions;
+};

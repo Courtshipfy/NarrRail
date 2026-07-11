@@ -4,6 +4,8 @@
 
 NarrRail is the UE5.7 runtime/editor plugin for the NarrRail toolchain. It consumes `.nrstory` files authored in NarrRailEditor and turns them into Unreal assets that can be executed from C++ or Blueprint.
 
+Compatibility matrix and setup instructions are tracked in `Docs/04_narrrail_ue_host/UNREAL_PLUGIN_COMPATIBILITY.md` until the plugin moves to `NarrRail-Unreal-Plugin`.
+
 ## Current Scope
 
 This plugin is suitable for a first technical preview release. It supports story asset import/sync, runtime session execution, Blueprint-facing session APIs, validation, and debug tools.
@@ -59,13 +61,16 @@ Settings:
 ## Known Limitations
 
 - Save/Load is not implemented yet
-- Global config assets can be imported, but full runtime consumption is still being expanded
+- `.nroutline` and legacy `.nrrail` are not imported by the UE consumer yet
+- Choice timeout / `choice-timeout` support is not declared for the UE runtime yet
 - Blueprint helper functions do not yet cover every editor-side authoring feature
 - Automated test coverage is limited
 
 ## Documentation
 
-- `Docs/02_runtime/SCRIPT_FORMAT.md`: `.nrstory` format
+- `Docs/spec/NRSTORY_FORMAT.md`: neutral `.nrstory` / `.nroutline` format contract
+- `Docs/04_narrrail_ue_host/UNREAL_PLUGIN_COMPATIBILITY.md`: compatibility matrix and setup
+- `Docs/02_runtime/SCRIPT_FORMAT.md`: runtime-facing format entry
 - `Docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md`: Blueprint quick start
 - `Docs/03_ui_blueprint/UI_INTERFACE_DESIGN.md`: UI integration design
 - `Docs/04_narrrail_ue_host/NARRRAIL_UE_HOST.md`: host project and sync workflow

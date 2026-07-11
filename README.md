@@ -122,11 +122,13 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 - `Docs/adr/0001-split-unreal-consumer-repository.md`：UE consumer repo 拆分决策
 - `Docs/agents/spec-kit.md`：大型执行票的 spec-kit 兼容工作流
 - `.specify/`：官方 Spec Kit 脚本、模板、constitution 与 agent 集成配置
-- `.agents/skills/speckit-*` / `.cursor/skills/speckit-*`：Codex 和 Cursor Agent 的 Spec Kit skills
+- `.agents/skills/speckit-*`：Codex 的 Spec Kit skills
 - `specs/`：大型功能的 feature spec / plan / tasks / checklist 产物
 - `Docs/research/0037-authoring-product-code-boundaries.md`：authoring product 代码边界
 - `Docs/research/0039-product-technology-shape.md`：Web / desktop / shared core 技术形态评估
-- `Docs/02_runtime/SCRIPT_FORMAT.md`：`.nrstory` / `.nroutline` 格式规范
+- `Docs/spec/NRSTORY_FORMAT.md`：`.nrstory` / `.nroutline` 中立格式契约
+- `Docs/02_runtime/SCRIPT_FORMAT.md`：运行时侧格式说明和历史入口
+- `Docs/04_narrrail_ue_host/UNREAL_PLUGIN_COMPATIBILITY.md`：UE consumer 兼容矩阵和设置说明
 - `Docs/06_planning/OUTLINE_EXTENSION_MIGRATION.md`：`.nrrail` 到 `.nroutline` 迁移说明
 - `NarrRailEditor/README.md`：当前创作端说明
 - `.codex/skills/narrrail-story-converter/`：剧情文稿转换 skill

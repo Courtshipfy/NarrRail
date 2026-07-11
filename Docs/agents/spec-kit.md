@@ -1,6 +1,6 @@
 # Spec-Kit Workflow
 
-NarrRail uses GitHub Issues as the source of truth for work selection, and official Spec Kit project scaffolding for larger execution specs. The repository is initialized with the GitHub Spec Kit `specify` CLI using Codex and Cursor Agent skill integrations.
+NarrRail uses GitHub Issues as the source of truth for work selection, and official Spec Kit project scaffolding for larger execution specs. The repository is initialized with the GitHub Spec Kit `specify` CLI using the Codex skill integration.
 
 Reference: GitHub Spec Kit is the upstream "Spec-Driven Development" toolkit at <https://github.com/github/spec-kit>.
 
@@ -20,10 +20,9 @@ The official project files live in:
 
 - `.specify/`: Spec Kit scripts, templates, workflow metadata, and NarrRail constitution memory.
 - `.agents/skills/speckit-*`: Codex skill integration for Spec Kit commands.
-- `.cursor/skills/speckit-*`: Cursor Agent skill integration for Spec Kit commands.
 - `specs/`: feature specs generated or maintained for large execution issues.
 
-Do not place credentials or private agent state under `.agents/` or `.cursor/`. Only the `speckit-*` skills are intended to be tracked.
+Do not place credentials or private agent state under `.agents/`. Only the `speckit-*` skills are intended to be tracked.
 
 ## When To Use This
 
@@ -93,7 +92,6 @@ If a feature already has a Figma file, research note, ADR, or prototype, link to
 - `to-spec`: can synthesize a spec from an already-settled conversation or issue.
 - `to-tickets`: can break a settled plan or spec into smaller issues.
 - `$speckit-specify`, `$speckit-plan`, `$speckit-tasks`, `$speckit-implement`: official Spec Kit flow for larger execution issues.
-- In Cursor Agent, use the slash-command form shown by Spec Kit, such as `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, and `/speckit-implement`.
 - `implement`: executes an issue or task. For large issues, read the corresponding `specs/<four-digit-issue-number>-<short-name>/` folder first.
 - `code-review`: review implementation against both the issue and the spec folder.
 
