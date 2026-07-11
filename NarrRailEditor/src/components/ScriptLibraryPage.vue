@@ -2019,36 +2019,35 @@ watch(
     right: -8px;
     width: 300px;
     max-width: min(300px, calc(100vw - 32px));
-    padding: 8px;
-    border-radius: 12px;
+    padding: 9px 10px;
+    border-radius: 14px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     z-index: 80;
-    background: color-mix(in srgb, var(--nr-bg) 82%, #ffffff 18%);
+    background: color-mix(in srgb, var(--nr-bg) 58%, #ffffff 42%);
     border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
     box-shadow:
         0 18px 42px rgba(15, 23, 42, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
     backdrop-filter: blur(18px);
 }
 
 .search-popover input {
     min-width: 0;
-    background: color-mix(in srgb, var(--nr-bg) 70%, #ffffff 30%);
-    border: 1px solid color-mix(in srgb, var(--nr-text) 18%, transparent);
+    background: transparent;
+    border: none;
     color: var(--nr-text);
-    border-radius: 8px;
-    padding: 8px 10px;
+    border-radius: 0;
+    padding: 6px 4px;
     outline: none;
     font-size: 13px;
     font-weight: 700;
 }
 
 .search-popover input:focus {
-    border-color: color-mix(in srgb, #60a5fa 58%, var(--nr-text) 18%);
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+    box-shadow: none;
 }
 
 .search-clear-btn {
@@ -2060,13 +2059,13 @@ watch(
     border: none;
     border-radius: 9px;
     color: color-mix(in srgb, var(--nr-text) 70%, transparent);
-    background: rgba(148, 163, 184, 0.12);
+    background: transparent;
     cursor: pointer;
 }
 
 .search-clear-btn:hover {
     color: var(--nr-text);
-    background: rgba(148, 163, 184, 0.2);
+    background: rgba(148, 163, 184, 0.14);
 }
 
 @media (max-width: 1180px) {
@@ -2619,15 +2618,24 @@ watch(
 }
 
 :global(body[data-theme="dark"]) .script-library-page .repo-picker-button,
-:global(body[data-theme="dark"]) .script-library-page .search-popover input,
 :global(body[data-theme="dark"]) .script-library-page .inline-form input,
 :global(body[data-theme="dark"]) .script-library-page .inline-form select,
 :global(body.dark-theme) .script-library-page .repo-picker-button,
-:global(body.dark-theme) .script-library-page .search-popover input,
 :global(body.dark-theme) .script-library-page .inline-form input,
 :global(body.dark-theme) .script-library-page .inline-form select {
     background: rgba(15, 23, 42, 0.86);
     border-color: rgba(148, 163, 184, 0.22);
+    color: #e5e7eb;
+}
+
+:global(body[data-theme="dark"]) .script-library-page .search-popover,
+:global(body.dark-theme) .script-library-page .search-popover {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: rgba(148, 163, 184, 0.22);
+}
+
+:global(body[data-theme="dark"]) .script-library-page .search-popover input,
+:global(body.dark-theme) .script-library-page .search-popover input {
     color: #e5e7eb;
 }
 
