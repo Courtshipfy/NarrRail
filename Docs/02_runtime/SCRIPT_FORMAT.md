@@ -12,7 +12,7 @@
 - Story Project 总纲 / 编排：`.nroutline`
 - Legacy 总纲后缀：`.nrrail`（只读或兼容编辑路径，后续新文件不再默认使用）
 
-UE 插件是当前 Story Consumer 之一。它可以读取 `.nrstory` 与 GlobalConfig，但不再定义主仓库的格式方向。后续 UE 兼容性应通过版本矩阵说明。
+Unreal 插件是外部 Story Consumer 之一。它可以读取 `.nrstory` 与 GlobalConfig，但源码、UE 设置和兼容细节由 [`NarrRail-Unreal-Plugin`](https://github.com/Courtshipfy/NarrRail-Unreal-Plugin) 维护；主仓库只定义中立格式方向。
 
 ## 2. 文件类型
 
@@ -613,7 +613,7 @@ Consumer 兼容要求：
 - 可以忽略自身不消费的 authoring-only 信息，但不得把平台专用字段写回中立格式。
 - 平台专用同步、资产生成、Blueprint、PIE、HUD、Content path 等细节应记录在对应 Consumer 仓库或兼容矩阵中。
 
-当前 UE 插件是一个 Story Consumer。UE 专属同步与资产映射说明后续应迁移到 `NarrRail-Unreal-Plugin`，主仓库只保留格式契约和兼容矩阵入口。
+当前 Unreal 插件是一个外部 Story Consumer，源码和 UE 专属同步、资产映射、Blueprint、PIE、HUD、Content path 文档位于 `NarrRail-Unreal-Plugin`：<https://github.com/Courtshipfy/NarrRail-Unreal-Plugin>。主仓库只保留格式契约和中立兼容边界。
 
 ## 18. 校验规则
 

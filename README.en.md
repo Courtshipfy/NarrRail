@@ -2,140 +2,114 @@
 
 [中文](./README.md)
 
-NarrRail is being repositioned as a script creation and authoring-assistance product for interactive narrative projects. The main repository owns the Story Project workflow, `.nrstory` / `.nroutline` formats, validation, preview, and conversion workflows.
+NarrRail is an authoring and script-assistance product for interactive narrative projects. The main repository owns the Story Project workflow, `.nrstory` / GlobalConfig / `.nroutline` neutral format contracts, import review, preview validation, and conversion workflows.
 
-> Documentation status: the Chinese README is now the canonical, up-to-date product positioning document. NarrRail is being repositioned around a Story Project authoring workbench and story-format ownership. The UE plugin and host project are now treated as Story Consumer code pending migration to `NarrRail-Unreal-Plugin`. This English README still contains older UE-first details and should be refreshed after the Chinese authoring-product docs settle.
+The Unreal Engine plugin and sample host now live in the separate Story Consumer repository:
 
-## 1. NarrRailEditor
+<https://github.com/Courtshipfy/NarrRail-Unreal-Plugin>
 
-NarrRailEditor is used for story graph authoring, structural validation, preview review, and `.nrstory` import/export.
+## Product Focus
 
-### Current Capabilities
+NarrRail's first-stage user is the Narrative Creator: a writer, narrative designer, or creator who needs to organize branching story structure.
 
-- Graph editing: `Dialogue` / `MultiDialogue` / `Choice` / `Jump` / `SetVariable` / `EmitEvent` / `Condition` / `End`
-- Multi-branch Condition nodes: each branch maps to a `condition-N` output, with `condition-fallback` for unmatched cases
+Core workflow:
+
+```text
+idea / outline
+  -> Story Project organization
+  -> structured script editing
+  -> branches, variables, and conditions
+  -> Project Review Queue
+  -> Project Preview
+  -> export .nrstory / .nroutline for Story Consumers
+```
+
+## Story Project
+
+Story Project is the project-level authoring workspace. The first-stage storage model is a GitHub-backed repository or repository-like folder.
+
+Recommended structure:
+
+```text
+Stories/
+  main_story.nroutline
+  chapter_01.nrstory
+Config/
+  global-config.nrstory
+```
+
+- `.nrstory`: story script content with nodes, edges, dialogue, choices, conditions, variable operations, events, and endings.
+- `.nroutline`: project-level story outline that composes multiple `.nrstory` files into chapters, routes, or a larger structure.
+- `Config/global-config.nrstory`: project-level variables and preset speakers.
+
+Legacy `.nrrail` files are compatibility-only outline files. New outlines should use `.nroutline`.
+
+## Current Authoring App
+
+`NarrRailEditor/` is the current Vue 3 + Vite authoring app.
+
+Current capabilities:
+
+- Graph editing for `Dialogue`, `MultiDialogue`, `Choice`, `Jump`, `SetVariable`, `EmitEvent`, `Condition`, and `End`
+- Multi-branch Condition nodes with `condition-N` outputs and `condition-fallback`
 - Global variables and preset speakers
 - `.nrstory` import/export
-- Real-time + manual validation
+- `.nroutline` / legacy `.nrrail` migration path
+- Real-time and manual validation
 - Local autosave fallback
-- Preview mode with runtime-like execution flow
+- Runtime-semantics preview
+- GitHub-backed script library and config sync
 
-### Quick Start
+Local development:
 
-Online entry:
-
-- https://narr-rail.courtship.top
-
-Recommended flow:
-
-1. Open NarrRailEditor online, sign in, and enter Script Library
-2. Create or open a `.nrstory`, then edit nodes and validate
-3. Use Preview Mode to review the flow
-4. Export `.nrstory` and commit it to the story repository
-5. Sync the story repository into UE with `Sync Stories`
-
-Local development (`npm run dev`) is intended for editor feature development and debugging. See `NarrRailEditor/README.md`.
-
-## 2. NarrRail Story Converter Skill
-
-NarrRail Story Converter is a project-level Codex skill for converting writer
-manuscripts into NarrRail `.nrstory` files. It is no longer maintained as a
-standalone converter directory; the conversion rules, NarrRail constraints,
-project profile template, and helper scripts live inside the skill.
-
-### Goals
-
-- Let Codex automatically use the NarrRail conversion workflow for writer drafts
-- Support loose prose, spreadsheets, dialogue drafts, scene outlines, and mixed
-  source formats
-- Provide project profiles for cast, naming rules, branch recognition, and
-  forbidden inference
-- Generate `.nrstory` plus conversion notes, then validate with the NarrRailEditor
-  validator when available
-- Keep generated output compatible with the current UE plugin and NarrRailEditor import flow
-
-### Install
-
-macOS / Linux / Windows PowerShell:
-
-```shell
-node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require('child_process');const home=process.env.CODEX_HOME||path.join(os.homedir(),'.codex');const installer=path.join(home,'skills','.system','skill-installer','scripts','install-skill-from-github.py');if(!fs.existsSync(installer)){console.error('Codex skill installer not found: '+installer);process.exit(1)};const base=['--repo','Courtshipfy/NarrRail','--ref','main','--path','.codex/skills/narrrail-story-converter'];for(const c of process.platform==='win32'?[['py',['-3']],['python',[]],['python3',[]]]:[['python3',[]],['python',[]]]){const r=cp.spawnSync(c[0],[...c[1],installer,...base],{stdio:'inherit'});if(!r.error)process.exit(r.status??0)};console.error('Python not found. Install Python 3.');process.exit(1)"
+```bash
+cd NarrRailEditor
+npm ci
+npm run dev -- --host 127.0.0.1
 ```
 
-Restart Codex after installation, then ask for a conversion directly:
+Validation:
 
-```text
-Convert this writer draft into a NarrRail .nrstory and include conversion notes.
+```bash
+cd NarrRailEditor
+npm test
 ```
 
-## 3. UE Plugin
+## Script Conversion
 
-The UE plugin handles runtime execution, Blueprint integration, debugging, and story repository sync.
+NarrRail Story Converter is a project-level Codex skill for converting writer-provided Word, Excel, CSV, TXT, screenplay drafts, scene outlines, or loose prose into structured NarrRail story files.
 
-### Current Capabilities
+Short-term goals:
 
-- Runtime Core: state machine, variables, conditions, actions
-- Blueprint API: event system and helper functions
-- Story Repository Sync: sync `.nrstory` files from a local story Git repository
-- Global Config Import: import global variables and preset speakers as `UNarrRailGlobalConfigAsset`
-- Debugger: HUD and console commands
-- Save/Load: planned
+- Generate `.nrstory` from source manuscripts
+- Output `conversion-notes.md`
+- Handle uncertainty conservatively
+- Validate structure against NarrRail rules
 
-### UE-side Flow
+Medium-term direction:
 
-1. Commit exported `.nrstory` files from NarrRailEditor into the local story Git repository
-2. Open `NarrRailUEHost/NarrRailUEHost.uproject` with UE5.7
-3. Configure `Story Repository Path` in `Project Settings > Plugins > NarrRail`
-4. Click `Sync Stories` in the toolbar
-5. The plugin runs `git pull --ff-only` by default, then syncs all `.nrstory` files
-6. Validate story execution in PIE with debugger tools
+- Emit Story Project Import Packages
+- Support `Config/conversion-profile.md`
+- Route generated content through Import Package Review before merging into the authoritative Story Project
 
-Sync rules:
+## Story Consumers
 
-- Default asset root: `/Game/NarrRailStories`
-- Actual sync target: `/Game/NarrRailStories/<repository-folder-name>`
-- Repository subdirectories are mirrored into UE Content
-- Normal story files create/update `UNarrRailStoryAsset`
-- `meta.configType: GlobalConfig` files create/update `UNarrRailGlobalConfigAsset`
-- Deleted repository files remove the corresponding assets after confirmation
+The main repository does not carry active Story Consumer implementation code. Story Consumers read NarrRail story files and declare compatibility with the main repository's neutral format contracts.
 
-## 4. NarrRailUEHost Plugin Placement
+Unreal consumer:
 
-`NarrRailUEHost` needs to resolve the `NarrRail/` plugin source in this repository.
+- Repository: <https://github.com/Courtshipfy/NarrRail-Unreal-Plugin>
+- Main-repo pointer: `Docs/story-consumers/NARRRAIL_UNREAL_PLUGIN.md`
 
-Recommended link:
+Format changes requested by a consumer should start in this main repository, because this repository owns `.nrstory`, GlobalConfig, and `.nroutline` semantics.
 
-```text
-NarrRailUEHost/Plugins/NarrRail -> ../../NarrRail
-```
+## Important Docs
 
-`NarrRailUEHost/Build-NarrRailUEHost.cmd` automatically checks and creates this Junction. A normal `.lnk` shortcut may not be recognized by Unreal Engine.
-
-## 5. Core Documentation
-
-- `NarrRailEditor/README.md`: editor guide
-- `.codex/skills/narrrail-story-converter/SKILL.md`: story conversion skill
-- `.codex/skills/narrrail-story-converter/references/`: NarrRail format and conversion policy
-- `Docs/02_runtime/SCRIPT_FORMAT.md`: script format specification
-- `Docs/03_ui_blueprint/BLUEPRINT_QUICKSTART.md`: Blueprint quick start
-- `Docs/02_runtime/DEBUGGER_GUIDE.md`: debugger guide
-- `Docs/04_narrrail_ue_host/NARRRAIL_UE_HOST.md`: UE host project and story repository sync
-- `Docs/01_architecture/TECH_ARCHITECTURE.md`: technical architecture
-- `Docs/06_planning/TASK_PLAN.md`: WBS task plan
-
-## 6. Repository Structure
-
-- `NarrRail/`: UE plugin source
-  - `Source/NarrRail/`: runtime module (C++)
-  - `Source/NarrRailEditor/`: editor module (C++)
-- `NarrRailUEHost/`: UE development host project
-- `NarrRailEditor/`: Web editor
-- `.codex/skills/narrrail-story-converter/`: Codex skill for story manuscript to `.nrstory` conversion
-- `Docs/`: project documentation
-
-## 7. Language Strategy
-
-- **C++**: runtime and editor core
-- **Blueprint**: integration layer, not core logic
-- **TypeScript / JavaScript / Vue / Svelte**: Web authoring app
-- **Markdown / JavaScript**: Codex skill, conversion policy, and helper scripts
+- `CONTEXT.md`: domain language
+- `Docs/spec/NRSTORY_FORMAT.md`: neutral `.nrstory` / GlobalConfig / `.nroutline` format contract
+- `Docs/02_runtime/SCRIPT_FORMAT.md`: runtime-facing format reference and historical entry point
+- `Docs/story-consumers/NARRRAIL_UNREAL_PLUGIN.md`: Unreal Story Consumer repository pointer
+- `Docs/adr/0001-split-unreal-consumer-repository.md`: repository split decision
+- `Docs/agents/spec-kit.md`: Spec Kit workflow for large execution issues
+- `NarrRailEditor/README.md`: current authoring app guide
+- `.codex/skills/narrrail-story-converter/`: manuscript conversion skill

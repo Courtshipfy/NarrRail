@@ -40,7 +40,7 @@ judgment to infer structure, then validate the result.
 - Otherwise use a local `out/` directory near the source or current project.
 - Do not mix review notes, second-pass hints, or writer comments into the main
   story path unless the user asks for them.
-- Keep `.nrstory` compatible with the existing UE plugin:
+- Keep `.nrstory` compatible with the neutral NarrRail format contract and declared Story Consumer compatibility:
   - one line: `Dialogue`
   - multiple consecutive lines by the same speaker: `MultiDialogue`
   - explicit alternatives: `Choice` with matching `choice-N` edges
@@ -57,4 +57,3 @@ node .codex/skills/narrrail-story-converter/scripts/prepare-ai-conversion.mjs <m
 
 The packet combines the project profile, NarrRail conversion guide, and source
 manuscript.
-

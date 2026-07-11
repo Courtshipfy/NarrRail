@@ -320,7 +320,7 @@ Authoring 端导出要求：
 
 ## 10. Story Consumer compatibility
 
-Story Consumer 是读取 NarrRail 输出并在下游运行、展示或校验故事内容的实现。Consumer 包括但不限于未来的 `NarrRail-Unreal-Plugin`。
+Story Consumer 是读取 NarrRail 输出并在下游运行、展示或校验故事内容的实现。Consumer 包括 [`NarrRail-Unreal-Plugin`](https://github.com/Courtshipfy/NarrRail-Unreal-Plugin)。
 
 Consumer 必须声明：
 

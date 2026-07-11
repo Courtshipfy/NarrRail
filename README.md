@@ -4,7 +4,7 @@
 
 NarrRail 是一个面向互动叙事创作者的剧本创作与辅助产品。主仓库现在以 **Story Project 创作工作台**、`.nrstory` / `.nroutline` 故事格式、导入审查、预览校验和创作辅助流程为中心。
 
-UE 插件和示例工程仍保留在当前仓库中，但它们已经被重新定位为 **Story Consumer**：下游运行端读取 NarrRail 导出的故事文件，并声明与主仓库格式版本的兼容关系。后续会拆分到独立仓库 `NarrRail-Unreal-Plugin` 维护。
+UE 插件和示例工程已经迁移到独立仓库 [`NarrRail-Unreal-Plugin`](https://github.com/Courtshipfy/NarrRail-Unreal-Plugin)。它是 **Story Consumer**：下游运行端读取 NarrRail 导出的故事文件，并声明与主仓库格式版本的兼容关系。
 
 ## 1. 产品定位
 
@@ -99,22 +99,18 @@ NarrRail Story Converter 是项目级 Codex skill，用于把编剧提供的 Wor
 node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require('child_process');const home=process.env.CODEX_HOME||path.join(os.homedir(),'.codex');const installer=path.join(home,'skills','.system','skill-installer','scripts','install-skill-from-github.py');if(!fs.existsSync(installer)){console.error('Codex skill installer not found: '+installer);process.exit(1)};const base=['--repo','Courtshipfy/NarrRail','--ref','main','--path','.codex/skills/narrrail-story-converter'];for(const c of process.platform==='win32'?[['py',['-3']],['python',[]],['python3',[]]]:[['python3',[]],['python',[]]]){const r=cp.spawnSync(c[0],[...c[1],installer,...base],{stdio:'inherit'});if(!r.error)process.exit(r.status??0)};console.error('Python not found. Install Python 3.');process.exit(1)"
 ```
 
-## 5. UE Consumer
+## 5. Story Consumer
 
-`NarrRail/` 和 `NarrRailUEHost/` 目前仍在本仓库中，作为 UE Story Consumer 的源码和开发宿主工程。
+主仓库不再携带 UE 插件源码和示例工程。Unreal 相关源码、Host、Blueprint、Debugger、PIE、Sync Stories 和资产同步文档都在：
 
-当前定位：
+<https://github.com/Courtshipfy/NarrRail-Unreal-Plugin>
 
-- 读取并执行 `.nrstory`
-- 导入 GlobalConfig
-- 同步故事仓库到 UE Content
-- 提供 Blueprint API、运行时调试和 PIE 验证能力
+主仓库保留的职责：
 
-后续计划：
-
-- clean copy 到 `NarrRail-Unreal-Plugin`
-- 在新仓库维护 UE 插件、示例工程和 UE 专属文档
-- 在主仓库只保留 Story Consumer compatibility matrix 和格式兼容说明
+- 维护 `.nrstory` / GlobalConfig / `.nroutline` 中立格式契约
+- 维护 Story Project 创作、导入审查、预览和转换工作流
+- 记录 Story Consumer 的兼容边界
+- 要求格式变更先通过主仓库 issue 和兼容说明处理
 
 ## 6. 重要文档
 
@@ -128,7 +124,7 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 - `Docs/research/0039-product-technology-shape.md`：Web / desktop / shared core 技术形态评估
 - `Docs/spec/NRSTORY_FORMAT.md`：`.nrstory` / `.nroutline` 中立格式契约
 - `Docs/02_runtime/SCRIPT_FORMAT.md`：运行时侧格式说明和历史入口
-- `Docs/04_narrrail_ue_host/UNREAL_PLUGIN_COMPATIBILITY.md`：UE consumer 兼容矩阵和设置说明
+- `Docs/story-consumers/NARRRAIL_UNREAL_PLUGIN.md`：Unreal Story Consumer 仓库入口
 - `Docs/06_planning/OUTLINE_EXTENSION_MIGRATION.md`：`.nrrail` 到 `.nroutline` 迁移说明
 - `NarrRailEditor/README.md`：当前创作端说明
 - `.codex/skills/narrrail-story-converter/`：剧情文稿转换 skill
@@ -140,7 +136,6 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 - 按 spec-kit 工作流规格化大型功能
 - Story Project IA / Dashboard Figma 原型
 - NarrRail authoring design system
-- UE consumer repo 拆分执行票
 - Script Conversion / Import Package Review 执行票
 - Project Dashboard / Review Queue / Preview 生产实现
 - Structured Script View 生产实现
