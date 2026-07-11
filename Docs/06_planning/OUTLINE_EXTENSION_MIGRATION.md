@@ -62,14 +62,14 @@ This migration should change the repository-facing file semantics first. Interna
 - Update `Docs/02_runtime/SCRIPT_FORMAT.md`.
 - Replace primary `.nrrail` references with `.nroutline`.
 - Add a compatibility note: `.nrrail` is a legacy outline suffix still supported by the editor.
-- Update `Docs/06_planning/TASK_PLAN.md` references.
+- Update active README and editor docs that mention outline file names.
 
 ## Non-Goals For This Branch
 
 - Do not rename internal variables/functions from `rail` to `outline`.
 - Do not change YAML schema field names such as `railId`.
 - Do not add a destructive migration that deletes old `.nrrail` files.
-- Do not change UE plugin behavior yet.
+- Do not change downstream Story Consumer behavior in this branch.
 
 ## Acceptance Criteria
 

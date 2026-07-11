@@ -24,7 +24,7 @@ Recommended flow:
 3. Edit nodes and run validation
 4. Use Preview Mode to review flow
 5. Export `.nrstory` and commit it to the story repository
-6. Sync the repository into UE with `Sync Stories`
+6. Hand the story repository to a compatible Story Consumer
 
 ## Local Development
 
@@ -132,16 +132,12 @@ presetSpeakers: []
 
 Old double-extension names such as `*.narrrail.yaml`, `*.narrrail.yml`, and `*.narrrail.nrstory` are no longer the default convention.
 
-## UE Integration
+## Story Consumer
 
-NarrRailEditor authors and exports `.nrstory`; the UE plugin syncs the local story repository into assets.
+NarrRailEditor authors, validates, previews, and exports `.nrstory` / `.nroutline` files. Downstream Story Consumers read those files and declare compatibility with the main repository's neutral format contracts.
 
-UE-side flow:
+The Unreal Engine plugin and sample host have moved to the separate repository:
 
-1. Set `Story Repository Path` in `Project Settings > Plugins > NarrRail`
-2. Click `Sync Stories` in the toolbar
-3. The plugin runs `git pull --ff-only` by default when the folder is a Git repository
-4. The plugin mirrors the repository into `/Game/NarrRailStories/<repository-folder-name>`
-5. Story files become `UNarrRailStoryAsset`
-6. Global config files become `UNarrRailGlobalConfigAsset`
-7. Assets for deleted repository files are removed after confirmation
+<https://github.com/Courtshipfy/NarrRail-Unreal-Plugin>
+
+The main repository no longer maintains Unreal-side Sync Stories, Blueprint, PIE, asset mapping, or host-project instructions. Those implementation details belong to the external Unreal Story Consumer repository.

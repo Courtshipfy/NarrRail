@@ -123,17 +123,17 @@ const sections = [
         id: "intro",
         tone: "tone-hero",
         kicker: "NarrRail Overview",
-        title: "NarrRail\n一条面向叙事游戏的完整生产链路",
+        title: "NarrRail\n面向互动叙事的创作工作台",
         subline:
-            "把剧情设计、结构校验、脚本交付与引擎运行连接在一起，让团队围绕统一语义持续迭代。",
+            "把剧本创作、结构校验、项目预览与格式交付连接在一起，让团队围绕统一语义持续迭代。",
         highlights: [
             {
                 title: "一体化协作",
                 desc: "编剧、程序与技术美术在同一套资产模型上工作，减少沟通与转译成本。",
             },
             {
-                title: "从创作到运行",
-                desc: "Web 编辑器产出的内容可直接进入 YAML 与 UE 运行时流程，路径清晰可追踪。",
+                title: "从创作到交付",
+                desc: "编辑器产出的内容可进入 .nrstory / .nroutline 契约，并交付给声明兼容的 Story Consumer。",
             },
             {
                 title: "面向生产",
@@ -147,7 +147,7 @@ const sections = [
         kicker: "NarrRail",
         title: "让剧情创作成为可执行的产品流程",
         subline:
-            "从 Web 编辑、到 YAML 协议、再到 Unreal 运行时，一条链路打通创作与实现。",
+            "从 Story Project、到结构化剧本、再到项目级预览与导出，一条链路打通创作与实现。",
         highlights: [
             {
                 title: "统一资产语义",
@@ -155,7 +155,7 @@ const sections = [
             },
             {
                 title: "端到端可追踪",
-                desc: "每次剧情修改都能在 YAML 与 UE 运行结果上对齐验证，定位问题更直接。",
+                desc: "每次剧情修改都能在格式契约、审查结果和预览流程之间对齐验证，定位问题更直接。",
             },
             {
                 title: "面向迭代",
@@ -188,22 +188,22 @@ const sections = [
     {
         id: "runtime",
         tone: "tone-runtime",
-        kicker: "UE Plugin",
-        title: "运行时能力，直接落在引擎里",
+        kicker: "Project Preview",
+        title: "运行语义，先在创作端被看见",
         subline:
-            "会话推进、分支选择、条件执行、动作触发，都在 Blueprint 可接入的运行接口中完成。",
+            "会话推进、分支选择、条件执行、动作触发，都先在项目预览中被审校，再交付给下游 Story Consumer。",
         highlights: [
             {
-                title: "会话驱动 API",
-                desc: "通过 Start / Next / Choose 等接口控制剧情推进，便于封装到游戏逻辑。",
+                title: "项目级预览",
+                desc: "围绕 .nroutline 串联多个故事文件，按入口、跳转和条件路径审校整体流程。",
             },
             {
                 title: "分支执行策略",
                 desc: "支持单路径与穷举式推进模式，满足剧情播放与测试验证两类场景。",
             },
             {
-                title: "引擎内调试",
-                desc: "在 PIE 环境直接观察变量变化、条件命中和事件触发，缩短排错路径。",
+                title: "兼容边界清晰",
+                desc: "Unreal 等 Story Consumer 读取导出文件，但平台接入细节由各自仓库维护。",
             },
         ],
     },
@@ -211,8 +211,9 @@ const sections = [
         id: "pipeline",
         tone: "tone-pipeline",
         kicker: "Pipeline",
-        title: "四步一闭环，版本稳定推进",
-        subline: "创作与校验 -> 导出 YAML -> UE 导入执行 -> PIE 调试回流。",
+        title: "五步一闭环，版本稳定推进",
+        subline:
+            "打开 Story Project -> 编写 .nrstory / .nroutline -> 处理导入审查 -> 项目预览 -> 导出给 Story Consumer。",
         highlights: [
             {
                 title: "步骤清晰",

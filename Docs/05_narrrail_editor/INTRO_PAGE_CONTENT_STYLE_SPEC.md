@@ -75,7 +75,7 @@
 
 1. UE 插件作为 Story Consumer 读取导出的 `.nrstory`。
 2. 主仓库保留格式兼容说明和版本契约。
-3. UE 插件与示例工程后续迁移到 `NarrRail-Unreal-Plugin`。
+3. UE 插件与示例工程已经迁移到 `NarrRail-Unreal-Plugin`，Overview 只保留弱化的 Story Consumer 兼容入口。
 4. 本区不得压过 Story Project 创作能力。
 
 ### 3.4 Workflow 区（必须是五步）
