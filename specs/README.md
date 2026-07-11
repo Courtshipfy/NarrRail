@@ -1,6 +1,6 @@
 # NarrRail Specs
 
-This directory holds spec-kit-compatible execution specs for large NarrRail features.
+This directory holds Spec Kit execution specs for large NarrRail features.
 
 Use `Docs/agents/spec-kit.md` for the workflow.
 
@@ -8,11 +8,6 @@ Use `Docs/agents/spec-kit.md` for the workflow.
 
 ```text
 specs/
-  _template/
-    spec.md
-    plan.md
-    tasks.md
-    checklist.md
   0059-import-package-review/
     spec.md
     plan.md
@@ -25,3 +20,5 @@ Feature folders use the four-digit GitHub issue number plus a short kebab-case n
 ## Status
 
 Create a feature folder only when a large execution issue is ready for specification. Do not backfill closed issues unless a new implementation pass depends on them.
+
+Official templates live under `.specify/templates/`. Do not add ad hoc templates under `specs/`.

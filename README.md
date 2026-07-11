@@ -121,7 +121,9 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 - `CONTEXT.md`：NarrRail 当前领域语言
 - `Docs/adr/0001-split-unreal-consumer-repository.md`：UE consumer repo 拆分决策
 - `Docs/agents/spec-kit.md`：大型执行票的 spec-kit 兼容工作流
-- `specs/`：大型功能的 feature spec / plan / tasks / checklist 模板与产物
+- `.specify/`：官方 Spec Kit 脚本、模板、constitution 与 agent 集成配置
+- `.agents/skills/speckit-*` / `.cursor/skills/speckit-*`：Codex 和 Cursor Agent 的 Spec Kit skills
+- `specs/`：大型功能的 feature spec / plan / tasks / checklist 产物
 - `Docs/research/0037-authoring-product-code-boundaries.md`：authoring product 代码边界
 - `Docs/research/0039-product-technology-shape.md`：Web / desktop / shared core 技术形态评估
 - `Docs/02_runtime/SCRIPT_FORMAT.md`：`.nrstory` / `.nroutline` 格式规范

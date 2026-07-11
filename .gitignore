@@ -28,12 +28,15 @@ NarrRailUEHost/.idea/
 NarrRailUEHost/.vsconfig
 NarrRailUEHost/Build-NarrRailUEHost.cmd
 
-# Claude Code local files
+# Agent local files
 .claude/
-.specify/
 
 # Zed editor local files
 .zed/
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/speckit-*/
+!.cursor/skills/speckit-*/**
 NarrRailUEHost/NarrRailUEHost.sln
 
 # NarrRailEditor build artifacts
@@ -44,3 +47,9 @@ NarrRailEditor/dist/
 node_modules/
 .DS_Store
 .agents/skills
+
+# Spec Kit project scaffolding is shared repo configuration.
+.agents/*
+!.agents/skills/
+!.agents/skills/speckit-*/
+!.agents/skills/speckit-*/**

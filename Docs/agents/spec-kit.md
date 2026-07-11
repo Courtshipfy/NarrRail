@@ -1,8 +1,29 @@
 # Spec-Kit Workflow
 
-NarrRail uses GitHub Issues as the source of truth for work selection, and a lightweight `specs/` directory for larger execution specs. This is compatible with GitHub Spec Kit style spec-driven development without requiring every small change to install or run an external CLI.
+NarrRail uses GitHub Issues as the source of truth for work selection, and official Spec Kit project scaffolding for larger execution specs. The repository is initialized with the GitHub Spec Kit `specify` CLI using Codex and Cursor Agent skill integrations.
 
 Reference: GitHub Spec Kit is the upstream "Spec-Driven Development" toolkit at <https://github.com/github/spec-kit>.
+
+## Local CLI
+
+The project was initialized with Spec Kit `0.12.11`.
+
+Recommended local install:
+
+```bash
+brew install uv
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@v0.12.11
+specify version
+```
+
+The official project files live in:
+
+- `.specify/`: Spec Kit scripts, templates, workflow metadata, and NarrRail constitution memory.
+- `.agents/skills/speckit-*`: Codex skill integration for Spec Kit commands.
+- `.cursor/skills/speckit-*`: Cursor Agent skill integration for Spec Kit commands.
+- `specs/`: feature specs generated or maintained for large execution issues.
+
+Do not place credentials or private agent state under `.agents/` or `.cursor/`. Only the `speckit-*` skills are intended to be tracked.
 
 ## When To Use This
 
@@ -23,6 +44,8 @@ Implement directly from the issue when the work is small and concrete:
 - A Wayfinder ticket whose output is a decision rather than executable product behavior.
 
 Use `wayfinder` when the question is still foggy. Use a spec when the destination is decided and the remaining work is execution design.
+
+Before planning a large feature, make sure `.specify/memory/constitution.md` still reflects the current NarrRail product direction.
 
 ## Issue To Spec Mapping
 
@@ -47,7 +70,7 @@ If a feature already has a Figma file, research note, ADR, or prototype, link to
    Read the issue body, comments, linked Wayfinder decision, ADRs, and domain terms before creating the spec.
 
 2. **Create the feature folder.**
-   Copy the files from `specs/_template/` into `specs/<four-digit-issue-number>-<short-name>/`, or let official Spec Kit tooling write into that folder if it is installed for the session.
+   Prefer the official Spec Kit skills, such as `$speckit-specify`, `$speckit-plan`, and `$speckit-tasks`. For existing GitHub issues, pass or persist `SPECIFY_FEATURE_DIRECTORY=specs/<four-digit-issue-number>-<short-name>` so the folder stays aligned with the issue number. When creating folders manually, use the same convention.
 
 3. **Write `spec.md`.**
    Capture user-facing behavior, scope, non-goals, domain terms, acceptance criteria, and open questions.
@@ -69,6 +92,8 @@ If a feature already has a Figma file, research note, ADR, or prototype, link to
 - `wayfinder`: creates and resolves decision maps. It should produce issues, not detailed implementation specs, unless the map explicitly says execution is in scope.
 - `to-spec`: can synthesize a spec from an already-settled conversation or issue.
 - `to-tickets`: can break a settled plan or spec into smaller issues.
+- `$speckit-specify`, `$speckit-plan`, `$speckit-tasks`, `$speckit-implement`: official Spec Kit flow for larger execution issues.
+- In Cursor Agent, use the slash-command form shown by Spec Kit, such as `/speckit-specify`, `/speckit-plan`, `/speckit-tasks`, and `/speckit-implement`.
 - `implement`: executes an issue or task. For large issues, read the corresponding `specs/<four-digit-issue-number>-<short-name>/` folder first.
 - `code-review`: review implementation against both the issue and the spec folder.
 
