@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import YAML from "yaml";
 
-import { importFromYAML } from "../src/utils/yaml-importer.js";
-import { buildYAMLString } from "../src/utils/yaml-exporter.js";
-import { validateStory } from "../src/utils/validation.js";
+import {
+  parseStoryFromYAML,
+  serializeStoryToYAML,
+  validateStoryDocument,
+} from "../src/core/story-format.js";
 
 const storyYaml = `
 meta:
@@ -88,21 +90,16 @@ edges:
 `;
 
 {
-  const imported = importFromYAML(storyYaml);
+  const imported = parseStoryFromYAML(storyYaml);
   const variables = [
     { name: "KnowsRoute", type: "Bool", scope: "Global", boolValue: true },
   ];
-  const result = validateStory(
-    imported.nodes,
-    imported.edges,
-    imported.meta,
-    variables,
-  );
+  const result = validateStoryDocument(imported, { variables });
 
   assert.deepEqual(result.errors, []);
 
   const exported = YAML.parse(
-    buildYAMLString(imported.nodes, imported.edges, variables, imported.meta),
+    serializeStoryToYAML({ ...imported, variables }),
   );
   const choice = exported.nodes.find((node) => node.nodeId === "N_Choice");
   const condition = exported.nodes.find((node) => node.nodeId === "N_Check");
@@ -136,7 +133,7 @@ nodes:
     nodeType: End
 edges: []
 `;
-  const imported = importFromYAML(legacyChoiceYaml);
+  const imported = parseStoryFromYAML(legacyChoiceYaml);
   assert.equal(imported.nodes[0].data.choices[0].textKey, "Legacy path");
   assert.equal(imported.edges[0].sourceHandle, "choice-0");
 }
@@ -159,7 +156,7 @@ edges:
     condition: { variable: Flag }
 `;
   assert.throws(
-    () => importFromYAML(deprecatedEdgeYaml),
+    () => parseStoryFromYAML(deprecatedEdgeYaml),
     /deprecated edge condition/i,
   );
 }

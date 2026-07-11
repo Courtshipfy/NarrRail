@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import YAML from "yaml";
 
-import { buildYAMLString } from "../src/utils/yaml-exporter.js";
-import { validateStory } from "../src/utils/validation.js";
+import { buildYAMLString, validateStory } from "../src/core/story-format.js";
 
 function getErrors(nodes) {
   return validateStory(nodes, [], { entryNodeId: nodes[0]?.id }, []).errors;

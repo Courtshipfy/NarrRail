@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 
 import {
   buildInitialVarSnapshot,
+  createRailPreviewRunner,
   createStoryPreviewRunner,
-} from "../src/utils/story-preview-runner.js";
-import { createRailPreviewRunner } from "../src/utils/rail-preview-runner.js";
+} from "../src/core/preview.js";
 
 function makePreviewStory() {
   return {

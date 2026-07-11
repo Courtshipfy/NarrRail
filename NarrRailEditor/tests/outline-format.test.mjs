@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import YAML from "yaml";
 
 import {
-  buildEmptyRailData,
-  buildRailYAMLString,
-  importRailFromYAML,
-} from "../src/utils/rail-yaml.js";
-import { validateRail } from "../src/utils/rail-validation.js";
+  createEmptyOutline,
+  parseOutlineFromYAML,
+  serializeOutlineToYAML,
+  validateOutlineDocument,
+} from "../src/core/outline-format.js";
 
 {
   const outline = {
@@ -76,17 +76,13 @@ import { validateRail } from "../src/utils/rail-validation.js";
     ],
   };
 
-  const yaml = buildRailYAMLString(
-    outline.nodes,
-    outline.edges,
-    outline.meta,
-  );
+  const yaml = serializeOutlineToYAML(outline);
   const parsedYaml = YAML.parse(yaml);
   assert.equal(parsedYaml.meta.railId, "main_story");
   assert.equal(parsedYaml.nodes[0].nodeType, "Story");
 
-  const imported = importRailFromYAML(yaml);
-  const result = validateRail(imported.nodes, imported.edges, imported.meta, {
+  const imported = parseOutlineFromYAML(yaml);
+  const result = validateOutlineDocument(imported, {
     storyEntries: [{ storyId: "chapter_01" }],
     variables: [{ name: "HasTicket" }],
   });
@@ -95,13 +91,13 @@ import { validateRail } from "../src/utils/rail-validation.js";
 }
 
 {
-  const empty = buildEmptyRailData("empty_outline");
-  const result = validateRail(empty.nodes, empty.edges, empty.meta);
+  const empty = createEmptyOutline("empty_outline");
+  const result = validateOutlineDocument(empty);
   assert.deepEqual(result.errors, []);
 }
 
 {
-  const importedLegacyNrrail = importRailFromYAML(`
+  const importedLegacyNrrail = parseOutlineFromYAML(`
 meta:
   schemaVersion: 1
   railId: legacy_outline
@@ -114,12 +110,9 @@ nodes:
     storyId: missing_story
 edges: []
 `);
-  const result = validateRail(
-    importedLegacyNrrail.nodes,
-    importedLegacyNrrail.edges,
-    importedLegacyNrrail.meta,
-    { storyEntries: [{ storyId: "chapter_01" }] },
-  );
+  const result = validateOutlineDocument(importedLegacyNrrail, {
+    storyEntries: [{ storyId: "chapter_01" }],
+  });
 
   assert.equal(result.errors.length, 1);
   assert.match(result.errors[0], /引用的脚本不存在/);

@@ -4,7 +4,7 @@ import YAML from "yaml";
 import {
   parseGlobalConfigFromYAML,
   serializeGlobalConfigToYAML,
-} from "../src/utils/global-config-yaml.js";
+} from "../src/core/global-config.js";
 
 {
   const yaml = serializeGlobalConfigToYAML({
