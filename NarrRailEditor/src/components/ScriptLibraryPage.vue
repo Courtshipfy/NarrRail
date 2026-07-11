@@ -544,6 +544,7 @@ import {
     validateSpeakerId,
     validateVariableName,
 } from "../utils/editor-form-utils.js";
+import { createGithubProjectStorageAdapter } from "../utils/github-project-storage.js";
 
 const props = defineProps({
     isDarkMode: {
@@ -872,30 +873,13 @@ async function syncGlobalConfigToRepo(overrideConfig = null) {
     isSyncingGlobalConfig.value = true;
     try {
         const content = serializeGlobalConfigToYAML(sourceConfig);
-
-        const payload = {
-            owner: selectedOwner.value,
-            repo: selectedRepoName.value,
-            branch: selectedRepoBranch.value,
+        const projectStorage = createSelectedGithubProjectStorage();
+        const data = await projectStorage.writeAsset({
             path: globalConfigRepoPath.value,
             content,
             message: `chore(config): sync ${globalConfigRepoPath.value}`,
-        };
-
-        if (globalConfigRepoSha.value) {
-            payload.sha = globalConfigRepoSha.value;
-        }
-
-        const response = await fetch("/api/github/commit-file", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            sha: globalConfigRepoSha.value || undefined,
         });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data?.error || "同步全局配置到仓库失败");
-        }
 
         globalConfigRepoSha.value =
             data?.content?.sha || globalConfigRepoSha.value || "";
@@ -920,41 +904,11 @@ async function deleteScript(script) {
 
     if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
         try {
-            const readUrl = new URL(
-                window.location.origin + "/api/github/file-content",
-            );
-            readUrl.searchParams.set("mode", "content");
-            readUrl.searchParams.set("owner", selectedOwner.value);
-            readUrl.searchParams.set("repo", selectedRepoName.value);
-            readUrl.searchParams.set("branch", selectedRepoBranch.value);
-            readUrl.searchParams.set("path", path);
-
-            const readRes = await fetch(readUrl.toString(), {
-                method: "GET",
-                credentials: "include",
+            const projectStorage = createSelectedGithubProjectStorage();
+            await projectStorage.deleteAsset({
+                path,
+                message: `chore(script): delete ${path}`,
             });
-            const readData = await readRes.json();
-            if (!readRes.ok) {
-                throw new Error(readData?.error || "读取脚本信息失败");
-            }
-
-            const delRes = await fetch("/api/github/delete-file", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    owner: selectedOwner.value,
-                    repo: selectedRepoName.value,
-                    branch: selectedRepoBranch.value,
-                    path,
-                    sha: readData?.sha,
-                    message: `chore(script): delete ${path}`,
-                }),
-            });
-            const delData = await delRes.json();
-            if (!delRes.ok) {
-                throw new Error(delData?.error || "删除仓库脚本失败");
-            }
 
             await reloadScriptsFromRepo();
             return;
@@ -1032,6 +986,14 @@ const selectedRepoBranch = computed(
     () => selectedRepo.value?.defaultBranch || "main",
 );
 
+function createSelectedGithubProjectStorage() {
+    return createGithubProjectStorageAdapter({
+        owner: selectedOwner.value,
+        repo: selectedRepoName.value,
+        branch: selectedRepoBranch.value,
+    });
+}
+
 function toggleRepoPopover() {
     if (!props.authState?.authenticated || loadingRepos.value) return;
     showRepoPopover.value = !showRepoPopover.value;
@@ -1079,37 +1041,24 @@ async function loadGlobalConfigFromRepo() {
     const requestMutationVersion = globalConfigMutationVersion;
 
     try {
-        const url = new URL(
-            window.location.origin + "/api/github/file-content",
-        );
-        url.searchParams.set("mode", "content");
-        url.searchParams.set("owner", selectedOwner.value);
-        url.searchParams.set("repo", selectedRepoName.value);
-        url.searchParams.set("branch", selectedRepoBranch.value);
+        const projectStorage = createSelectedGithubProjectStorage();
         let loadedData = null;
         let foundPath = "";
 
         for (const candidatePath of GLOBAL_CONFIG_CANDIDATE_PATHS) {
-            url.searchParams.set("path", candidatePath);
-            const res = await fetch(url.toString(), {
-                method: "GET",
-                credentials: "include",
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-                loadedData = data;
+            try {
+                loadedData = await projectStorage.readAsset(candidatePath);
                 foundPath = candidatePath;
                 break;
-            }
-
-            const notFound =
-                res.status === 404 ||
-                String(data?.error || "")
-                    .toLowerCase()
-                    .includes("not found");
-            if (!notFound) {
-                throw new Error(data?.error || "读取全局配置失败");
+            } catch (error) {
+                const notFound =
+                    error?.status === 404 ||
+                    String(error?.message || "")
+                        .toLowerCase()
+                        .includes("not found");
+                if (!notFound) {
+                    throw new Error(error?.message || "读取全局配置失败");
+                }
             }
         }
 
@@ -1156,22 +1105,7 @@ async function reloadScriptsFromRepo() {
     if (!selectedOwner.value || !selectedRepoName.value) return;
     loadingScripts.value = true;
     try {
-        const url = new URL(
-            window.location.origin + "/api/github/file-content",
-        );
-        url.searchParams.set("mode", "list");
-        url.searchParams.set("owner", selectedOwner.value);
-        url.searchParams.set("repo", selectedRepoName.value);
-        url.searchParams.set("branch", selectedRepoBranch.value);
-
-        const res = await fetch(url.toString(), {
-            method: "GET",
-            credentials: "include",
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "读取脚本列表失败");
-
-        const files = Array.isArray(data?.files) ? data.files : [];
+        const files = await createSelectedGithubProjectStorage().listAssets();
         mockScripts.value = files.filter((file) =>
             String(file?.path || "").startsWith("Stories/"),
         );
@@ -1329,66 +1263,26 @@ async function renameScript(script) {
 
     if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
         try {
-            const readUrl = new URL(
-                window.location.origin + "/api/github/file-content",
-            );
-            readUrl.searchParams.set("mode", "content");
-            readUrl.searchParams.set("owner", selectedOwner.value);
-            readUrl.searchParams.set("repo", selectedRepoName.value);
-            readUrl.searchParams.set("branch", selectedRepoBranch.value);
-            readUrl.searchParams.set("path", oldPath);
-
-            const readRes = await fetch(readUrl.toString(), {
-                method: "GET",
-                credentials: "include",
-            });
-            const readData = await readRes.json();
-            if (!readRes.ok) {
-                throw new Error(readData?.error || "读取原脚本失败");
-            }
+            const projectStorage = createSelectedGithubProjectStorage();
+            const oldAsset = await projectStorage.readAsset(oldPath);
 
             const updatedContent = isRail
-                ? String(readData?.content || "").replace(
+                ? String(oldAsset?.content || "").replace(
                       /^([ \t]*railId\s*:\s*)(.*)$/m,
                       `$1"${safeStem.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
                   )
-                : replaceStoryIdInYaml(String(readData?.content || ""), safeStem);
+                : replaceStoryIdInYaml(String(oldAsset?.content || ""), safeStem);
 
-            const createRes = await fetch("/api/github/commit-file", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    owner: selectedOwner.value,
-                    repo: selectedRepoName.value,
-                    branch: selectedRepoBranch.value,
-                    path: newPath,
-                    content: updatedContent,
-                    message: `${isRail ? "feat(rail)" : "feat(script)"}: rename ${oldPath} -> ${newPath}`,
-                }),
+            await projectStorage.writeAsset({
+                path: newPath,
+                content: updatedContent,
+                message: `${isRail ? "feat(rail)" : "feat(script)"}: rename ${oldPath} -> ${newPath}`,
             });
-            const createData = await createRes.json();
-            if (!createRes.ok) {
-                throw new Error(createData?.error || "创建新名称脚本失败");
-            }
-
-            const delRes = await fetch("/api/github/delete-file", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    owner: selectedOwner.value,
-                    repo: selectedRepoName.value,
-                    branch: selectedRepoBranch.value,
-                    path: oldPath,
-                    sha: readData?.sha,
-                    message: `${isRail ? "chore(rail)" : "chore(script)"}: delete old name ${oldPath}`,
-                }),
+            await projectStorage.deleteAsset({
+                path: oldPath,
+                sha: oldAsset?.sha,
+                message: `${isRail ? "chore(rail)" : "chore(script)"}: delete old name ${oldPath}`,
             });
-            const delData = await delRes.json();
-            if (!delRes.ok) {
-                throw new Error(delData?.error || "删除旧名称脚本失败");
-            }
 
             await reloadScriptsFromRepo();
             alert(`重命名成功：\n${oldFileName} -> ${newFileName}`);
@@ -1524,23 +1418,11 @@ async function openOutlineRail() {
         isCreatingScript.value = true;
         createScriptStatus.value = "正在创建剧情总纲...";
         try {
-            const response = await fetch("/api/github/commit-file", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    owner: selectedOwner.value,
-                    repo: selectedRepoName.value,
-                    branch: selectedRepoBranch.value,
-                    path: createdPath,
-                    content: buildNewRailYaml(safeStem),
-                    message: `feat(rail): create ${createdPath}`,
-                }),
+            await createSelectedGithubProjectStorage().writeAsset({
+                path: createdPath,
+                content: buildNewRailYaml(safeStem),
+                message: `feat(rail): create ${createdPath}`,
             });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error || "创建仓库总纲失败");
-            }
 
             const created = {
                 id: createdPath,
@@ -1616,23 +1498,11 @@ async function createNewScript() {
         isCreatingScript.value = true;
         createScriptStatus.value = "正在提交到仓库...";
         try {
-            const response = await fetch("/api/github/commit-file", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    owner: selectedOwner.value,
-                    repo: selectedRepoName.value,
-                    branch: selectedRepoBranch.value,
-                    path: createdPath,
-                    content: buildNewStoryYaml(safeStem),
-                    message: `feat(script): create ${createdPath}`,
-                }),
+            await createSelectedGithubProjectStorage().writeAsset({
+                path: createdPath,
+                content: buildNewStoryYaml(safeStem),
+                message: `feat(script): create ${createdPath}`,
             });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error || "创建仓库脚本失败");
-            }
 
             keyword.value = "";
 

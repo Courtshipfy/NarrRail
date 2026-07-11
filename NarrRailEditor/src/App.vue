@@ -235,12 +235,22 @@ import {
 import { validateRail } from "./utils/rail-validation.js";
 import { validateStory } from "./utils/validation.js";
 import { serializeGlobalConfigToYAML } from "./utils/global-config-yaml.js";
+import { createGithubProjectStorageAdapter } from "./utils/github-project-storage.js";
 import storage from "./utils/storage.js";
 import {
     getDialogueLineTexts,
     normalizeEditorDialogueNode,
     normalizeEditorStoryNodes,
 } from "./utils/dialogue-node.js";
+
+function createGithubStorageFromContext(context = {}) {
+    return createGithubProjectStorageAdapter({
+        owner: context.owner,
+        repo: context.repo,
+        branch: context.branch || "main",
+        rootPath: context.rootPath || "",
+    });
+}
 
 const nodes = ref([
     {
@@ -679,40 +689,17 @@ async function resolveStoryById(storyId) {
             ? selectedRailEntry.value
             : selectedGithubFileContext.value;
     if (githubContext?.owner && githubContext?.repo) {
-        const listUrl = new URL(
-            window.location.origin + "/api/github/file-content",
-        );
-        listUrl.searchParams.set("mode", "list");
-        listUrl.searchParams.set("owner", githubContext.owner);
-        listUrl.searchParams.set("repo", githubContext.repo);
-        listUrl.searchParams.set("branch", githubContext.branch || "main");
-        const listRes = await fetch(listUrl.toString(), {
-            method: "GET",
-            credentials: "include",
-        });
-        const listData = await listRes.json();
-        if (!listRes.ok) throw new Error(listData?.error || "读取脚本列表失败");
-        const match = (Array.isArray(listData?.files) ? listData.files : []).find(
+        const projectStorage = createGithubStorageFromContext(githubContext);
+        const assets = await projectStorage.listAssets();
+        const match = assets.find(
             (entry) =>
                 String(entry?.extension || "") === ".nrstory" &&
                 String(entry?.storyId || "") === normalized,
         );
         if (!match?.path) return null;
 
-        const contentUrl = new URL(
-            window.location.origin + "/api/github/file-content",
-        );
-        contentUrl.searchParams.set("owner", githubContext.owner);
-        contentUrl.searchParams.set("repo", githubContext.repo);
-        contentUrl.searchParams.set("branch", githubContext.branch || "main");
-        contentUrl.searchParams.set("path", match.path);
-        const res = await fetch(contentUrl.toString(), {
-            method: "GET",
-            credentials: "include",
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "读取脚本内容失败");
-        return importFromYAML(String(data?.content || ""));
+        const asset = await projectStorage.readAsset(match.path);
+        return importFromYAML(String(asset?.content || ""));
     }
 
     return null;
@@ -2430,32 +2417,18 @@ async function handleOpenRailFromLibrary(railEntry) {
         railEntry?.path
     ) {
         try {
-            const url = new URL(
-                window.location.origin + "/api/github/file-content",
-            );
-            url.searchParams.set("owner", railEntry.owner);
-            url.searchParams.set("repo", railEntry.repo);
-            url.searchParams.set("branch", railEntry.branch || "main");
-            url.searchParams.set("path", railEntry.path);
-
-            const response = await fetch(url.toString(), {
-                method: "GET",
-                credentials: "include",
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error || "读取总纲内容失败");
-            }
+            const projectStorage = createGithubStorageFromContext(railEntry);
+            const asset = await projectStorage.readAsset(railEntry.path);
 
             selectedGithubFileContext.value = {
                 owner: railEntry.owner,
                 repo: railEntry.repo,
                 branch: railEntry.branch || "main",
                 path: railEntry.path,
-                sha: data?.sha || "",
+                sha: asset?.sha || "",
             };
 
-            openRailData(importRailFromYAML(String(data?.content || "")), railEntry);
+            openRailData(importRailFromYAML(String(asset?.content || "")), railEntry);
             return;
         } catch (error) {
             alert(`打开 GitHub 总纲失败: ${error.message}`);
@@ -2490,24 +2463,10 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
         scriptEntry?.path
     ) {
         try {
-            const url = new URL(
-                window.location.origin + "/api/github/file-content",
-            );
-            url.searchParams.set("owner", scriptEntry.owner);
-            url.searchParams.set("repo", scriptEntry.repo);
-            url.searchParams.set("branch", scriptEntry.branch || "main");
-            url.searchParams.set("path", scriptEntry.path);
+            const projectStorage = createGithubStorageFromContext(scriptEntry);
+            const asset = await projectStorage.readAsset(scriptEntry.path);
 
-            const response = await fetch(url.toString(), {
-                method: "GET",
-                credentials: "include",
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error || "读取脚本内容失败");
-            }
-
-            const imported = importFromYAML(String(data?.content || ""));
+            const imported = importFromYAML(String(asset?.content || ""));
             const importedNodes = normalizeEditorStoryNodes(
                 safeClone(imported.nodes || []),
             );
@@ -2534,7 +2493,7 @@ async function handleOpenScriptFromLibrary(scriptEntry) {
                 repo: scriptEntry.repo,
                 branch: scriptEntry.branch || "main",
                 path: scriptEntry.path,
-                sha: data?.sha || "",
+                sha: asset?.sha || "",
             };
 
             handleAutoLayout();
@@ -3027,24 +2986,15 @@ async function handleExport() {
             ) {
                 if (isSavingToGithub.value) return;
                 isSavingToGithub.value = true;
-                const response = await fetch("/api/github/commit-file", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        owner: selectedGithubFileContext.value.owner,
-                        repo: selectedGithubFileContext.value.repo,
-                        branch: selectedGithubFileContext.value.branch || "main",
-                        path: selectedGithubFileContext.value.path,
-                        sha: selectedGithubFileContext.value.sha || undefined,
-                        content: yamlString,
-                        message: `feat(rail): update ${selectedGithubFileContext.value.path}`,
-                    }),
+                const projectStorage = createGithubStorageFromContext(
+                    selectedGithubFileContext.value,
+                );
+                const data = await projectStorage.writeAsset({
+                    path: selectedGithubFileContext.value.path,
+                    sha: selectedGithubFileContext.value.sha || undefined,
+                    content: yamlString,
+                    message: `feat(rail): update ${selectedGithubFileContext.value.path}`,
                 });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data?.error || "提交总纲到 GitHub 失败");
-                }
                 selectedGithubFileContext.value = {
                     ...selectedGithubFileContext.value,
                     sha: data?.content?.sha || selectedGithubFileContext.value.sha,
@@ -3108,27 +3058,15 @@ async function handleExport() {
             if (isSavingToGithub.value) return;
             isSavingToGithub.value = true;
 
-            const payload = {
-                owner: selectedGithubFileContext.value.owner,
-                repo: selectedGithubFileContext.value.repo,
-                branch: selectedGithubFileContext.value.branch || "main",
+            const projectStorage = createGithubStorageFromContext(
+                selectedGithubFileContext.value,
+            );
+            const data = await projectStorage.writeAsset({
                 path: selectedGithubFileContext.value.path,
                 sha: selectedGithubFileContext.value.sha || undefined,
                 content: yamlString,
                 message: `feat(script): update ${selectedGithubFileContext.value.path}`,
-            };
-
-            const response = await fetch("/api/github/commit-file", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
             });
-
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data?.error || "提交到 GitHub 失败");
-            }
 
             selectedGithubFileContext.value = {
                 ...selectedGithubFileContext.value,
@@ -3421,36 +3359,27 @@ async function syncGlobalConfigToRepoFromEditor() {
     isSyncingGlobalConfigFromEditor.value = true;
     try {
         let sha;
-
-        const readUrl = new URL(
-            window.location.origin + "/api/github/file-content",
-        );
-        readUrl.searchParams.set("mode", "content");
-        readUrl.searchParams.set("owner", owner);
-        readUrl.searchParams.set("repo", repo);
-        readUrl.searchParams.set("branch", branch);
+        const projectStorage = createGithubStorageFromContext({
+            owner,
+            repo,
+            branch,
+        });
         let detectedPath = "";
         for (const candidatePath of GLOBAL_CONFIG_CANDIDATE_PATHS) {
-            readUrl.searchParams.set("path", candidatePath);
-            const readResponse = await fetch(readUrl.toString(), {
-                method: "GET",
-                credentials: "include",
-            });
-            const readData = await readResponse.json();
-
-            if (readResponse.ok) {
+            try {
+                const asset = await projectStorage.readAsset(candidatePath);
                 detectedPath = candidatePath;
-                sha = readData?.sha || undefined;
+                sha = asset?.sha || undefined;
                 break;
-            }
-
-            const isNotFound =
-                readResponse.status === 404 ||
-                String(readData?.error || "")
-                    .toLowerCase()
-                    .includes("not found");
-            if (!isNotFound) {
-                throw new Error(readData?.error || "读取全局配置失败");
+            } catch (error) {
+                const isNotFound =
+                    error?.status === 404 ||
+                    String(error?.message || "")
+                        .toLowerCase()
+                        .includes("not found");
+                if (!isNotFound) {
+                    throw new Error(error?.message || "读取全局配置失败");
+                }
             }
         }
 
@@ -3462,28 +3391,14 @@ async function syncGlobalConfigToRepoFromEditor() {
             presetSpeakers: presetSpeakers.value,
         });
 
-        const payload = {
-            owner,
-            repo,
-            branch,
+        const data = await projectStorage.writeAsset({
             path: globalConfigRepoPathFromEditor.value,
             content,
             message: `chore(config): sync ${globalConfigRepoPathFromEditor.value}`,
-        };
-
-        if (sha) payload.sha = sha;
-
-        const commitResponse = await fetch("/api/github/commit-file", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+            sha,
         });
-        const commitData = await commitResponse.json();
-
-        if (!commitResponse.ok) {
-            throw new Error(commitData?.error || "同步全局配置失败");
-        }
+        globalConfigRepoPathFromEditor.value =
+            data?.content?.path || globalConfigRepoPathFromEditor.value;
     } catch (error) {
         alert(`同步全局配置失败: ${error.message}`);
     } finally {
