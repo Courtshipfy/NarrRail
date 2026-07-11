@@ -1,22 +1,27 @@
-﻿# NarrRail 脚本格式规范 v1
+﻿# NarrRail 故事格式规范 v1
 
 ## 1. 适用范围
 
-本文档定义 NarrRail 用于编辑器导入/导出、UE 插件导入和离线校验的脚本文件格式。
+本文档定义 NarrRail 主仓库拥有的故事文件格式契约，用于创作端导入/导出、项目级校验、Script Conversion、Import Package Review、Project Preview，以及下游 Story Consumer 的兼容实现。
 
 当前基准格式：YAML。
 
 - 剧情脚本与全局配置：`.nrstory`
-- 编辑器剧情总纲：`.nrrail`
+- Story Project 总纲 / 编排：`.nroutline`
+- Legacy 总纲后缀：`.nrrail`（只读或兼容编辑路径，后续新文件不再默认使用）
+
+UE 插件是当前 Story Consumer 之一。它可以读取 `.nrstory` 与 GlobalConfig，但不再定义主仓库的格式方向。后续 UE 兼容性应通过版本矩阵说明。
 
 ## 2. 文件类型
 
 NarrRail 当前支持两类 `.nrstory` 文件：
 
-- 剧情脚本：包含 `nodes` 和 `edges`，导入 UE 后生成 `UNarrRailStoryAsset`
-- 全局配置：`meta.configType: GlobalConfig`，导入 UE 后生成 `UNarrRailGlobalConfigAsset`
+- 剧情脚本：包含 `nodes` 和 `edges`，用于创作、校验、预览和导出给 Story Consumer
+- 全局配置：`meta.configType: GlobalConfig`，用于定义项目级变量和预设角色
 
-NarrRailEditor 额外支持 `.nrrail` 剧情总纲文件。总纲用于在 Web 编辑器中把多个 `.nrstory` 串联成章节/路线图，并支持跨脚本条件分支与预览。当前 `.nrrail` 只作为编辑器资产，UE 插件暂不导入。
+NarrRail Story Project 额外支持 `.nroutline` 总纲文件。总纲用于把多个 `.nrstory` 串联成章节、路线图或项目编排，并支持跨脚本条件分支与 Project Preview。
+
+`.nrrail` 是旧总纲后缀，应保持可读兼容。新建总纲应默认使用 `.nroutline`。
 
 ## 3. 剧情脚本根结构
 
@@ -386,14 +391,15 @@ presetSpeakers:
 
 - 全局配置文件也使用 `.nrstory` 后缀
 - 推荐文件名：`globalconfig.nrstory` 或 `global-config.nrstory`
-- UE 同步后生成 `UNarrRailGlobalConfigAsset`
 - 全局配置不需要 `nodes` 和 `edges`
-- 同步到同一故事仓库目录下的 `UNarrRailStoryAsset` 会自动绑定该 `UNarrRailGlobalConfigAsset`
-- 运行时会把全局变量注册到 GameInstance 级 `UNarrRailGlobalStateSubsystem`，多个 Session 共享同一份全局变量状态
+- Story Consumer 可以把 GlobalConfig 映射成自己的运行时配置资产或内存配置。
+- 当前 UE consumer 同步后会生成 `UNarrRailGlobalConfigAsset`，同一仓库下的剧情资产会自动引用该资产，并把全局变量注册到 GameInstance 级 `UNarrRailGlobalStateSubsystem`。
 
-## 16. 剧情总纲 `.nrrail`
+## 16. Story Project 总纲 `.nroutline`
 
-剧情总纲是单个剧情脚本之上的编排层。单个 `.nrstory` 继续负责对白、选择、变量操作和局部条件；`.nrrail` 负责决定多个脚本的顺序、分支与汇合关系。
+Story Project 总纲是单个剧情脚本之上的编排层。单个 `.nrstory` 继续负责对白、选择、变量操作和局部条件；`.nroutline` 负责决定多个脚本的顺序、分支与汇合关系。
+
+旧版 `.nrrail` 文件应保持可读兼容；新建总纲应默认使用 `.nroutline`。
 
 ### 16.1 根结构
 
@@ -594,9 +600,9 @@ edges:
     priority: 0
 ```
 
-## 17. UE 故事仓库同步
+## 17. Story Consumer compatibility: UE 故事仓库同步
 
-UE 插件通过 `Sync Stories` 同步本地故事仓库：
+当前 UE 插件是 NarrRail 的 Story Consumer。它通过 `Sync Stories` 同步本地故事仓库：
 
 - 配置位置：`Project Settings > Plugins > NarrRail`
 - `Story Repository Path`：本地故事仓库路径
@@ -617,7 +623,7 @@ UE 插件通过 `Sync Stories` 同步本地故事仓库：
 - 全局配置生成或更新 `UNarrRailGlobalConfigAsset`
 - 同一仓库下的剧情资产会自动引用该仓库的 GlobalConfig 资产
 - 仓库删除的文件会删除对应 UE 资产，删除前弹确认
-- 当前仅扫描 `*.nrstory`；`.nrrail` 总纲暂只在 NarrRailEditor 中使用，后续 UE 总纲资产实现时再接入同步。
+- 当前仅扫描 `*.nrstory`；`.nroutline` 与 legacy `.nrrail` 总纲暂只在 NarrRail authoring product 中使用。UE consumer 是否导入总纲应由后续 compatibility matrix 决定。
 
 ## 18. 校验规则
 

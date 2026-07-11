@@ -1,7 +1,8 @@
-# NarrRail 介绍页面内容与样式规范（Draft v0.4）
+# NarrRail Authoring Overview 页面内容与样式规范（Draft v0.5）
 
 > 更新：2026-05-22
-> 适配现状：NarrRailEditor 已具备图编辑 + 预览双模式、脚本库与全局配置能力
+> 状态：等待后续 Figma-first Story Project IA 重构
+> 适配方向：NarrRail 主仓库已经重新定位为剧本创作与辅助产品，Overview 页面不应再以 UE Runtime 能力作为产品中心
 
 适用范围：`NarrRailEditor/src/components/OverviewPage.vue`
 
@@ -9,9 +10,10 @@
 
 介绍页用于在用户进入编辑器前，建立统一认知：
 
-1. NarrRail 是“创作端 + 运行端”一体化方案，而不是单一编辑器。
-2. NarrRailEditor 负责创作与结构正确性，UE 插件负责运行时执行与引擎集成。
-3. 用户下一步操作清晰：返回主页、切换主题、进入编辑器。
+1. NarrRail 是面向 Narrative Creator 的 Story Project 创作工作台。
+2. 主体验围绕 GitHub-backed Story Project、结构化剧本编辑、项目审查、项目预览与导出。
+3. UE 插件是下游 Story Consumer 示例，不是 Overview 页面的一等产品主语。
+4. 用户下一步操作清晰：返回项目入口、切换主题、进入创作工作台。
 
 ## 2. 信息架构（IA）
 
@@ -19,10 +21,11 @@
 
 1. `Top Actions`
 2. `Hero`
-3. `NarrRailEditor Capability`
-4. `UE Runtime Plugin Capability`
-5. `Workflow`
-6. `Role Value`
+3. `Story Project Capability`
+4. `Authoring Workflow`
+5. `Script Conversion / Import Review`
+6. `Story Consumer Compatibility`
+7. `Role Value`
 
 ### 2.1 Top Actions
 
@@ -42,45 +45,55 @@
 要求：
 
 1. 一句话价值主张（标题 + 副标题）。
-2. 明确 NarrRail 的端到端链路：NarrRailEditor -> YAML -> UE Runtime。
+2. 明确 NarrRail 的创作链路：Story Project -> `.nrstory` / `.nroutline` -> Review Queue -> Preview -> Export。
 3. 配置“总览配图占位区”（当前不使用真实图片）。
 
 ## 3. 内容细化规范
 
-### 3.1 NarrRailEditor 能力区（必须覆盖）
+### 3.1 Story Project 能力区（必须覆盖）
 
-1. 节点类型支持（Dialogue / Choice / Jump / SetVariable / EmitEvent / End）。
-2. 编辑交互能力（拖拽、连线、右键建点、自动排布）。
-3. 内容编辑效率能力（多行对话、条件编辑、预览模式审校）。
-4. 数据能力（`.nrstory` 导入导出、实时校验、手动校验、自动保存）。
-5. 协作入口（脚本库、全局配置、仓库同步）。
+1. GitHub-backed Story Project 作为权威存储。
+2. `Stories/` + `Config/` 项目结构。
+3. `.nrstory` 内容文件与 `.nroutline` 项目编排。
+4. Project Review Queue 汇总跨文件问题。
+5. Project Preview 以项目为单位审校流程。
+6. Script Editor 支持 Graph View 和 Structured Script View 两种 `.nrstory` 视图。
 
 补充：
 - 预览模式文案建议强调“运行语义预览”，而非静态阅读。
 - 全局配置文件命名需使用 `.nrstory`（`globalconfig.nrstory` / `global-config.nrstory`）。
 
-### 3.2 UE 插件能力区（必须覆盖）
+### 3.2 Script Conversion / Import Review 区（必须覆盖）
 
-1. 会话控制接口能力（Start/Next/Choose/...）。
-2. 分支模式能力（SinglePass / ExhaustiveUntilComplete）。
-3. 条件与动作执行能力（变量、事件、跳转）。
-4. 资产导入与结构校验能力（含 Schema 演进）。
-5. Blueprint 集成与 PIE 调试闭环。
+1. 编剧提供 Word、Excel、TXT、剧本文稿或大纲。
+2. 转换输出 Story Project Import Package，而不是直接信任单个生成文件。
+3. `conversion-notes.md` 记录不确定、遗漏和需要人工确认的内容。
+4. Import Package Review 先审查、校验、修正，再合入权威 Story Project。
+5. hosted AI conversion service 是未来商业探索，不属于当前首屏承诺。
 
-### 3.3 Workflow 区（必须是四步）
+### 3.3 Story Consumer Compatibility 区（可弱化）
 
-1. Web 创作与校验
-2. 导出 `.nrstory`
-3. UE 导入并执行
-4. 调试与回流迭代
+1. UE 插件作为 Story Consumer 读取导出的 `.nrstory`。
+2. 主仓库保留格式兼容说明和版本契约。
+3. UE 插件与示例工程后续迁移到 `NarrRail-Unreal-Plugin`。
+4. 本区不得压过 Story Project 创作能力。
 
-### 3.4 Role Value 区（建议保留）
+### 3.4 Workflow 区（必须是五步）
+
+1. 创建或打开 GitHub-backed Story Project
+2. 编写 `.nrstory`，并用 `.nroutline` 编排项目
+3. 处理 Project Review Queue
+4. 使用 Project Preview 审校流程
+5. 导出给 Story Consumer
+
+### 3.5 Role Value 区（建议保留）
 
 角色最少覆盖：
 
 1. 叙事策划 / 编剧
-2. 客户端 / 技术美术
+2. Narrative Designer
 3. 项目负责人
+4. 客户端 / 技术美术（作为 Story Consumer 集成角色）
 
 ## 4. 配图策略（当前阶段）
 
@@ -90,7 +103,7 @@
 
 1. 保留未来图片应有的尺寸和位置。
 2. 卡片内写明“该位置应该放什么图”与“该图用于说明什么”。
-3. Hero、Web 区、UE 区各保留一个占位。
+3. Hero、Story Project 区、Review Queue / Preview 区各保留一个占位。
 
 后续接入真实配图时再替换占位内容，不改布局结构。
 
@@ -114,7 +127,7 @@
 
 1. 先结果后机制：先写能力结果，再写实现方式。
 2. 每条描述尽量 1-2 行，避免过长段落。
-3. 术语统一：`NarrRailEditor`、`.nrstory`、`Runtime`、`Story Asset`、`Blueprint`、`PIE`。
+3. 术语统一：`Story Project`、`Narrative Creator`、`.nrstory`、`.nroutline`、`Project Review Queue`、`Project Preview`、`Story Consumer`。
 
 ## 8. 验收标准（DoD）
 

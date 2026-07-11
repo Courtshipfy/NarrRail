@@ -1,8 +1,21 @@
-# NarrRail 技术架构文档
+# NarrRail UE Consumer 技术架构文档
 
 > 版本：v0.2（2026-05-22）
 > 适用范围：`I:\NarrRail`
-> 文档目标：作为 NarrRail 插件的技术总览与持续维护文档，清晰梳理框架、职责、接口与开发约束。
+> 文档状态：UE consumer 历史架构文档，等待迁移到 `NarrRail-Unreal-Plugin`
+> 文档目标：作为 NarrRail UE 插件的技术总览与持续维护文档，清晰梳理框架、职责、接口与开发约束。
+
+## 0. 当前定位
+
+NarrRail 主仓库已经重新定位为剧本创作与辅助产品仓库，负责 Story Project、`.nrstory` / `.nroutline` 格式、创作端校验、导入审查、预览与转换工作流。
+
+本文档描述的是 **UE Story Consumer** 的技术架构，而不是主仓库新的 authoring-product 架构。`NarrRail/` 插件源码与 `NarrRailUEHost/` 示例工程后续会 clean copy 到独立仓库 `NarrRail-Unreal-Plugin`。迁移前，本文档保留用于解释现有 UE 运行端能力和兼容性约束。
+
+新的 authoring-product 技术方向请优先参考：
+
+- `Docs/research/0039-product-technology-shape.md`
+- `Docs/research/0037-authoring-product-code-boundaries.md`
+- `Docs/adr/0001-split-unreal-consumer-repository.md`
 
 ## 1. 技术路线与语言策略
 
@@ -19,7 +32,7 @@
 - C#：负责离线工具链、CLI、脚本格式处理、自动化流水线辅助能力。
 - Blueprint：负责调用已暴露 API，不承载核心业务状态机。
 
-## 2. 插件总体框架
+## 2. UE 插件总体框架
 
 ## 2.1 当前模块（已存在）
 

@@ -1,8 +1,25 @@
-# NarrRail AVG 插件任务计划书（WBS 细分版，可勾选）
+# NarrRail UE 插件历史任务计划书（WBS 细分版，可勾选）
 
 > 版本：v0.3（2026-05-22）
 > 适用仓库：`I:\NarrRail`
-> 目标：交付可在 UE5.7 中生产使用的完整 AVG 插件（对话流程、故事线驱动、剧本配置、导入导出、编辑器内编辑）
+> 文档状态：历史 UE-first backlog，等待迁移到 `NarrRail-Unreal-Plugin`
+> 原目标：交付可在 UE5.7 中生产使用的完整 AVG 插件（对话流程、故事线驱动、剧本配置、导入导出、编辑器内编辑）
+
+## 0. 当前定位
+
+NarrRail 主仓库已经重新定位为剧本创作与辅助产品仓库。本文档保留的是早期 UE 插件交付计划，不再作为主仓库 authoring-product 的当前执行队列。
+
+新的主仓库工作应优先从 GitHub issues 进入，包括：
+
+- Story Project IA / Dashboard Figma 原型
+- Structured Script View 原型
+- NarrRail authoring design system
+- shared authoring core 抽取
+- Story Project domain model 和 Project Review Queue
+- project storage adapter
+- core regression tests
+
+UE Runtime、UE Editor、Blueprint、PIE、UEHost 相关任务后续应迁移到 `NarrRail-Unreal-Plugin`，或作为 Story Consumer compatibility 工作保留引用。
 
 ## 1. 使用规则（监督与打勾）
 

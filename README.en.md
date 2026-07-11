@@ -2,7 +2,9 @@
 
 [中文](./README.md)
 
-NarrRail is an AVG (Adventure / Visual Novel) toolchain composed of the **NarrRailEditor authoring app**, the **NarrRail Story Converter Codex Skill**, the **UE5.7 plugin runtime**, and the **NarrRailUEHost** development host project.
+NarrRail is being repositioned as a script creation and authoring-assistance product for interactive narrative projects. The main repository owns the Story Project workflow, `.nrstory` / `.nroutline` formats, validation, preview, and conversion workflows.
+
+> Documentation status: the Chinese README is now the canonical, up-to-date product positioning document. NarrRail is being repositioned around a Story Project authoring workbench and story-format ownership. The UE plugin and host project are now treated as Story Consumer code pending migration to `NarrRail-Unreal-Plugin`. This English README still contains older UE-first details and should be refreshed after the Chinese authoring-product docs settle.
 
 ## 1. NarrRailEditor
 
