@@ -4,9 +4,10 @@
 
 NarrRail 是一个面向互动叙事创作者的剧本创作与辅助产品。主仓库现在以 **Story Project 创作工作台**、`.nrstory` / `.nroutline` 故事格式、导入审查、预览校验和创作辅助流程为中心。
 
-UE 插件和示例工程已经迁移到独立仓库 [`NarrRail-Unreal-Plugin`](https://github.com/Courtshipfy/NarrRail-Unreal-Plugin)。它是 **Story Consumer**：下游运行端读取 NarrRail 导出的故事文件，并声明与主仓库格式版本的兼容关系。
+UE 插件： [`NarrRail-Unreal-Plugin`](https://github.com/Courtshipfy/NarrRail-Unreal-Plugin)
+Godot 插件：[`NarrRail-Godot-Plugin`](https://github.com/Courtshipfy/NarrRail-Godot-Plugin)
 
-## 1. 产品定位
+# 1. 产品定位
 
 NarrRail 的第一阶段用户是 Narrative Creator：编剧、叙事设计师，或需要组织互动剧情结构的创作者。
 
