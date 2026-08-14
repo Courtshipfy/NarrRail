@@ -53,9 +53,9 @@ outline suffix.
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 
-- [ ] T013 Run `npm test` in `NarrRailEditor`
-- [ ] T014 Run `npm run build` in `NarrRailEditor`
-- [ ] T015 Verify no `.nrrail` recognition remains in `NarrRailEditor/src` or `NarrRailEditor/api`
+- [x] T013 Run `npm test` in `NarrRailEditor`
+- [x] T014 Run `npm run build` in `NarrRailEditor`
+- [x] T015 Verify no `.nrrail` recognition remains in `NarrRailEditor/src` or `NarrRailEditor/api`
 - [ ] T016 Run `git diff --check` and review the implementation against `specs/0074-remove-nrrail-support/spec.md`
 
 ## Dependencies

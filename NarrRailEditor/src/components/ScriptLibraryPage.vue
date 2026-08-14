@@ -654,8 +654,8 @@ function toSortableTime(value) {
 const filteredScripts = computed(() => {
     const kw = keyword.value.toLowerCase();
     let result = mockScripts.value.filter((s) => {
-        const isRail = String(s.extension || "").toLowerCase() === ".nroutline";
-        if (isRail) return false;
+        const extension = String(s.extension || "").toLowerCase();
+        if (extension !== ".nrstory") return false;
         const inKeyword =
             !kw ||
             s.fileName.toLowerCase().includes(kw) ||
@@ -928,7 +928,10 @@ async function deleteScript(script) {
 }
 
 function openScript(script) {
-    if (String(script?.extension || "").toLowerCase() === ".nroutline") {
+    const extension = String(script?.extension || "").toLowerCase();
+    if (extension !== ".nrstory" && extension !== ".nroutline") return;
+
+    if (extension === ".nroutline") {
         emit("open-rail", {
             id: script.id,
             railId: script.railId || script.storyId,
@@ -1238,7 +1241,9 @@ async function renameScript(script) {
     const oldPath = String(script?.path || "");
     const oldFileName = String(script?.fileName || "");
     const oldStem = formatScriptDisplayName(oldFileName);
-    const isRail = String(script?.extension || "").toLowerCase() === ".nroutline";
+    const extension = String(script?.extension || "").toLowerCase();
+    const isRail = extension === ".nroutline";
+    if (extension !== ".nrstory" && !isRail) return;
     if (!oldPath || !oldFileName) return;
 
     const baseName = prompt("请输入新的脚本名称（不含扩展名）", oldStem);
