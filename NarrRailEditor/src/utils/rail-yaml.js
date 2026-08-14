@@ -125,7 +125,7 @@ export function exportRailToYAML(nodes, edges, meta) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${railId}.nrrail`;
+  a.download = `${railId}.nroutline`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

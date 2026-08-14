@@ -205,10 +205,10 @@ export default async function handler(req, res) {
         }))
         .filter((item) => {
           const lower = item.path.toLowerCase();
-          const isStoryScript =
-            lower.endsWith(".nrstory") || lower.endsWith(".nrrail");
+          const isStoryProjectAsset =
+            lower.endsWith(".nrstory") || lower.endsWith(".nroutline");
           const inRoot = rootPath ? item.path.startsWith(rootPath) : true;
-          return isStoryScript && inRoot;
+          return isStoryProjectAsset && inRoot;
         });
 
       const files = await mapWithConcurrency(candidates, 6, async (item) => {
@@ -229,14 +229,14 @@ export default async function handler(req, res) {
           }).catch(() => null),
         ]);
 
-        const extension = item.path.toLowerCase().endsWith(".nrrail")
-          ? ".nrrail"
+        const extension = item.path.toLowerCase().endsWith(".nroutline")
+          ? ".nroutline"
           : ".nrstory";
         const counts = contentInfo
           ? deriveNarrRailCounts(contentInfo.content)
           : { nodeCount: null, edgeCount: null };
         const fileStem = (item.path.split("/").pop() || "").replace(
-          /\.(nrstory|nrrail)$/i,
+          /\.(nrstory|nroutline)$/i,
           "",
         );
         const storyId =
@@ -244,7 +244,7 @@ export default async function handler(req, res) {
             ? extractMetaScalar(contentInfo.content, "storyId") || fileStem
             : fileStem;
         const railId =
-          extension === ".nrrail"
+          extension === ".nroutline"
             ? contentInfo
               ? extractMetaScalar(contentInfo.content, "railId") || fileStem
               : fileStem

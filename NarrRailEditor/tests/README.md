@@ -15,7 +15,7 @@ The current suite is intentionally centered on future shared-core seams rather t
 - Legacy Choice shape import compatibility
 - Deprecated `edges[].condition` rejection
 - GlobalConfig serialization, parsing, normalization, and invalid schema handling
-- `.nroutline` / legacy `.nrrail` outline parsing, serialization, and validation
+- `.nroutline` outline parsing, serialization, and validation
 - Shared-core outline-format and GlobalConfig entrypoints
 - Story preview runner behavior for dialogue, variables, conditions, choices, timers, events, and endings
 - Rail/project preview runner behavior across outline Story nodes
