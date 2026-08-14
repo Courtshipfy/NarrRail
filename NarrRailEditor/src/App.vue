@@ -206,7 +206,7 @@
         <input
             ref="fileInput"
             type="file"
-            accept=".nrstory,.nrrail"
+            accept=".nrstory,.nroutline"
             style="display: none"
             @change="handleFileChange"
         />
@@ -2833,7 +2833,14 @@ function handleFileChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (String(file.name || "").toLowerCase().endsWith(".nrrail")) {
+    const extension = String(file.name || "").toLowerCase().match(/\.[^.]+$/)?.[0];
+    if (extension !== ".nrstory" && extension !== ".nroutline") {
+        alert("仅支持 .nrstory 和 .nroutline 文件");
+        event.target.value = "";
+        return;
+    }
+
+    if (extension === ".nroutline") {
         const hasRailData = railNodes.value.length > 0 || railEdges.value.length > 0;
         if (
             assetMode.value === "rail" &&
@@ -2982,7 +2989,7 @@ async function handleExport() {
             if (
                 selectedGithubFileContext.value?.owner &&
                 selectedGithubFileContext.value?.repo &&
-                selectedGithubFileContext.value?.path?.endsWith(".nrrail")
+                selectedGithubFileContext.value?.path?.endsWith(".nroutline")
             ) {
                 if (isSavingToGithub.value) return;
                 isSavingToGithub.value = true;

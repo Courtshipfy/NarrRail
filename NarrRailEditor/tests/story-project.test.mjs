@@ -79,6 +79,10 @@ edges:
     PROJECT_ASSET_KINDS.outline,
   );
   assert.equal(
+    classifyProjectAsset({ path: "Stories/main_story.nrrail", content: outlineYaml }),
+    PROJECT_ASSET_KINDS.unknown,
+  );
+  assert.equal(
     classifyProjectAsset({ path: "Config/conversion-profile.md", content: "" }),
     PROJECT_ASSET_KINDS.conversionProfile,
   );

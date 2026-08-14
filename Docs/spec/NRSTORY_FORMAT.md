@@ -13,9 +13,8 @@ NarrRail Story Project 使用以下文件类型：
 | Story Script | `.nrstory` | 单个互动剧情脚本，包含节点和边 |
 | GlobalConfig | `.nrstory` | 项目级变量和预设角色配置，使用 `meta.configType: GlobalConfig` 标识 |
 | Story Outline | `.nroutline` | 项目级故事编排，引用多个 `.nrstory` |
-| Legacy Outline | `.nrrail` | 旧总纲后缀，只用于兼容读取或迁移 |
 
-当前基准序列化格式为 YAML。新文件应优先使用 `.nrstory` 和 `.nroutline`，不应再新增 `.nrrail`。
+当前基准序列化格式为 YAML。Story Project 仅支持 `.nrstory` 和 `.nroutline` 文件后缀。
 
 ## 2. 版本
 

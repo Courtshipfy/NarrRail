@@ -82,7 +82,7 @@ export function classifyProjectAsset(input = {}) {
   const lowerPath = path.toLowerCase();
   const fileName = fileNameFromPath(path).toLowerCase();
 
-  if (lowerPath.endsWith(".nroutline") || lowerPath.endsWith(".nrrail")) {
+  if (lowerPath.endsWith(".nroutline")) {
     return PROJECT_ASSET_KINDS.outline;
   }
 
@@ -115,7 +115,6 @@ export function normalizeProjectAsset(input = {}) {
     path,
     kind,
     content: String(input.content ?? ""),
-    legacy: path.toLowerCase().endsWith(".nrrail"),
     source: input.source || "project",
   };
 }

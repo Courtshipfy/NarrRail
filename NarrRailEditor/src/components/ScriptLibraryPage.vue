@@ -654,7 +654,7 @@ function toSortableTime(value) {
 const filteredScripts = computed(() => {
     const kw = keyword.value.toLowerCase();
     let result = mockScripts.value.filter((s) => {
-        const isRail = String(s.extension || "").toLowerCase() === ".nrrail";
+        const isRail = String(s.extension || "").toLowerCase() === ".nroutline";
         if (isRail) return false;
         const inKeyword =
             !kw ||
@@ -928,7 +928,7 @@ async function deleteScript(script) {
 }
 
 function openScript(script) {
-    if (String(script?.extension || "").toLowerCase() === ".nrrail") {
+    if (String(script?.extension || "").toLowerCase() === ".nroutline") {
         emit("open-rail", {
             id: script.id,
             railId: script.railId || script.storyId,
@@ -1238,7 +1238,7 @@ async function renameScript(script) {
     const oldPath = String(script?.path || "");
     const oldFileName = String(script?.fileName || "");
     const oldStem = formatScriptDisplayName(oldFileName);
-    const isRail = String(script?.extension || "").toLowerCase() === ".nrrail";
+    const isRail = String(script?.extension || "").toLowerCase() === ".nroutline";
     if (!oldPath || !oldFileName) return;
 
     const baseName = prompt("请输入新的脚本名称（不含扩展名）", oldStem);
@@ -1250,7 +1250,7 @@ async function renameScript(script) {
         return;
     }
 
-    const newFileName = `${safeStem}${isRail ? ".nrrail" : ".nrstory"}`;
+    const newFileName = `${safeStem}${isRail ? ".nroutline" : ".nrstory"}`;
     const newPath = `Stories/${newFileName}`;
 
     if (newPath === oldPath) return;
@@ -1337,7 +1337,7 @@ async function renameScript(script) {
             path: newPath,
             storyId: safeStem,
             railId: isRail ? safeStem : entry.railId,
-            extension: isRail ? ".nrrail" : entry.extension,
+            extension: isRail ? ".nroutline" : entry.extension,
             updatedAt: new Date().toISOString(),
             localStorageKey: targetStorageKey,
         };
@@ -1374,7 +1374,7 @@ function createLocalRailEntry({ safeStem, fileName, createdPath }) {
     const created = {
         id: `r-${Date.now()}`,
         fileName,
-        extension: ".nrrail",
+        extension: ".nroutline",
         path: createdPath,
         storyId: safeStem,
         railId: safeStem,
@@ -1402,7 +1402,7 @@ function createLocalRailEntry({ safeStem, fileName, createdPath }) {
 async function openOutlineRail() {
     const existing =
         mockScripts.value.find(
-            (s) => String(s.extension || "").toLowerCase() === ".nrrail",
+            (s) => String(s.extension || "").toLowerCase() === ".nroutline",
         ) || null;
 
     if (existing) {
@@ -1411,8 +1411,8 @@ async function openOutlineRail() {
     }
 
     const safeStem = "main_story";
-    const fileName = "main_story.nrrail";
-    const createdPath = "Stories/main_story.nrrail";
+    const fileName = "main_story.nroutline";
+    const createdPath = "Stories/main_story.nroutline";
 
     if (!usingMockData.value && selectedOwner.value && selectedRepoName.value) {
         isCreatingScript.value = true;
@@ -1427,7 +1427,7 @@ async function openOutlineRail() {
             const created = {
                 id: createdPath,
                 fileName,
-                extension: ".nrrail",
+                extension: ".nroutline",
                 path: createdPath,
                 storyId: safeStem,
                 railId: safeStem,
@@ -1562,7 +1562,7 @@ function formatDate(iso) {
 }
 
 function formatScriptDisplayName(fileName) {
-    return String(fileName || "").replace(/\.(nrstory|nrrail)$/i, "");
+    return String(fileName || "").replace(/\.(nrstory|nroutline)$/i, "");
 }
 
 onMounted(async () => {

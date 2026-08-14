@@ -10,7 +10,6 @@
 
 - 剧情脚本与全局配置：`.nrstory`
 - Story Project 总纲 / 编排：`.nroutline`
-- Legacy 总纲后缀：`.nrrail`（只读或兼容编辑路径，后续新文件不再默认使用）
 
 Unreal 插件是外部 Story Consumer 之一。它可以读取 `.nrstory` 与 GlobalConfig，但源码、UE 设置和兼容细节由 [`NarrRail-Unreal-Plugin`](https://github.com/Courtshipfy/NarrRail-Unreal-Plugin) 维护；主仓库只定义中立格式方向。
 
@@ -23,7 +22,7 @@ NarrRail 当前支持两类 `.nrstory` 文件：
 
 NarrRail Story Project 额外支持 `.nroutline` 总纲文件。总纲用于把多个 `.nrstory` 串联成章节、路线图或项目编排，并支持跨脚本条件分支与 Project Preview。
 
-`.nrrail` 是旧总纲后缀，应保持可读兼容。新建总纲应默认使用 `.nroutline`。
+`.nroutline` 是 Story Project 唯一支持的总纲后缀。
 
 ## 3. 剧情脚本根结构
 
@@ -400,7 +399,7 @@ presetSpeakers:
 
 Story Project 总纲是单个剧情脚本之上的编排层。单个 `.nrstory` 继续负责对白、选择、变量操作和局部条件；`.nroutline` 负责决定多个脚本的顺序、分支与汇合关系。
 
-旧版 `.nrrail` 文件应保持可读兼容；新建总纲应默认使用 `.nroutline`。
+Story Project 总纲文件必须使用 `.nroutline` 后缀。
 
 ### 16.1 根结构
 

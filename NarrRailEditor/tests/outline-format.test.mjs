@@ -97,11 +97,11 @@ import {
 }
 
 {
-  const importedLegacyNrrail = parseOutlineFromYAML(`
+  const importedOutlineWithMissingStory = parseOutlineFromYAML(`
 meta:
   schemaVersion: 1
-  railId: legacy_outline
-  title: Legacy outline
+  railId: unresolved_outline
+  title: Unresolved outline
   entryNodeId: rail_missing_story
 nodes:
   - nodeId: rail_missing_story
@@ -110,7 +110,7 @@ nodes:
     storyId: missing_story
 edges: []
 `);
-  const result = validateOutlineDocument(importedLegacyNrrail, {
+  const result = validateOutlineDocument(importedOutlineWithMissingStory, {
     storyEntries: [{ storyId: "chapter_01" }],
   });
 

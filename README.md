@@ -41,8 +41,6 @@ Config/
 - `.nroutline`：项目级故事编排，负责把多个 `.nrstory` 组织成章节、路线或总纲。
 - `Config/global-config.nrstory`：项目级变量和预设角色配置。
 
-旧的 `.nrrail` 总纲后缀是兼容格式。新文件应优先使用 `.nroutline`。
-
 ## 3. 当前创作端
 
 `NarrRailEditor/` 是当前 Vue 3 + Vite 创作端。
@@ -53,7 +51,7 @@ Config/
 - Condition 多分支：每个条件分支对应 `condition-N` 输出，未命中时走 `condition-fallback`
 - 全局变量与预设角色管理
 - `.nrstory` 导入导出
-- `.nroutline` / legacy `.nrrail` 总纲能力正在迁移中
+- `.nroutline` 总纲创作、校验与项目预览
 - 实时校验 + 手动校验
 - 本地自动保存兜底
 - 运行语义预览
@@ -126,7 +124,7 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),cp=require
 - `Docs/spec/NRSTORY_FORMAT.md`：`.nrstory` / `.nroutline` 中立格式契约
 - `Docs/02_runtime/SCRIPT_FORMAT.md`：运行时侧格式说明和历史入口
 - `Docs/story-consumers/NARRRAIL_UNREAL_PLUGIN.md`：Unreal Story Consumer 仓库入口
-- `Docs/06_planning/OUTLINE_EXTENSION_MIGRATION.md`：`.nrrail` 到 `.nroutline` 迁移说明
+- `Docs/06_planning/OUTLINE_EXTENSION_MIGRATION.md`：`.nroutline` 唯一总纲后缀说明
 - `NarrRailEditor/README.md`：当前创作端说明
 - `.codex/skills/narrrail-story-converter/`：剧情文稿转换 skill
 

@@ -42,7 +42,6 @@ Config/
 - `.nroutline`: project-level story outline that composes multiple `.nrstory` files into chapters, routes, or a larger structure.
 - `Config/global-config.nrstory`: project-level variables and preset speakers.
 
-Legacy `.nrrail` files are compatibility-only outline files. New outlines should use `.nroutline`.
 
 ## Current Authoring App
 
@@ -54,7 +53,7 @@ Current capabilities:
 - Multi-branch Condition nodes with `condition-N` outputs and `condition-fallback`
 - Global variables and preset speakers
 - `.nrstory` import/export
-- `.nroutline` / legacy `.nrrail` migration path
+- `.nroutline` authoring, validation, and project preview
 - Real-time and manual validation
 - Local autosave fallback
 - Runtime-semantics preview
