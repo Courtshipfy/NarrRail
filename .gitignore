@@ -30,6 +30,7 @@ NarrRailUEHost/Build-NarrRailUEHost.cmd
 
 # Agent local files
 .claude/
+.workbuddy/
 
 # Zed editor local files
 .zed/
